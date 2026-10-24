@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+asyncpg
+pydantic
+reportlab
+plotly
+argon2-cffi
+httpx
+pytest
+pytest-asyncio
