@@ -38,7 +38,7 @@ async def lifespan(app):
 
 app = FastAPI(
     title="StockDesk Inventory & POS",
-    version="1.1.0",
+    version="1.2.0",
     lifespan=lifespan,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
@@ -262,13 +262,13 @@ async def forecasts(
             await service.authorize(c, u, tenant, "forecast")
             products = service.rows(
                 await c.fetch(
-                    "SELECT p.*,(SELECT MAX(s.created) FROM sale_items i JOIN sales s ON s.id=i.sale AND s.tenant=i.tenant WHERE i.product=p.id AND i.tenant=p.tenant AND s.status='completed') AS last_sale FROM products p WHERE p.tenant=$1 ORDER BY p.name",
+                    "SELECT p.*,COALESCE((SELECT SUM(l.quantity-l.received) FROM purchase_lines l JOIN purchase_orders o ON o.tenant=l.tenant AND o.id=l.purchase WHERE l.tenant=p.tenant AND l.product=p.id AND o.status IN ('open','partial')),0) AS incoming,(SELECT MAX(s.created) FROM sale_items i JOIN sales s ON s.id=i.sale AND s.tenant=i.tenant WHERE i.product=p.id AND i.tenant=p.tenant AND s.status='completed') AS last_sale FROM products p WHERE p.tenant=$1 ORDER BY p.name",
                     tenant,
                 )
             )
             daily = service.rows(
                 await c.fetch(
-                    "SELECT i.product,(s.created AT TIME ZONE 'UTC')::date::text AS day,SUM(i.quantity)::bigint AS units,SUM(i.quantity*i.price)::bigint AS gross FROM sale_items i JOIN sales s ON s.id=i.sale AND s.tenant=i.tenant WHERE s.tenant=$1 AND s.status='completed' AND s.created>=now()-interval '120 days' GROUP BY i.product,2",
+                    "SELECT i.product,(s.created AT TIME ZONE 'UTC')::date::text AS day,SUM(i.quantity) AS units,SUM(i.line_total)::bigint AS gross FROM sale_items i JOIN sales s ON s.id=i.sale AND s.tenant=i.tenant WHERE s.tenant=$1 AND s.status='completed' AND s.created>=now()-interval '120 days' GROUP BY i.product,2",
                     tenant,
                 )
             )
@@ -312,3 +312,8 @@ async def unexpected_error(request, exc):
         status_code=500,
         headers={"X-Request-ID": request_id},
     )
+
+
+from .api.retail import router as retail_router
+
+app.include_router(retail_router)

@@ -517,10 +517,11 @@ export default function Forecasts({
               The variation range is a rough historical variability estimate,
               not a calibrated confidence interval. Reorder quantity = expected
               daily sales × (supplier lead time + coverage days) × safety
-              allowance − current stock, rounded up and floored at zero. Open
-              purchase orders are not tracked and are not deducted. Stockout
-              estimates assume no replenishment. Sales missed while out of
-              stock, promotions, holidays and market changes are not modeled.
+              allowance − current stock − outstanding purchase quantities,
+              rounded up and floored at zero. Open purchase quantities reduce
+              reorder suggestions. Stockout estimates assume no replenishment.
+              Sales missed while out of stock, promotions, holidays and market
+              changes are not modeled.
             </p>
             <p>
               Historical sales exclude invoices currently marked returned, so a

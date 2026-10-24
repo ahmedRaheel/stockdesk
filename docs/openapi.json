@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StockDesk Inventory & POS",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "paths": {
     "/api/health": {
@@ -1250,12 +1250,1578 @@
           }
         }
       }
+    },
+    "/api/v1/tenants/{tenant}/lookups": {
+      "get": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Lookups",
+        "operationId": "lookups_api_v1_tenants__tenant__lookups_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "category",
+                "unit",
+                "payment_method",
+                "adjustment_reason",
+                "return_reason",
+                "customer_segment"
+              ],
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "include_inactive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Inactive"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Create Lookup",
+        "operationId": "create_lookup_api_v1_tenants__tenant__lookups_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LookupWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/lookups/{identifier}": {
+      "put": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Update Lookup",
+        "operationId": "update_lookup_api_v1_tenants__tenant__lookups__identifier__put",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LookupWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Get Lookup",
+        "operationId": "get_lookup_api_v1_tenants__tenant__lookups__identifier__get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/customers": {
+      "get": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Customers",
+        "operationId": "customers_api_v1_tenants__tenant__customers_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Create Customer",
+        "operationId": "create_customer_api_v1_tenants__tenant__customers_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/customers/{customer}/statement": {
+      "get": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Statement",
+        "operationId": "statement_api_v1_tenants__tenant__customers__customer__statement_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Customer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/credit-requests": {
+      "post": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Request Credit",
+        "operationId": "request_credit_api_v1_tenants__tenant__credit_requests_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Credit Requests",
+        "operationId": "credit_requests_api_v1_tenants__tenant__credit_requests_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/credit-requests/{identifier}/decision": {
+      "post": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Decide Credit",
+        "operationId": "decide_credit_api_v1_tenants__tenant__credit_requests__identifier__decision_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Decision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/recoveries": {
+      "post": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Recovery",
+        "operationId": "recovery_api_v1_tenants__tenant__recoveries_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Recovery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/installment-plans": {
+      "post": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Create Plan",
+        "operationId": "create_plan_api_v1_tenants__tenant__installment_plans_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Plan"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/customers/{customer}/promises": {
+      "post": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Promise",
+        "operationId": "promise_api_v1_tenants__tenant__customers__customer__promises_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Customer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Promise"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/credit-overview": {
+      "get": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Overview",
+        "operationId": "overview_api_v1_tenants__tenant__credit_overview_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/customers/{customer}/statement.pdf": {
+      "get": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Statement Pdf",
+        "operationId": "statement_pdf_api_v1_tenants__tenant__customers__customer__statement_pdf_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Customer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/batches": {
+      "get": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Batches",
+        "operationId": "batches_api_v1_tenants__tenant__batches_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "product",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Product"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/inventory-alerts": {
+      "get": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Inventory Alerts",
+        "operationId": "inventory_alerts_api_v1_tenants__tenant__inventory_alerts_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/held-bills": {
+      "get": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Held Bills",
+        "operationId": "held_bills_api_v1_tenants__tenant__held_bills_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Hold Bill",
+        "operationId": "hold_bill_api_v1_tenants__tenant__held_bills_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HoldBill"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/held-bills/{identifier}": {
+      "delete": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Delete Held",
+        "operationId": "delete_held_api_v1_tenants__tenant__held_bills__identifier__delete",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/tills": {
+      "get": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Tills",
+        "operationId": "tills_api_v1_tenants__tenant__tills_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Open Till",
+        "operationId": "open_till_api_v1_tenants__tenant__tills_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenTill"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/tills/{identifier}/cash-movements": {
+      "post": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Move Cash",
+        "operationId": "move_cash_api_v1_tenants__tenant__tills__identifier__cash_movements_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CashMovement"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/tills/{identifier}/close": {
+      "post": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Close Till",
+        "operationId": "close_till_api_v1_tenants__tenant__tills__identifier__close_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseTill"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/customers/{identifier}": {
+      "get": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Get Customer",
+        "operationId": "get_customer_api_v1_tenants__tenant__customers__identifier__get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
       "Adjustment": {
         "properties": {
+          "lot": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Lot",
+            "default": ""
+          },
+          "expires": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires"
+          },
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Id"
+          },
+          "reason_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Id"
+          },
           "request": {
             "type": "string",
             "maxLength": 100,
@@ -1277,9 +2843,16 @@
             "title": "Type"
           },
           "quantity": {
-            "type": "integer",
-            "maximum": 1000000.0,
-            "minimum": 1.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
             "title": "Quantity"
           },
           "notes": {
@@ -1300,8 +2873,110 @@
         ],
         "title": "Adjustment"
       },
+      "CashMovement": {
+        "properties": {
+          "request": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Request"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "IN",
+              "OUT"
+            ],
+            "title": "Type"
+          },
+          "amount": {
+            "type": "integer",
+            "maximum": 100000000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Amount"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "request",
+          "type",
+          "amount",
+          "reason"
+        ],
+        "title": "CashMovement"
+      },
       "Checkout": {
         "properties": {
+          "held_bill_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Held Bill Id"
+          },
+          "prescription_reference": {
+            "type": "string",
+            "maxLength": 150,
+            "title": "Prescription Reference",
+            "default": ""
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "paid_now": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100000000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid Now"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "payment_method_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Method Id"
+          },
           "request": {
             "type": "string",
             "maxLength": 100,
@@ -1369,6 +3044,28 @@
         ],
         "title": "Checkout"
       },
+      "CloseTill": {
+        "properties": {
+          "counted_cash": {
+            "type": "integer",
+            "maximum": 100000000000.0,
+            "minimum": 0.0,
+            "title": "Counted Cash"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "counted_cash"
+        ],
+        "title": "CloseTill"
+      },
       "Credentials": {
         "properties": {
           "email": {
@@ -1392,6 +3089,101 @@
         ],
         "title": "Credentials"
       },
+      "CreditRequest": {
+        "properties": {
+          "customer": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Customer"
+          },
+          "proposed_limit": {
+            "type": "integer",
+            "maximum": 100000000000.0,
+            "minimum": 0.0,
+            "title": "Proposed Limit"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "customer",
+          "proposed_limit",
+          "reason"
+        ],
+        "title": "CreditRequest"
+      },
+      "CustomerWrite": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 30,
+            "title": "Phone",
+            "default": ""
+          },
+          "search_aliases": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Search Aliases",
+            "default": ""
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Address",
+            "default": ""
+          },
+          "reference_contact": {
+            "type": "string",
+            "maxLength": 250,
+            "title": "Reference Contact",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CustomerWrite"
+      },
+      "Decision": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected"
+            ],
+            "title": "Decision"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "decision",
+          "note"
+        ],
+        "title": "Decision"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1405,8 +3197,191 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HoldBill": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SaleLine"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "items"
+        ],
+        "title": "HoldBill"
+      },
+      "LookupWrite": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "category",
+              "unit",
+              "payment_method",
+              "adjustment_reason",
+              "return_reason",
+              "customer_segment"
+            ],
+            "title": "Kind"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "pattern": "^[a-z0-9_-]+$",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "name_ur": {
+            "type": "string",
+            "maxLength": 150,
+            "title": "Name Ur",
+            "default": ""
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active",
+            "default": true
+          },
+          "sort_order": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Sort Order",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "code",
+          "name"
+        ],
+        "title": "LookupWrite"
+      },
+      "OpenTill": {
+        "properties": {
+          "opening_cash": {
+            "type": "integer",
+            "maximum": 100000000000.0,
+            "minimum": 0.0,
+            "title": "Opening Cash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "opening_cash"
+        ],
+        "title": "OpenTill"
+      },
+      "Plan": {
+        "properties": {
+          "receivable": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Receivable"
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "weekly",
+              "fortnightly",
+              "monthly"
+            ],
+            "title": "Frequency"
+          },
+          "installments": {
+            "type": "integer",
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Installments"
+          },
+          "first_due": {
+            "type": "string",
+            "format": "date",
+            "title": "First Due"
+          },
+          "markup": {
+            "type": "integer",
+            "maximum": 100000000000.0,
+            "minimum": 0.0,
+            "title": "Markup",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "receivable",
+          "frequency",
+          "installments",
+          "first_due"
+        ],
+        "title": "Plan"
+      },
       "ProductCreate": {
         "properties": {
+          "expiry_required": {
+            "type": "boolean",
+            "title": "Expiry Required",
+            "default": false
+          },
+          "generic_name": {
+            "type": "string",
+            "maxLength": 150,
+            "title": "Generic Name",
+            "default": ""
+          },
+          "strength": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Strength",
+            "default": ""
+          },
+          "prescription_required": {
+            "type": "boolean",
+            "title": "Prescription Required",
+            "default": false
+          },
           "name": {
             "type": "string",
             "maxLength": 150,
@@ -1416,8 +3391,36 @@
           "category": {
             "type": "string",
             "maxLength": 80,
-            "minLength": 1,
-            "title": "Category"
+            "title": "Category",
+            "default": ""
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "unit_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Id"
+          },
+          "search_aliases": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Search Aliases",
+            "default": ""
           },
           "barcode": {
             "type": "string",
@@ -1439,11 +3442,18 @@
             "default": 0
           },
           "reorder": {
-            "type": "integer",
-            "maximum": 1000000000.0,
-            "minimum": 0.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
             "title": "Reorder",
-            "default": 5
+            "default": "5"
           },
           "sku": {
             "type": "string",
@@ -1452,18 +3462,24 @@
             "title": "Sku"
           },
           "initial": {
-            "type": "integer",
-            "maximum": 1000000000.0,
-            "minimum": 0.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
             "title": "Initial",
-            "default": 0
+            "default": "0"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "name",
-          "category",
           "price",
           "sku"
         ],
@@ -1471,6 +3487,28 @@
       },
       "ProductUpdate": {
         "properties": {
+          "expiry_required": {
+            "type": "boolean",
+            "title": "Expiry Required",
+            "default": false
+          },
+          "generic_name": {
+            "type": "string",
+            "maxLength": 150,
+            "title": "Generic Name",
+            "default": ""
+          },
+          "strength": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Strength",
+            "default": ""
+          },
+          "prescription_required": {
+            "type": "boolean",
+            "title": "Prescription Required",
+            "default": false
+          },
           "name": {
             "type": "string",
             "maxLength": 150,
@@ -1480,8 +3518,36 @@
           "category": {
             "type": "string",
             "maxLength": 80,
-            "minLength": 1,
-            "title": "Category"
+            "title": "Category",
+            "default": ""
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "unit_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Id"
+          },
+          "search_aliases": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Search Aliases",
+            "default": ""
           },
           "barcode": {
             "type": "string",
@@ -1503,11 +3569,18 @@
             "default": 0
           },
           "reorder": {
-            "type": "integer",
-            "maximum": 1000000000.0,
-            "minimum": 0.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
             "title": "Reorder",
-            "default": 5
+            "default": "5"
           },
           "active": {
             "type": "boolean",
@@ -1519,10 +3592,37 @@
         "type": "object",
         "required": [
           "name",
-          "category",
           "price"
         ],
         "title": "ProductUpdate"
+      },
+      "Promise": {
+        "properties": {
+          "promised_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Promised Date"
+          },
+          "amount": {
+            "type": "integer",
+            "maximum": 100000000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Amount"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Notes",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "promised_date",
+          "amount"
+        ],
+        "title": "Promise"
       },
       "PurchaseCreate": {
         "properties": {
@@ -1572,9 +3672,16 @@
             "title": "Product"
           },
           "quantity": {
-            "type": "integer",
-            "maximum": 1000000.0,
-            "minimum": 1.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
             "title": "Quantity"
           },
           "unit_cost": {
@@ -1595,6 +3702,24 @@
       },
       "ReceiveLine": {
         "properties": {
+          "lot": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Lot",
+            "default": ""
+          },
+          "expires": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires"
+          },
           "product": {
             "type": "string",
             "maxLength": 100,
@@ -1602,9 +3727,16 @@
             "title": "Product"
           },
           "quantity": {
-            "type": "integer",
-            "maximum": 1000000.0,
-            "minimum": 1.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
             "title": "Quantity"
           }
         },
@@ -1642,6 +3774,49 @@
         ],
         "title": "ReceivePurchase"
       },
+      "Recovery": {
+        "properties": {
+          "request": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Request"
+          },
+          "customer": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Customer"
+          },
+          "amount": {
+            "type": "integer",
+            "maximum": 100000000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Amount"
+          },
+          "method": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Method"
+          },
+          "reference": {
+            "type": "string",
+            "maxLength": 150,
+            "title": "Reference",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "request",
+          "customer",
+          "amount",
+          "method"
+        ],
+        "title": "Recovery"
+      },
       "ReturnSale": {
         "properties": {
           "reason": {
@@ -1667,9 +3842,16 @@
             "title": "Id"
           },
           "quantity": {
-            "type": "integer",
-            "maximum": 1000000.0,
-            "minimum": 1.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
             "title": "Quantity"
           }
         },

@@ -12,7 +12,7 @@ def test_public_contract_rejects_fractional_stock_and_unknown_fields():
     valid = dict(sku="RICE-1", name="Rice", category="Pantry", price=100, initial=0)
     assert ProductCreate(**valid).cost == 0
     with pytest.raises(ValidationError):
-        ProductCreate(**{**valid, "initial": 1.5})
+        ProductCreate(**{**valid, "initial": 1.0001})
     with pytest.raises(ValidationError):
         ProductCreate(**{**valid, "tenant": "spoofed"})
     with pytest.raises(ValidationError):

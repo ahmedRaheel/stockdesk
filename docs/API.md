@@ -2,7 +2,7 @@
 
 Interactive reference: `/api/docs`; OpenAPI JSON: `/api/openapi.json`.
 
-The API uses tenant IDs in resource paths. Every endpoint rechecks active membership, role permissions and business status. Never use a tenant ID as authorization. Money is integer minor units; quantities are whole units. JSON contracts reject unknown fields. Validation returns HTTP 422 with `error` and field paths. Business validation returns 400, forbidden access 403, missing records 404 and purchasing conflicts 409. Every processed response receives `X-Request-ID` for support correlation.
+The API uses tenant IDs in resource paths. Every endpoint rechecks active membership, role permissions and business status. Never use a tenant ID as authorization. Money is integer minor units; quantities support up to three decimals for fractional units. JSON contracts reject unknown fields. Validation returns HTTP 422 with `error` and field paths. Business validation returns 400, forbidden access 403, missing records 404 and purchasing conflicts 409. Every processed response receives `X-Request-ID` for support correlation.
 
 ## Trusted server / native client
 
@@ -52,3 +52,33 @@ with httpx.Client(base_url="http://localhost:8080", timeout=30) as client:
 The full schemas are generated from the actual Pydantic contracts. Catalog creation is not idempotent by request ID; SKU uniqueness prevents duplicate products. Supplier creation is unique by tenant and name. Checkout, adjustments, purchase orders and receipts require `request`. Persist that identifier with an unchanged submission across retries; do not silently generate a new one after an uncertain result.
 
 PDF routes and forecasts remain available at `/api/invoices/{sale_id}.pdf?tenant=...`, `/api/products/{id}/barcode.pdf?tenant=...`, and `/api/forecasts?tenant=...`. Administrative UI operations remain on the legacy workspace API. `/api/health` checks database readiness; `/api/live` reports process liveness.
+
+## Retail resources added in 1.2
+
+All paths below use `/api/v1/tenants/{tenant}`. Read exact fields and response contracts in generated OpenAPI.
+
+| Methods | Path | Behavior |
+|---|---|---|
+| GET, POST | `/lookups` | Search/list by kind; create database reference data |
+| GET, PUT | `/lookups/{id}` | Historical lookup read; edit display names/active/order, immutable code/kind |
+| GET, POST | `/customers` | Customer search and registration |
+| GET | `/customers/{id}/statement` | Running ledger, documents, installment and payment history |
+| GET | `/customers/{id}/statement.pdf` | Download statement |
+| POST | `/customers/{id}/promises` | Record payment promise |
+| GET, POST | `/credit-requests` | Request enabled credit limit |
+| POST | `/credit-requests/{id}/decision` | Approve/reject with maker/checker rule |
+| POST | `/recoveries` | Idempotent repayment; `request`, `customer`, `amount`, `method`, `reference` |
+| POST | `/installment-plans` | Schedule receivable with optional fixed markup |
+| GET | `/credit-overview` | Ageing and scheduled dues; not a predictive risk model |
+| GET | `/batches`, `/inventory-alerts` | Batch stock and expiry views |
+| GET, POST | `/held-bills` | Cashier-owned server drafts |
+| DELETE | `/held-bills/{id}` | Discard own unused draft |
+| GET, POST | `/tills` | Own sessions and opening cash |
+| POST | `/tills/{id}/cash-movements` | Idempotent signed cash record with reason |
+| POST | `/tills/{id}/close` | Counted cash, variance note, repeated-close protection |
+
+Catalog writes accept `category_id`, `unit_id`, `search_aliases`, `expiry_required`, `generic_name`, `strength` and `prescription_required`. Legacy category text must resolve to an active lookup. Unit is fixed after creation. Stock IN and purchase receipts accept `lot` and `expires`; OUT may target `batch_id`.
+
+Checkout adds `customer_id`, `paid_now`, `due_date`, `payment_method_id`, `prescription_reference` and optional `held_bill_id`. `paid_now` is applied to the invoice, while `tendered` is the cash handed over including change. Invoice total remains the full sale value; credit amount is total minus paid now. Cash-mode and payment lookup must agree. Partial payment means paid-now plus receivable, not multiple payment tenders.
+
+Product responses and receipt lines omit `cost` for roles without that permission. Customer ledger is append-only. Every credit, batch, sales and cash side effect runs in the tenant transaction. Holds and till openings have different retry semantics: a duplicate open till returns conflict; a held bill ID deduplicates an unchanged draft. Customer creation/credit requests/plan creation are not generic idempotent endpoints; inspect state after uncertain results.

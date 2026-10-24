@@ -4,7 +4,9 @@
 
 StockDesk is a modular monolith with an independent FastAPI service and React client. PostgreSQL owns the inventory ledger. The frontend is a consumer, not the source of business rules. Another trusted server or native client can authenticate with an expiring bearer token and call the JSON API without rendering React.
 
-- `app/api/contracts.py`: validated public write contracts; reject unknown fields and fractional unit quantities.
+- `app/api/contracts.py`: validated public write contracts; reject unknown fields; fractional quantity contracts are limited to three decimals, with whole-unit validation in the domain.
+- `app/api/retail.py`: database lookups, customer credit, installment schedules, batch alerts, held bills and tills.
+- `app/features/credit.py`: immutable credit ledger, repayments, schedules and return reversal.
 - `app/api/router.py`: versioned catalog, sales, inventory and purchasing resource endpoints.
 - `app/features/catalog.py`, `inventory.py`, `sales.py`, `tenancy.py`: application commands.
 - `app/features/purchasing/service.py`: suppliers, orders, partial receipts and cancellation.
@@ -38,12 +40,12 @@ The following are explicit remaining requirements, not features claimed in this 
 | Capability | Required implementation and acceptance gate |
 |---|---|
 | Branches, warehouses and bins | Stock balance per tenant/location/product; transfers with dispatch/receipt states; location-scoped permissions; reconciliation tests |
-| Weighed goods / scales | Fixed-precision base quantities, UOM conversion, pack sizes, decimal rounding, scale protocols and variable-weight barcode parsing; hardware acceptance tests |
-| Perishables | Batch/lot balances, expiry dates, FEFO allocation, waste reasons, recall traceability and expired-item checkout policy |
+| Weighed goods / scales | Base decimal quantities and money rounding implemented; pack conversion, scale protocols and variable-weight barcode parsing still required |
+| Perishables | Batch/expiry and FEFO implemented; recall workflows, category policies and vendor/physical acceptance still required |
 | Inventory counts | Blind count sessions, count snapshots, variance approval, adjustments against concurrent movements |
 | Purchasing maturity | Supplier editing/archive, approval limits, expected dates, goods-receipt reversals, supplier returns, invoice matching and payables |
-| Forecast integration | Subtract outstanding incoming purchase quantities, use supplier lead distributions, stockout-censored demand, replenishment per location, model monitoring |
-| Checkout operations | Register/till shifts, cash opening/closing, drawer reconciliation, split tenders, held sales, partial item returns and manager overrides |
+| Forecast integration | Outstanding PO deduction implemented; add supplier lead distributions, stockout-censored demand, replenishment per location, model monitoring |
+| Checkout operations | Basic cashier tills and held bills implemented; add split tenders, partial returns, manager overrides and hardware integration |
 | Promotions and loyalty | Price books, effective dates, rule precedence, mix-and-match, loyalty balances and customer consent |
 | Offline operations | Device identity, signed local journal, sync/idempotency, stock conflict policy and recovery drill; offline is not browser caching alone |
 | Payments and fiscalization | Gateway adapters and reconciliation, hardware terminals, local tax/fiscal invoice adapter and jurisdiction-specific acceptance |
@@ -52,4 +54,6 @@ The following are explicit remaining requirements, not features claimed in this 
 | SaaS lifecycle | Subscription billing, quotas, tenant onboarding, data export/retention, admin support controls, SSO/MFA and security review |
 | Large catalogs | Server-side search/cursor paging throughout the UI, scan lookup endpoint, query plans, reporting read models and storage budgets |
 
-Deploy this release as a single-stock-location, whole-unit inventory/POS application after acceptance testing. It is not yet a full grocery chain platform or a certified fiscal POS. Do not add microservices before operational boundaries and measured bottlenecks justify them.
+Deploy this release as a single-stock-location inventory/POS with weighted units application after acceptance testing. It is not yet a full grocery chain platform or a certified fiscal POS. Do not add microservices before operational boundaries and measured bottlenecks justify them.
+
+See RELEASE-1.2.md for the authoritative current scope and operating constraints.

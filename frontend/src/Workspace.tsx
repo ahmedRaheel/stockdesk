@@ -33,8 +33,26 @@ import { ROLES, permissions } from "./rules";
 import PlotlyChart from "./PlotlyChart";
 import Forecasts from "./Forecasts";
 import Purchasing from "./Purchasing";
+import Retail from "./Retail";
+import Tills from "./Tills";
+import BatchAlerts from "./BatchAlerts";
+import LookupSelect from "./LookupSelect";
+import CustomerSelect from "./CustomerSelect";
 import { send } from "./api";
 const titles: any = {
+  tills: [
+    "Till sessions",
+    "Opening cash, cash movements, and closing reconciliation.",
+  ],
+  batches: [
+    "Batches & expiry",
+    "FEFO stock allocation, near-expiry alerts, and batch adjustments.",
+  ],
+  khata: ["Customers & khata", "Credit sales, recoveries, and installments."],
+  lookups: [
+    "Lookup management",
+    "Manage business reference data and Urdu labels.",
+  ],
   purchasing: ["Purchasing", "Supplier orders and goods receiving."],
   forecasts: [
     "Sales forecasts & insights",
@@ -66,6 +84,10 @@ const titles: any = {
   ],
 };
 const icons: any = {
+  tills: Receipt,
+  batches: AlertTriangle,
+  khata: Users,
+  lookups: SlidersHorizontal,
   purchasing: Package,
   forecasts: ArrowUpRight,
   dashboard: LayoutDashboard,
@@ -113,6 +135,79 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     [tendered, setTendered] = useState(""),
     [receipt, setReceipt] = useState<any>(null),
     [page, setPage] = useState(0);
+  const [heldBills, setHeldBills] = useState<any[]>([]),
+    [heldId, setHeldId] = useState("");
+  async function refreshHeld() {
+    const r = await fetch("/api/v1/tenants/" + tenant + "/held-bills");
+    const d = await r.json();
+    if (!r.ok) throw Error(d.error);
+    setHeldBills(d.items);
+  }
+  useEffect(() => {
+    if (tenant && can("sale")) refreshHeld().catch((e) => setError(e.message));
+  }, [tenant, view]);
+  async function holdCurrent() {
+    if (!cart.length || busy) return;
+    setBusy(true);
+    try {
+      await send("/api/v1/tenants/" + tenant + "/held-bills", {
+        id: crypto.randomUUID(),
+        label: customer || "Held bill " + new Date().toLocaleTimeString(),
+        items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
+        customer_id: customerId || null,
+      });
+      setCart([]);
+      setHeldId("");
+      await refreshHeld();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  function resumeHeld(id: string) {
+    const bill = heldBills.find((b) => b.id === id);
+    if (!bill) return;
+    const lines = bill.payload.items.map((i: any) => {
+      const p = data.products.find((p: any) => p.id === i.id && p.active);
+      if (!p) throw Error("A held product is no longer active.");
+      return { ...p, quantity: Number(i.quantity) };
+    });
+    setCart(lines);
+    setHeldId(id);
+    setCustomerId(bill.payload.customer_id || "");
+    setCreditMode(false);
+    setDiscount("0");
+    setTaxRate("0");
+    setToast("Bill resumed at current prices. Review totals and stock.");
+  }
+  const [prescriptionRef, setPrescriptionRef] = useState("");
+  const [customerId, setCustomerId] = useState(""),
+    [creditMode, setCreditMode] = useState(false),
+    [paidNow, setPaidNow] = useState("0"),
+    [dueDate, setDueDate] = useState(""),
+    [methodId, setMethodId] = useState("");
+  const [language, setLanguage] = useState<"en" | "ur">(() =>
+    localStorage.getItem("stockdesk-language") === "ur" ? "ur" : "en",
+  );
+  const navUr: Record<string, string> = {
+    dashboard: "خلاصہ",
+    products: "مصنوعات",
+    pos: "فروخت",
+    sales: "رسیدیں",
+    movements: "اسٹاک",
+    purchasing: "خریداری",
+    khata: "کھاتہ",
+    forecasts: "پیش گوئی",
+    lookups: "فہرستیں",
+    team: "عملہ",
+    audit: "سرگرمیاں",
+    businesses: "کاروبار",
+    settings: "ترتیبات",
+  };
+  useEffect(() => {
+    localStorage.setItem("stockdesk-language", language);
+  }, [language]);
   const [discount, setDiscount] = useState("0"),
     [taxRate, setTaxRate] = useState("0");
   const [density, setDensity] = useState<"comfortable" | "compact">(() =>
@@ -184,6 +279,12 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
   async function switchTenant(id: string) {
     if (busy) return;
     setCart([]);
+    setCustomerId("");
+    setCreditMode(false);
+    setMethodId("");
+    setHeldId("");
+    setHeldBills([]);
+    setPrescriptionRef("");
     pending.current = null;
     setTenant(id);
     setData({ ...initial, user: data.user, tenants: data.tenants });
@@ -249,9 +350,17 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
           initial: Number(f.initial || 0),
           reorder: Number(f.reorder),
           active: f.active === "on",
+          expiry_required: f.expiry_required === "on",
+          prescription_required: f.prescription_required === "on",
         });
       } else if (kind === "movement") {
-        const payload = { ...f, quantity: Number(f.quantity) };
+        const payload = {
+          ...f,
+          quantity: Number(f.quantity),
+          expires: f.expires || null,
+          batch_id: modal.item?.batch_id || null,
+          reason_id: f.reason_id || null,
+        };
         const signature = JSON.stringify(payload);
         if (pendingMove.current?.signature !== signature)
           pendingMove.current = { signature, id: crypto.randomUUID() };
@@ -296,7 +405,15 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
   }
   const products = (data.products || []).filter(
     (p: any) =>
-      (p.name + " " + p.sku + " " + (p.barcode || ""))
+      (
+        p.name +
+        " " +
+        p.sku +
+        " " +
+        (p.barcode || "") +
+        " " +
+        (p.search_aliases || "")
+      )
         .toLowerCase()
         .includes(search.toLowerCase()) &&
       (!category || p.category === category) &&
@@ -305,12 +422,16 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
   const categories = [
     ...new Set<string>(data.products.map((p: any) => p.category)),
   ].sort();
-  const subtotal = cart.reduce((s, p) => s + p.price * p.quantity, 0),
+  const subtotal = cart.reduce(
+      (s, p) => s + Math.round(p.price * p.quantity),
+      0,
+    ),
     discountCents = Math.round(Number(discount || 0) * 100),
     taxBps = Math.round(Number(taxRate || 0) * 100),
     tax = Math.floor(((subtotal - discountCents) * taxBps + 5000) / 10000),
     total = subtotal - discountCents + tax,
     units = cart.reduce((s, p) => s + p.quantity, 0);
+  const collected = creditMode ? Math.round(Number(paidNow) * 100) : total;
   function add(p: any) {
     if (busy) return;
     const old = cart.find((x) => x.id === p.id);
@@ -344,6 +465,12 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     const payload = {
       items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
       customer,
+      held_bill_id: heldId || null,
+      prescription_reference: prescriptionRef,
+      customer_id: customerId || null,
+      paid_now: creditMode ? Math.round(Number(paidNow) * 100) : null,
+      due_date: creditMode ? dueDate : null,
+      payment_method_id: methodId || null,
       payment,
       discount: discountCents,
       tax_bps: taxBps,
@@ -360,7 +487,13 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
       });
       setCart([]);
       setTendered("");
+      setHeldId("");
+      await refreshHeld();
+      setPrescriptionRef("");
       setCustomer("");
+      setCustomerId("");
+      setCreditMode(false);
+      setPaidNow("0");
       setDiscount("0");
       setTaxRate("0");
       pending.current = null;
@@ -424,6 +557,13 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
         p.reorder,
       ]);
     }
+    if (view !== "sales" && !can("cost")) {
+      const index = headers.indexOf("Cost");
+      if (index >= 0) {
+        headers.splice(index, 1);
+        rows.forEach((row) => row.splice(index, 1));
+      }
+    }
     const safe = (v: any) =>
       '"' +
       String(v)
@@ -449,9 +589,11 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     "dashboard",
     ...(can("forecast") ? ["forecasts"] : []),
     "products",
-    ...(can("sale") ? ["pos", "sales"] : []),
+    ...(can("sale") ? ["pos", "sales", "tills"] : []),
     "movements",
-    ...(can("stock") ? ["purchasing"] : []),
+    ...(can("stock") ? ["purchasing", "batches"] : []),
+    ...(can("credit") ? ["khata"] : []),
+    ...(can("settings") ? ["lookups"] : []),
     ...(can("team") ? ["team", "audit"] : []),
     "businesses",
     ...(can("settings") ? ["settings"] : []),
@@ -460,7 +602,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
       (p: any) => p.active && p.stock <= p.reorder,
     ),
     value = data.products.reduce(
-      (s: number, p: any) => s + p.stock * p.cost,
+      (s: number, p: any) => s + p.stock * (p.cost || 0),
       0,
     );
   const active = data.products.filter((p: any) => p.active);
@@ -513,7 +655,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
           type === "number"
             ? name === "price" || name === "cost"
               ? "0.01"
-              : "1"
+              : ["initial", "quantity", "reorder"].includes(name)
+                ? "0.001"
+                : "1"
             : undefined
         }
         maxLength={type === "text" ? 150 : undefined}
@@ -562,23 +706,25 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                 onClick={() => navigate(v)}
               >
                 <Icon size={18} />
-                {v === "dashboard"
-                  ? "Overview"
-                  : v === "pos"
-                    ? "Point of sale"
-                    : v === "team"
-                      ? "Team & roles"
-                      : v === "businesses"
-                        ? "Businesses"
-                        : v === "audit"
-                          ? "Activity log"
-                          : v === "products"
-                            ? "Inventory"
-                            : v === "forecasts"
-                              ? "Forecasts"
-                              : v === "movements"
-                                ? "Stock ledger"
-                                : titles[v][0]}
+                {language === "ur"
+                  ? navUr[v]
+                  : v === "dashboard"
+                    ? "Overview"
+                    : v === "pos"
+                      ? "Point of sale"
+                      : v === "team"
+                        ? "Team & roles"
+                        : v === "businesses"
+                          ? "Businesses"
+                          : v === "audit"
+                            ? "Activity log"
+                            : v === "products"
+                              ? "Inventory"
+                              : v === "forecasts"
+                                ? "Forecasts"
+                                : v === "movements"
+                                  ? "Stock ledger"
+                                  : titles[v][0]}
                 {v === "products" && !!low.length && (
                   <small>{low.length}</small>
                 )}
@@ -617,6 +763,12 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
             Workspace <span>/</span> <b>{titles[view][0]}</b>
           </div>
           <div className="header-right">
+            <button
+              className="mini"
+              onClick={() => setLanguage(language === "en" ? "ur" : "en")}
+            >
+              {language === "en" ? "اردو" : "English"}
+            </button>
             <button
               className="density-control"
               aria-label="Toggle table density"
@@ -764,9 +916,18 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         Receipt,
                       ],
                       [
-                        "Inventory value",
-                        money(value),
-                        "Stock at purchase cost",
+                        can("cost") ? "Inventory value" : "Units on hand",
+                        can("cost")
+                          ? money(value)
+                          : String(
+                              active.reduce(
+                                (s: number, p: any) => s + Number(p.stock),
+                                0,
+                              ),
+                            ),
+                        can("cost")
+                          ? "Stock at purchase cost"
+                          : "Active inventory",
                         Package,
                       ],
                       [
@@ -936,6 +1097,37 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   currency={currency}
                   products={data.products}
                   onReceived={() => load()}
+                />
+              )}
+              {view === "tills" && can("sale") && (
+                <Tills key={tenant} tenant={tenant} currency={currency} />
+              )}
+              {view === "batches" && can("stock") && (
+                <BatchAlerts
+                  key={tenant}
+                  tenant={tenant}
+                  onAdjust={(p) => open("movement", p)}
+                />
+              )}
+              {view === "khata" && can("credit") && (
+                <Retail
+                  key={tenant + "khata"}
+                  tenant={tenant}
+                  currency={currency}
+                  approve={can("credit_approve")}
+                  lookupAdmin={can("settings")}
+                  language={language}
+                />
+              )}
+              {view === "lookups" && can("settings") && (
+                <Retail
+                  key={tenant + "lookups"}
+                  tenant={tenant}
+                  currency={currency}
+                  approve={can("credit_approve")}
+                  lookupAdmin={true}
+                  mode="lookups"
+                  language={language}
                 />
               )}
               {view === "forecasts" && can("forecast") && (
@@ -1175,10 +1367,41 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         className="icon-button"
                         aria-label="Clear cart"
                         disabled={busy}
-                        onClick={() => setCart([])}
+                        onClick={() => {
+                          setCart([]);
+                          setHeldId("");
+                        }}
                       >
                         <Trash2 size={16} />
                       </button>
+                    </div>
+                    <div className="actions">
+                      <button
+                        className="mini"
+                        disabled={busy || !cart.length || !!heldId}
+                        onClick={holdCurrent}
+                      >
+                        Hold bill
+                      </button>
+                      <select
+                        aria-label="Resume held bill"
+                        value={heldId}
+                        disabled={busy || !!cart.length}
+                        onChange={(e) => {
+                          try {
+                            resumeHeld(e.target.value);
+                          } catch (err: any) {
+                            setError(err.message);
+                          }
+                        }}
+                      >
+                        <option value="">Resume held bill…</option>
+                        {heldBills.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <label className="customer">
                       <Users size={16} />
@@ -1190,6 +1413,17 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         onChange={(e) => setCustomer(e.target.value)}
                       />
                     </label>
+                    {can("credit") && (
+                      <CustomerSelect
+                        tenant={tenant}
+                        value={customerId}
+                        onChange={(id, c) => {
+                          setCustomerId(id);
+                          setCustomer(c?.name || "");
+                          if (!id) setCreditMode(false);
+                        }}
+                      />
+                    )}
                     <div className="cart-items">
                       {cart.length ? (
                         cart.map((p) => (
@@ -1205,7 +1439,26 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                 >
                                   <Minus size={12} />
                                 </button>
-                                <span>{p.quantity}</span>
+                                <input
+                                  aria-label={"Quantity " + p.name}
+                                  type="number"
+                                  min="0.001"
+                                  step="0.001"
+                                  max={p.stock}
+                                  value={p.quantity}
+                                  onChange={(e) =>
+                                    setCart(
+                                      cart.map((item) =>
+                                        item.id === p.id
+                                          ? {
+                                              ...item,
+                                              quantity: Number(e.target.value),
+                                            }
+                                          : item,
+                                      ),
+                                    )
+                                  }
+                                />
                                 <button
                                   disabled={busy}
                                   aria-label={"Increase " + p.name}
@@ -1215,7 +1468,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                 </button>
                               </div>
                             </div>
-                            <strong>{money(p.price * p.quantity)}</strong>
+                            <strong>
+                              {money(Math.round(p.price * p.quantity))}
+                            </strong>
                           </div>
                         ))
                       ) : (
@@ -1264,18 +1519,84 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       <span>Total</span>
                       <strong>{money(total)}</strong>
                     </div>
+                    {cart.some((p) => p.prescription_required) && (
+                      <label className="field">
+                        <span>Prescription reference</span>
+                        <input
+                          required
+                          value={prescriptionRef}
+                          onChange={(e) => setPrescriptionRef(e.target.value)}
+                        />
+                      </label>
+                    )}
+                    {can("credit") && customerId && (
+                      <>
+                        <label className="checkbox">
+                          <input
+                            type="checkbox"
+                            checked={creditMode}
+                            disabled={busy}
+                            onChange={(e) => setCreditMode(e.target.checked)}
+                          />
+                          Part payment / khata · ادھار
+                        </label>
+                        {creditMode && (
+                          <div className="form-grid">
+                            <label className="field">
+                              <span>Pay now ({currency})</span>
+                              <input
+                                type="number"
+                                min="0"
+                                max={total / 100}
+                                step="0.01"
+                                required
+                                value={paidNow}
+                                onChange={(e) => setPaidNow(e.target.value)}
+                              />
+                            </label>
+                            <label className="field">
+                              <span>Credit due date</span>
+                              <input
+                                type="date"
+                                required
+                                value={dueDate}
+                                onChange={(e) => setDueDate(e.target.value)}
+                              />
+                            </label>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    <LookupSelect
+                      tenant={tenant}
+                      kind="payment_method"
+                      label="Payment method"
+                      value={methodId}
+                      required={false}
+                      onChange={(id, item) => {
+                        setMethodId(id);
+                        setPayment(item?.code === "cash" ? "cash" : "external");
+                      }}
+                      language={language}
+                    />
                     <div className="payment-tabs">
                       <button
                         disabled={busy}
                         className={payment === "cash" ? "selected" : ""}
-                        onClick={() => setPayment("cash")}
+                        onClick={() => {
+                          setPayment("cash");
+                          setMethodId("");
+                        }}
                       >
                         Cash
                       </button>
                       <button
                         disabled={busy}
                         className={payment === "external" ? "selected" : ""}
-                        onClick={() => setPayment("external")}
+                        onClick={() => {
+                          setPayment("external");
+                          setMethodId("");
+                        }}
                       >
                         Paid externally
                       </button>
@@ -1296,7 +1617,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                           {money(
                             Math.max(
                               0,
-                              Math.round(Number(tendered) * 100) - total,
+                              Math.round(Number(tendered) * 100) - collected,
                             ),
                           )}
                         </small>
@@ -1316,7 +1637,11 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         discountCents < 0 ||
                         taxBps < 0 ||
                         taxBps > 10000 ||
-                        (payment === "cash" && Number(tendered) * 100 < total)
+                        (payment === "cash" &&
+                          Number(tendered) * 100 < collected) ||
+                        collected < 0 ||
+                        collected > total ||
+                        (creditMode && (!customerId || !dueDate))
                       }
                       onClick={checkout}
                     >
@@ -1793,13 +2118,62 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                             "text",
                             modal.item?.sku,
                           )}
-                      {field(
-                        "Category",
-                        "category",
-                        "text",
-                        modal.item?.category,
-                      )}
+                      <LookupSelect
+                        tenant={tenant}
+                        kind="category"
+                        label="Category"
+                        name="category_id"
+                        value={modal.item?.category_id}
+                        language={language}
+                      />
                     </div>
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        name="expiry_required"
+                        defaultChecked={modal.item?.expiry_required || false}
+                      />
+                      Batch and expiry required
+                    </label>
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        name="prescription_required"
+                        defaultChecked={
+                          modal.item?.prescription_required || false
+                        }
+                      />
+                      Prescription reference required at sale
+                    </label>
+                    {field(
+                      "Generic name (optional)",
+                      "generic_name",
+                      "text",
+                      modal.item?.generic_name || "",
+                      false,
+                    )}
+                    {field(
+                      "Strength (optional)",
+                      "strength",
+                      "text",
+                      modal.item?.strength || "",
+                      false,
+                    )}
+                    <LookupSelect
+                      tenant={tenant}
+                      kind="unit"
+                      label="Selling unit"
+                      name="unit_id"
+                      value={modal.item?.unit_id}
+                      language={language}
+                    />
+                    {field(
+                      "Roman Urdu / search aliases",
+                      "search_aliases",
+                      "text",
+                      modal.item?.search_aliases || "",
+                      false,
+                    )}
                     {field(
                       "Barcode (optional; SKU is also scannable)",
                       "barcode",
@@ -1879,13 +2253,38 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                     <div className="form-grid">
                       <label className="field">
                         <span>Movement</span>
-                        <select name="type">
-                          <option value="IN">Stock IN</option>
+                        <select
+                          name="type"
+                          defaultValue={modal.item?.batch_id ? "OUT" : "IN"}
+                        >
+                          {!modal.item?.batch_id && (
+                            <option value="IN">Stock IN</option>
+                          )}
                           <option value="OUT">Stock OUT</option>
                         </select>
                       </label>
                       {field("Quantity", "quantity", "number", 1)}
                     </div>
+                    <LookupSelect
+                      tenant={tenant}
+                      kind="adjustment_reason"
+                      label="Adjustment reason"
+                      name="reason_id"
+                    />
+                    {field(
+                      "Batch number (required for tracked IN)",
+                      "lot",
+                      "text",
+                      "",
+                      false,
+                    )}
+                    {field(
+                      "Expiry date (required for tracked IN)",
+                      "expires",
+                      "date",
+                      "",
+                      false,
+                    )}
                     {field("Reason / reference", "notes")}
                     <p className="hint">
                       Stock OUT cannot exceed available stock. Every change is
@@ -2076,10 +2475,12 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                 <div>
                   <b>{i.name}</b>
                   <small>
-                    {i.quantity} × {money(i.price)}
+                    {i.quantity} {i.unit_name} × {money(i.price)}
                   </small>
                 </div>
-                <strong>{money(i.price * i.quantity)}</strong>
+                <strong>
+                  {money(i.line_total ?? Math.round(i.price * i.quantity))}
+                </strong>
               </div>
             ))}
             <div className="cart-math">
@@ -2106,6 +2507,14 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               <br />
               Served by {receipt.sale.actor}
             </p>
+            <div className="cart-math">
+              <span>Paid now / وصول</span>
+              <b>{money(receipt.sale.paid_now ?? receipt.sale.total)}</b>
+            </div>
+            <div className="cart-math">
+              <span>Khata / ادھار</span>
+              <b>{money(receipt.sale.credit_amount || 0)}</b>
+            </div>
             <p className="receipt-thanks">Thank you for your business.</p>
             <div className="modal-actions no-print">
               <button className="secondary" onClick={() => setReceipt(null)}>

@@ -105,3 +105,12 @@ def test_last_sale_from_all_time_metadata():
     p["last_sale"] = (TODAY - timedelta(days=140)).isoformat()
     f = analyze([p], [], today=TODAY)["forecasts"][0]
     assert f["days_unsold"] == 140
+
+
+def test_open_purchase_quantities_reduce_reorder_not_stockout():
+    from decimal import Decimal
+
+    p = {**product(), "incoming": Decimal("100.5")}
+    f = analyze([p], sales(), today=TODAY)["forecasts"][0]
+    assert f["reorder_qty"] == 68
+    assert f["stockout_in_days"] == 3

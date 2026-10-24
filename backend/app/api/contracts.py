@@ -1,11 +1,15 @@
 """Public write contracts. All monetary amounts are integer minor units."""
 
 from typing import Annotated, Literal
+from decimal import Decimal
+from datetime import date
 from pydantic import BaseModel, ConfigDict, Field
 
 Identifier = Annotated[str, Field(min_length=1, max_length=100)]
 Money = Annotated[int, Field(strict=True, ge=0, le=100_000_000_000)]
-Quantity = Annotated[int, Field(strict=True, ge=1, le=1_000_000)]
+Quantity = Annotated[
+    Decimal, Field(gt=0, le=1_000_000, max_digits=12, decimal_places=3)
+]
 
 
 class Contract(BaseModel):
@@ -19,17 +23,28 @@ class Credentials(Contract):
 
 
 class ProductFields(Contract):
+    expiry_required: bool = False
+    generic_name: str = Field(default="", max_length=150)
+    strength: str = Field(default="", max_length=80)
+    prescription_required: bool = False
     name: str = Field(min_length=1, max_length=150)
-    category: str = Field(min_length=1, max_length=80)
+    category: str = Field(default="", max_length=80)
+    category_id: str | None = None
+    unit_id: str | None = None
+    search_aliases: str = Field(default="", max_length=500)
     barcode: str = Field(default="", max_length=60)
     price: Money
     cost: Money = 0
-    reorder: int = Field(default=5, strict=True, ge=0, le=1_000_000_000)
+    reorder: Decimal = Field(
+        default=Decimal(5), ge=0, le=1_000_000_000, decimal_places=3
+    )
 
 
 class ProductCreate(ProductFields):
     sku: str = Field(min_length=1, max_length=50)
-    initial: int = Field(default=0, strict=True, ge=0, le=1_000_000_000)
+    initial: Decimal = Field(
+        default=Decimal(0), ge=0, le=1_000_000_000, decimal_places=3
+    )
 
 
 class ProductUpdate(ProductFields):
@@ -37,6 +52,10 @@ class ProductUpdate(ProductFields):
 
 
 class Adjustment(Contract):
+    lot: str = Field(default="", max_length=80)
+    expires: date | None = None
+    batch_id: str | None = None
+    reason_id: str | None = None
     request: Identifier
     product: Identifier
     type: Literal["IN", "OUT"]
@@ -50,6 +69,12 @@ class SaleLine(Contract):
 
 
 class Checkout(Contract):
+    held_bill_id: str | None = None
+    prescription_reference: str = Field(default="", max_length=150)
+    customer_id: str | None = None
+    paid_now: Money | None = None
+    due_date: str | None = None
+    payment_method_id: str | None = None
     request: Identifier
     items: list[SaleLine] = Field(min_length=1, max_length=100)
     customer: str = Field(default="Walk-in customer", max_length=150)
@@ -84,6 +109,8 @@ class PurchaseCreate(Contract):
 
 
 class ReceiveLine(Contract):
+    lot: str = Field(default="", max_length=80)
+    expires: date | None = None
     product: Identifier
     quantity: Quantity
 

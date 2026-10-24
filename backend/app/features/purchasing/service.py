@@ -11,7 +11,7 @@ from ...rules import fail
 
 
 def signature(payload):
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return json.dumps(payload, sort_keys=True, default=str, separators=(",", ":"))
 
 
 def unique_lines(lines):
@@ -65,6 +65,16 @@ async def create_order(connection, user, tenant, payload):
         user["email"],
     )
     for line in payload["lines"]:
+        from ..reference import lookup
+
+        unit_id = await connection.fetchval(
+            "SELECT unit_id FROM products WHERE tenant=$1 AND id=$2",
+            tenant,
+            line["product"],
+        )
+        unit = await lookup(connection, tenant, unit_id, "unit", allow_inactive=True)
+        if not unit["fractional"] and line["quantity"] != int(line["quantity"]):
+            fail("This product requires whole quantities.")
         if not await connection.fetchval(
             "SELECT 1 FROM products WHERE tenant=$1 AND id=$2 AND active=true",
             tenant,
@@ -109,6 +119,16 @@ async def receive_order(connection, user, tenant, order_id, payload):
         fail("Only open or partially received orders can receive stock.", 409)
     receipt_id = service.uid()
     for line in payload["lines"]:
+        from ..reference import lookup
+
+        unit_id = await connection.fetchval(
+            "SELECT unit_id FROM products WHERE tenant=$1 AND id=$2",
+            tenant,
+            line["product"],
+        )
+        unit = await lookup(connection, tenant, unit_id, "unit", allow_inactive=True)
+        if not unit["fractional"] and line["quantity"] != int(line["quantity"]):
+            fail("This product requires whole quantities.")
         pending = await connection.fetchrow(
             "SELECT l.*,p.active FROM purchase_lines l JOIN products p ON p.tenant=l.tenant AND p.id=l.product WHERE l.tenant=$1 AND l.purchase=$2 AND l.product=$3 FOR UPDATE OF l,p",
             tenant,
@@ -127,13 +147,15 @@ async def receive_order(connection, user, tenant, order_id, payload):
             line["product"],
         )
         await connection.execute(
-            "INSERT INTO movements(id,tenant,product,quantity,type,notes,actor) VALUES($1,$2,$3,$4,'IN',$5,$6)",
+            "INSERT INTO movements(id,tenant,product,quantity,type,notes,actor,lot,expires) VALUES($1,$2,$3,$4,'IN',$5,$6,$7,$8)",
             service.uid(),
             tenant,
             line["product"],
             line["quantity"],
             f"Purchase {order_id}; receipt {receipt_id}",
             user["email"],
+            line.get("lot", ""),
+            line.get("expires"),
         )
     remaining = await connection.fetchval(
         "SELECT SUM(quantity-received) FROM purchase_lines WHERE tenant=$1 AND purchase=$2",

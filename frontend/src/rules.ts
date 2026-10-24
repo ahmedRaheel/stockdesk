@@ -1,6 +1,9 @@
 export const ROLES = ["Owner", "Manager", "Cashier", "Stock Manager"] as const;
 export const permissions: Record<string, string[]> = {
   Owner: [
+    "credit",
+    "credit_approve",
+    "cost",
     "forecast",
     "read",
     "product",
@@ -10,9 +13,19 @@ export const permissions: Record<string, string[]> = {
     "team",
     "settings",
   ],
-  Manager: ["forecast", "read", "product", "stock", "sale", "return"],
-  Cashier: ["read", "sale"],
-  "Stock Manager": ["forecast", "read", "product", "stock"],
+  Manager: [
+    "credit",
+    "credit_approve",
+    "cost",
+    "forecast",
+    "read",
+    "product",
+    "stock",
+    "sale",
+    "return",
+  ],
+  Cashier: ["credit", "read", "sale"],
+  "Stock Manager": ["cost", "forecast", "read", "product", "stock"],
 };
 export function allowed(role: string, permission: string) {
   return !!permissions[role]?.includes(permission);

@@ -2456,3 +2456,63 @@ footer {
 .sidebar nav button {
   text-align: left;
 }
+.retail-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.retail-search {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  min-width: 260px;
+}
+.retail-table {
+  margin-top: 20px;
+}
+.retail-feature[dir="rtl"] {
+  text-align: right;
+  font-family: Tahoma, "Segoe UI", Arial, sans-serif;
+}
+.retail-feature[dir="rtl"] table {
+  text-align: right;
+}
+.retail-feature[dir="rtl"] .modal {
+  direction: rtl;
+}
+.lookup-field .field {
+  gap: 6px;
+}
+.lookup-field input {
+  font-size: 12px;
+  padding: 8px;
+}
+.customer-select {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+.customer-select input,
+.customer-select select {
+  padding: 9px;
+  width: 100%;
+  border: 1px solid #cfd6de;
+  border-radius: 4px;
+  min-width: 0;
+}
+.customer-select small {
+  font-size: 11px;
+  color: #59636f;
+}
+.quantity input {
+  width: 72px;
+  border: 0;
+  padding: 6px;
+  font: inherit;
+  text-align: center;
+}
+.cart .lookup-field {
+  margin-top: 14px;
+}

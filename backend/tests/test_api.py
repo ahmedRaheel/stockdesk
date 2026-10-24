@@ -50,6 +50,12 @@ async def test_complete_inventory_flow():
             other = (
                 await post("tenant", name="Second Store " + unique, currency="USD")
             ).json()["id"]
+            assert (
+                await client.post(
+                    f"/api/v1/tenants/{a}/lookups",
+                    json={"kind": "category", "code": "hardware", "name": "Hardware"},
+                )
+            ).status_code == 201
             response = await post(
                 "product",
                 a,
@@ -319,7 +325,7 @@ async def test_concurrent_checkout_cannot_oversell():
                         "tenant": t,
                         "sku": "LAST-ONE",
                         "name": "One item",
-                        "category": "Test",
+                        "category": "General",
                         "price": 100,
                         "cost": 0,
                         "initial": 1,

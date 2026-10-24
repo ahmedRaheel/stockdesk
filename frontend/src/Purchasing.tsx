@@ -60,6 +60,9 @@ export default function Purchasing({
   const [lines, setLines] = useState<DraftLine[]>([
     { product: "", quantity: 1, unit_cost: 0 },
   ]);
+  const [batchInfo, setBatchInfo] = useState<
+    Record<string, { lot: string; expires: string }>
+  >({});
   const [receiving, setReceiving] = useState<Record<string, number>>({});
   const [page, setPage] = useState(0);
   const request = useRef<{ signature: string; id: string } | null>(null);
@@ -109,6 +112,7 @@ export default function Purchasing({
     request.current = null;
     setSelected(order);
     setReceiving({});
+    setBatchInfo({});
     setLines([{ product: "", quantity: 1, unit_cost: 0 }]);
     setModal(kind);
   }
@@ -143,7 +147,12 @@ export default function Purchasing({
       } else if (modal === "receive" && selected) {
         const receipts = Object.entries(receiving)
           .filter(([, quantity]) => quantity > 0)
-          .map(([product, quantity]) => ({ product, quantity }));
+          .map(([product, quantity]) => ({
+            product,
+            quantity,
+            lot: batchInfo[product]?.lot || "",
+            expires: batchInfo[product]?.expires || null,
+          }));
         if (!receipts.length)
           throw new Error("Enter at least one quantity received.");
         await send(
@@ -211,7 +220,9 @@ export default function Purchasing({
         <div className="panel-heading">
           <div>
             <h2>Purchase orders</h2>
-            <p>50 orders per page · quantities are whole units</p>
+            <p>
+              50 orders per page · quantities use each product’s selling unit
+            </p>
           </div>
           <Truck size={20} />
         </div>
@@ -416,7 +427,7 @@ export default function Purchasing({
                         type="number"
                         min={0}
                         max={365}
-                        step={1}
+                        step="0.001"
                         defaultValue={7}
                         required
                       />
@@ -474,7 +485,7 @@ export default function Purchasing({
                               type="number"
                               min={1}
                               max={1000000}
-                              step={1}
+                              step="0.001"
                               required
                               value={line.quantity}
                               onChange={(e) =>
@@ -550,6 +561,7 @@ export default function Purchasing({
                             <th>Ordered</th>
                             <th>Received</th>
                             <th>Receive now</th>
+                            <th>Batch / expiry</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -568,7 +580,7 @@ export default function Purchasing({
                                   type="number"
                                   min={0}
                                   max={l.quantity - l.received}
-                                  step={1}
+                                  step="0.001"
                                   value={receiving[l.product] || 0}
                                   disabled={
                                     !["open", "partial"].includes(
@@ -579,6 +591,37 @@ export default function Purchasing({
                                     setReceiving({
                                       ...receiving,
                                       [l.product]: Number(e.target.value),
+                                    })
+                                  }
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  aria-label={"Batch " + l.name}
+                                  placeholder="Batch number"
+                                  value={batchInfo[l.product]?.lot || ""}
+                                  onChange={(e) =>
+                                    setBatchInfo({
+                                      ...batchInfo,
+                                      [l.product]: {
+                                        lot: e.target.value,
+                                        expires:
+                                          batchInfo[l.product]?.expires || "",
+                                      },
+                                    })
+                                  }
+                                />
+                                <input
+                                  aria-label={"Expiry " + l.name}
+                                  type="date"
+                                  value={batchInfo[l.product]?.expires || ""}
+                                  onChange={(e) =>
+                                    setBatchInfo({
+                                      ...batchInfo,
+                                      [l.product]: {
+                                        lot: batchInfo[l.product]?.lot || "",
+                                        expires: e.target.value,
+                                      },
                                     })
                                   }
                                 />

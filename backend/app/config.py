@@ -1,7 +1,7 @@
 import os
 
 DATABASE_URL = os.environ.get(
-    "DATABASE_URL", "postgresql://postgres:YOUR_ACTUAL_PASSWORD@host.docker.internal:5432/postgres123"
+    "DATABASE_URL", "postgresql://stockdesk:stockdesk@localhost:5432/stockdesk"
 )
 APP_ORIGIN = os.environ.get("APP_ORIGIN", "http://localhost:8080").rstrip("/")
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"

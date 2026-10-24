@@ -34,7 +34,7 @@ async def audit(c, tenant, u, action, detail):
         tenant,
         u["email"],
         action,
-        json.dumps(detail),
+        json.dumps(detail, default=str),
     )
 
 
@@ -60,13 +60,13 @@ async def authorize(c, u, tenant, permission="read", lock=False):
 
 
 async def get_receipt(c, u, tenant, sale_id):
-    await authorize(c, u, tenant, "sale")
+    _business, receipt_role = await authorize(c, u, tenant, "sale")
     sale = await c.fetchrow(
         "SELECT * FROM sales WHERE tenant=$1 AND id=$2", tenant, sale_id
     )
     if not sale:
         fail("Invoice not found.", 404)
-    return {
+    result = {
         "sale": dict(sale),
         "items": rows(
             await c.fetch(
@@ -76,6 +76,10 @@ async def get_receipt(c, u, tenant, sale_id):
             )
         ),
     }
+    if "cost" not in ROLES[receipt_role]:
+        for item in result["items"]:
+            item.pop("cost", None)
+    return result
 
 
 async def snapshot(c, u, tenant):
@@ -197,6 +201,10 @@ async def snapshot(c, u, tenant):
                 tenant,
             )
         )
+    if "cost" not in perms:
+        for product in out["products"]:
+            product.pop("cost", None)
+
     return out
 
 

@@ -1,10 +1,14 @@
 """Pure validation and money calculations; monetary values use integer minor units."""
 
 import re
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from fastapi import HTTPException
 
 ROLES = {
     "Owner": {
+        "credit",
+        "credit_approve",
+        "cost",
         "forecast",
         "read",
         "product",
@@ -14,9 +18,19 @@ ROLES = {
         "team",
         "settings",
     },
-    "Manager": {"forecast", "read", "product", "stock", "sale", "return"},
-    "Cashier": {"read", "sale"},
-    "Stock Manager": {"forecast", "read", "product", "stock"},
+    "Manager": {
+        "credit",
+        "credit_approve",
+        "cost",
+        "forecast",
+        "read",
+        "product",
+        "stock",
+        "sale",
+        "return",
+    },
+    "Cashier": {"credit", "read", "sale"},
+    "Stock Manager": {"cost", "forecast", "read", "product", "stock"},
 }
 
 
@@ -53,8 +67,8 @@ def email(v):
 
 
 def password(v):
-    if not isinstance(v, str) or not 6 <= len(v) <= 128:
-        fail("Password must contain 6–128 characters.")
+    if not isinstance(v, str) or not 12 <= len(v) <= 128:
+        fail("Password must contain 12–128 characters.")
     return v
 
 
@@ -77,7 +91,12 @@ def cart_items(v):
             fail("Duplicate product in cart.")
         seen.add(pid)
         result.append(
-            {"id": pid, "quantity": number(x.get("quantity"), "Quantity", 1, 100000)}
+            {
+                "id": pid,
+                "quantity": quantity(
+                    x.get("quantity"), "Quantity", Decimal("0.001"), Decimal("100000")
+                ),
+            }
         )
     return sorted(result, key=lambda x: x["id"])
 
@@ -87,3 +106,35 @@ def totals(subtotal, discount, tax_bps):
     number(tax_bps, "Tax rate", 0, 10000)
     tax = ((subtotal - discount) * tax_bps + 5000) // 10000
     return tax, subtotal - discount + tax
+
+
+def quantity(
+    value, label="Quantity", minimum=Decimal("0"), maximum=Decimal("1000000000")
+):
+    if isinstance(value, bool):
+        fail(f"{label} must be a number.")
+    try:
+        result = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        fail(f"{label} must be a number.")
+    if (
+        not result.is_finite()
+        or result < minimum
+        or result > maximum
+        or result != result.quantize(Decimal("0.001"))
+    ):
+        fail(f"{label} must be within range and have at most 3 decimal places.")
+    return result
+
+
+def line_amount(price, quantity):
+    return int(
+        (Decimal(price) * quantity).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    )
+
+
+def business_date():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    return datetime.now(ZoneInfo("Asia/Karachi")).date()

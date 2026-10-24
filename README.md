@@ -3,26 +3,53 @@
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Version 1.1** adds a restrained retail theme, versioned resource APIs, bearer authentication, supplier purchasing and partial goods receiving. See [API reference](docs/API.md) and [architecture / rollout scope](docs/ARCHITECTURE.md).
+**Version 1.2** adds database-backed lookups, customer khata, approval-controlled credit limits, installments, fractional quantities, batch/expiry handling, held bills, and cashier tills. See [release scope](docs/RELEASE-1.2.md) for implemented features and remaining requirements.
 
-## Start with Docker
+## Upgrade your existing deployment
 
-1. Install Docker with Docker Compose.
-2. Copy `.env.example` to `.env`.
-3. Replace `POSTGRES_PASSWORD`, `ADMIN_EMAIL` and `ADMIN_PASSWORD` with your own values. The admin password must contain at least 12 characters. Use a URL-safe database password.
-4. Run:
+This release's default `compose.yaml` reuses your existing **postgres** container on **chatbot-network**. It does not start another database image. Keep a database backup and your original `.env` before replacing source files. Do not delete database volumes or edit previously applied migrations.
+
+From `/mnt/c/stockdesk` in WSL:
 
 ```bash
-docker compose up --build -d
+# Use the actual database administrator if it is not postgres.
+docker exec postgres pg_dump -U postgres stockdesk > stockdesk-before-upgrade.sql
 ```
 
-5. Open **http://localhost:8080** and sign in with your configured admin account.
-6. Create a business, select its currency, and optionally create its owner's account.
-7. Add products, including SKU/barcode, opening stock, price, purchase cost and reorder point.
-8. Add staff in **Team & roles**. Provide name and initial password for new accounts. Staff log in with email/password; no invitation email is sent.
-9. Open **Point of sale**, scan/select products and complete a sale.
+If `stockdesk` has never been created, create it once instead (a dump of a nonexistent database will fail):
 
-The database is stored in the `postgres_data` Docker volume. `docker compose down` preserves it; `docker compose down -v` deletes it.
+```bash
+docker exec -it postgres psql -U postgres -d postgres -c 'CREATE DATABASE stockdesk;'
+```
+
+Merge these values into `.env`; keep your real credentials private:
+
+```dotenv
+DATABASE_URL=postgresql://postgres:YOUR_URL_ENCODED_DATABASE_PASSWORD@postgres:5432/stockdesk
+POSTGRES_NETWORK=chatbot-network
+ADMIN_EMAIL=your-admin@example.com
+ADMIN_PASSWORD=YOUR_UNIQUE_12_TO_128_CHARACTER_PASSWORD
+APP_ORIGIN=http://localhost:8080
+COOKIE_SECURE=false
+```
+
+The password after `postgres:` is the existing PostgreSQL password; `/stockdesk` is the database name. `ADMIN_PASSWORD` is a separate application password. URL-encode special characters in the database password. In `.env`, single-quote values containing literal `$` to avoid interpolation. The configured bootstrap password does not reset existing accounts.
+
+```bash
+# Ensure an old exported shell variable does not override .env.
+unset DATABASE_URL ADMIN_EMAIL ADMIN_PASSWORD POSTGRES_NETWORK
+docker compose -f compose.yaml config --quiet
+docker compose -f compose.yaml build
+docker compose -f compose.yaml run --rm --no-deps backend python -m app.check_config
+docker compose -f compose.yaml up -d --force-recreate backend frontend
+docker compose -f compose.yaml logs --tail=100 backend
+```
+
+Open **http://localhost:8080**. Pending numbered migrations apply automatically on startup. The network declaration belongs under the top-level `networks:` key, not inside `services:`. Do not replace the database hostname with a fixed container IP. The supplied configuration assumes `postgres` is already attached to `chatbot-network`, as in your inspection output.
+
+For a fresh installation, copy `.env.example` to `.env`, set credentials, and follow the same steps. To deliberately run a separate managed database instead, use `compose.managed.yaml` and set `POSTGRES_PASSWORD`; this is an optional alternative, not the default.
+
+After signing in, create/select a business, manage its lookup lists, add products, and add staff. Staff creation does not send invitation emails.
 
 ## Implemented functionality
 
@@ -33,6 +60,10 @@ The database is stored in the `postgres_data` Docker volume. `docker compose dow
 | Roles | Owner, Manager, Cashier, Stock Manager; authorization on every server operation |
 | Purchasing | Suppliers, purchase orders, partial goods receipts, cancellation of outstanding quantities, duplicate-receipt prevention |
 | Headless API | `/api/v1` catalog, stock, sales and purchasing; typed write contracts; OpenAPI; expiring bearer tokens; request IDs |
+| Retail credit | Customer ledger, maker/checker credit approvals, partial payment, repayments, installments, promises, ageing and PDF statements |
+| Lookups | Database-managed categories, units, payment methods and adjustment reasons, English/Urdu labels and inactive historical references |
+| Batches | Fractional quantities to 3 decimals, batch receipts, FEFO sale allocation, expiry blocks, original-batch restoration on returns |
+| Cashier | Server-held bills, resume at current prices, open/close till, cash movements and variance notes |
 | Products | SKU and barcode uniqueness per business, category, selling price, purchase cost, reorder point, editing and archiving |
 | Stock | Opening balance, IN/OUT adjustments, sale deductions, return restocking, searchable inventory, low-stock/out-of-stock alerts |
 | POS | Search, barcode scanner entry, cart, quantity changes, fixed discount, percentage tax, cash/change calculation, externally collected payment recording |
@@ -75,7 +106,7 @@ The page includes best/least sellers (including zero sellers), rising/declining 
 
 Forecasts begin tomorrow and use up to 90 complete days after product creation, with zero-sale days included. Products need at least 14 complete days and 3 selling days; otherwise the UI displays **Insufficient history**. The baseline is the last 28 days' average. With enough history, a weekday average from 8 weeks is compared using a 7-day holdout. The lower-error method is selected. WAPE is shown when the holdout contains sales; quality is Low or Moderate. These are baseline estimates, not guaranteed demand or calibrated confidence intervals. Variation ranges are heuristic.
 
-Set supplier lead time, target stock coverage and safety percentage. Suggested reorder quantity is `ceil(daily forecast × (lead days + coverage days) × (1 + safety %) − current stock)`, floored at zero. Stockout dates simulate the next 30 forecast days against current stock, without new deliveries. Products already out of stock are flagged immediately. Reorder suggestions do not subtract open purchase orders or place orders automatically. Use **Adjust stock** only when stock physically arrives or an adjustment is needed.
+Set supplier lead time, target stock coverage and safety percentage. Suggested reorder quantity is `ceil(daily forecast × (lead days + coverage days) × (1 + safety %) − current stock − outstanding purchase quantities)`, floored at zero. Stockout dates simulate the next 30 forecast days against current stock, without new deliveries. Products already out of stock are flagged immediately. Reorder suggestions subtract outstanding quantities on open/partially received purchase orders. They do not place orders automatically or assume delivery dates for stockout predictions. Use **Adjust stock** only when stock physically arrives or an adjustment is needed.
 
 Forecasts reflect observed sales; they cannot recover unmet demand during stockouts and do not model promotions, holidays, price changes or supplier delays. Predicted sales value uses current selling price before discounts/tax. Review low-evidence estimates before purchasing. The CSV export includes product-level predictions and evidence.
 
@@ -166,15 +197,15 @@ Before Internet deployment, use HTTPS, set `APP_ORIGIN` to the exact public orig
 Backup example:
 
 ```bash
-docker compose exec -T db pg_dump -U stockdesk stockdesk > stockdesk-backup.sql
+docker exec postgres pg_dump -U postgres stockdesk > stockdesk-backup.sql
 ```
 
 Restore into a separate empty database and verify before replacing any live system.
 
 ## Scope and limits
 
-This is an inventory/POS SaaS application, not a complete ERP. Subscription billing, online card processing, multiple warehouses per tenant, batch/expiry tracking, partial returns, offline checkout, payroll and accounting integrations are outside this version. Each business currently has one stock location. Sales KPIs sum completed invoices including tax; returned invoices are excluded. Inventory valuation uses current purchase cost, not FIFO or weighted-average costing. The latest 500 receipts/movements are shown in the UI; all records remain in the database.
+This release is an operational foundation, not completion of the full enterprise feature list. See [the release matrix](docs/RELEASE-1.2.md) before rollout. There is one stock location per business and fixed server-enforced roles. Inventory valuation uses current product cost, not FIFO costing or weighted-average cost. FEFO is physical batch allocation only. Catalog snapshots still load the full catalog; large-store performance has not been established.
 
-This release uses whole-unit quantities and one stock location per business. Weighed goods, scales, batch/expiry/FEFO, branch transfers, till shifts and offline checkout require further implementation. The catalog UI still loads the full business catalog; large-store scale has not been established. The supplied CI workflow runs tests against PostgreSQL, including optional concurrency checks; that workflow has not been executed here.
+English is the primary UI language. Urdu navigation and khata labels, RTL in the khata module, Urdu lookup names, and user-entered Roman Urdu aliases are included. Full translation, Roman Urdu transliteration and shaped Urdu PDF receipts remain pending. No offline financial transactions or automatic synchronization are implemented.
 
-Production performance, external payment integrations and legal/fiscal invoice compliance need deployment-specific work. See `VERIFICATION.md` for checks actually performed.
+Use HTTPS, real PostgreSQL concurrency tests, restore drills and store acceptance testing before real trading. External integrations, physical hardware output and jurisdiction-specific compliance require separate work. See `VERIFICATION.md` for checks actually performed.

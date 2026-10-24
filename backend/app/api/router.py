@@ -115,9 +115,9 @@ async def products(
 ):
     async with db.pool.acquire() as connection:
         async with connection.transaction(isolation="repeatable_read", readonly=True):
-            await service.authorize(connection, user, tenant)
+            _business, role = await service.authorize(connection, user, tenant)
             # strpos treats percent/underscore as literal search characters.
-            clause = "tenant=$1 AND ($2='' OR strpos(lower(name||' '||sku||' '||COALESCE(barcode,'')),lower($2))>0)"
+            clause = "tenant=$1 AND ($2='' OR strpos(lower(name||' '||sku||' '||COALESCE(barcode,'')||' '||search_aliases),lower($2))>0)"
             total = await connection.fetchval(
                 "SELECT COUNT(*) FROM products WHERE " + clause, tenant, q
             )
@@ -130,8 +130,12 @@ async def products(
                 limit,
                 offset,
             )
+    result = service.rows(items)
+    if "cost" not in service.ROLES[role]:
+        for item in result:
+            item.pop("cost", None)
     return {
-        "items": service.rows(items),
+        "items": result,
         "total": total,
         "limit": limit,
         "offset": offset,

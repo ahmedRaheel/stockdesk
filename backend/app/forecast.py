@@ -57,7 +57,7 @@ def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=
     all_days = {}
     for r in daily:
         day = date.fromisoformat(str(r["day"])[:10])
-        entry = {"units": int(r["units"]), "gross": int(r["gross"])}
+        entry = {"units": float(r["units"]), "gross": int(r["gross"])}
         by_product.setdefault(r["product"], {})[day] = entry
         total = all_days.setdefault(day, {"units": 0, "gross": 0})
         total["units"] += entry["units"]
@@ -66,6 +66,12 @@ def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=
     forecasts = []
     future = [0.0] * 30
     for p in products:
+        p = {
+            **p,
+            "stock": float(p["stock"]),
+            "reorder": float(p["reorder"]),
+            "incoming": float(p.get("incoming", 0)),
+        }
         sales = by_product.get(p["id"], {})
         created = date.fromisoformat(str(p["created"])[:10])
         # A product first listed mid-day starts observation on the following full day.
@@ -163,7 +169,14 @@ def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=
                     stockout = i + 1
                     break
         reorder = (
-            max(0, ceil(avg * (lead + cover) * (1 + safety / 100) - p["stock"]))
+            max(
+                0,
+                ceil(
+                    avg * (lead + cover) * (1 + safety / 100)
+                    - p["stock"]
+                    - p.get("incoming", 0)
+                ),
+            )
             if avg is not None
             else None
         )
@@ -197,6 +210,7 @@ def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=
                     else None
                 ),
                 "reorder_qty": reorder,
+                "incoming": p.get("incoming", 0),
                 "risk": (
                     "Out of stock"
                     if p["stock"] <= 0
