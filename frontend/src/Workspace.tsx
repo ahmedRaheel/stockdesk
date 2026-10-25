@@ -63,7 +63,7 @@ const titles: any = {
     "Scheduled discounts, BOGO offers and bundles.",
   ],
   roles: ["Custom roles", "Business permissions and staff assignments."],
-  imports: ["Catalog import", "Validate and import products from CSV."],
+  imports: ["Catalog import", "Create or update products from CSV and Excel."],
   payables: [
     "Supplier payables",
     "Matched invoices, payments, and outstanding balances.",
@@ -1314,6 +1314,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               )}
               {view === "imports" && can("product") && (
                 <CatalogImport
+                  canUpdate={can("cost")}
                   key={tenant}
                   tenant={tenant}
                   onImported={() => load()}

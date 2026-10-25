@@ -1,5 +1,14 @@
-# Verification record — StockDesk 1.14
+# Verification record — StockDesk 1.15
 
+
+## Release 1.15 checks
+
+- Full backend regression: **66 passed, 1 skipped** in 98.85 seconds using PGlite's PostgreSQL wire adapter. The skipped test still requires real PostgreSQL multiprocess concurrency.
+- Catalog-focused suite: **7 passed**. Coverage includes editable XLSX roundtrip, literal formula-like names and leading-zero identifiers, exact decimal money, rollback-only previews, stale metadata/token rejection, unchanged inventory under simultaneous stock movements, retained active/medical/tax fields, idempotent retries, mode conflicts, duplicate/missing SKU, immutable units, opening-stock guard, barcode conflicts, tenant/role boundaries, CSRF and bounded/no-store exports.
+- Promotion-focused suite passed before the full run, with the full run additionally covering API weekday/overnight create/update persistence. Pure tests cover Karachi weekday/date anchoring, after-midnight eligibility, start-inclusive/end-exclusive boundaries and invalid/empty/duplicate weekday contracts. Existing discounts, tax, usage-limit and quote-version tests remain passing.
+- Chromium against actual React/FastAPI downloads editable Excel, reimports it, displays no-change and changed-field previews, commits updates without changing stock, and creates/loads a Sunday-only 22:00–02:00 offer. Urdu/mobile screens and dynamic success-notice translation reviewed; no JavaScript page errors. The browser uses the existing test-only single-connection PGlite pool.
+- TypeScript/Vite production build and literal Urdu coverage pass. OpenAPI regenerated for 1.15. Migrations 001–019 are unchanged; migration 020 adds weekday data and overnight-window support. No new dependencies.
+- Initial tests caught the need to exclude the stock revision counter from preview invalidation. That was fixed; stock and stock_revision remain untouched. A browser selector exposed an ambiguous textarea label after loading CSV; an explicit accessible label was added. Production Docker, real PostgreSQL load/concurrency, external integrations and full enterprise completion remain unverified or unimplemented as recorded in CHECKLIST.md.
 
 ## Release 1.14 checks
 

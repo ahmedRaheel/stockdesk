@@ -281,6 +281,31 @@ async def test_promotion_api_checkout_caps_freeze_permissions_and_retries():
                     json={**offer, "code": "DATE", "starts_minute": 900},
                 )
             ).status_code == 422
+            scheduled = {
+                **offer,
+                "code": "SUNDAY-NIGHT",
+                "weekdays": [6],
+                "starts_minute": 1320,
+                "ends_minute": 120,
+            }
+            schedule = await c.post(base + "/promotions", json=scheduled)
+            assert schedule.status_code == 201, schedule.text
+            saved = (await c.get(base + "/promotions?q=SUNDAY-NIGHT")).json()["items"][
+                0
+            ]
+            assert (
+                saved["weekdays"] == [6]
+                and saved["starts_minute"] == 1320
+                and saved["ends_minute"] == 120
+            )
+            revised = await c.put(
+                base + "/promotions/" + saved["id"],
+                json={**scheduled, "version": 1, "weekdays": [4, 5]},
+            )
+            assert revised.status_code == 200, revised.text
+            assert (await c.get(base + "/promotions?q=SUNDAY-NIGHT")).json()["items"][
+                0
+            ]["weekdays"] == [4, 5]
             cart = [dict(id=a, quantity=2), dict(id=b, quantity=1)]
 
             async def quote(code, discount=0):
@@ -445,3 +470,59 @@ async def test_promotion_api_checkout_caps_freeze_permissions_and_retries():
                 assert (
                     await cashier.get(f"/api/v1/tenants/{other}/promotions")
                 ).status_code == 403
+
+
+def test_weekday_overnight_anchor_and_date_boundaries():
+    from zoneinfo import ZoneInfo
+    from app.api.promotions import Promotion
+    from pydantic import ValidationError
+
+    tz = ZoneInfo("Asia/Karachi")
+    sunday = date(2026, 10, 25)
+    scheduled = rule(
+        weekdays=[6],
+        starts_on=sunday,
+        ends_on=sunday,
+        starts_minute=22 * 60,
+        ends_minute=2 * 60,
+    )
+    for value in [
+        datetime(2026, 10, 25, 22, tzinfo=tz),
+        datetime(2026, 10, 26, 1, 59, tzinfo=tz),
+    ]:
+        assert evaluate(scheduled, [], products(), value)["discount"] == 336
+    for value in [
+        datetime(2026, 10, 25, 21, 59, tzinfo=tz),
+        datetime(2026, 10, 25, 1, tzinfo=tz),
+        datetime(2026, 10, 26, 2, tzinfo=tz),
+        datetime(2026, 10, 26, 22, tzinfo=tz),
+    ]:
+        with pytest.raises(HTTPException):
+            evaluate(scheduled, [], products(), value)
+    assert (
+        evaluate(
+            rule(weekdays=[6]), [], products(), datetime(2026, 10, 25, 0, tzinfo=tz)
+        )["discount"]
+        == 336
+    )
+    with pytest.raises(HTTPException):
+        evaluate(rule(weekdays=[0]), [], products(), NOW)
+    assert Promotion(
+        code="NIGHT",
+        name="Night",
+        kind="fixed",
+        value=100,
+        weekdays=[6],
+        starts_minute=1320,
+        ends_minute=120,
+    )
+    for changes in [
+        dict(weekdays=[]),
+        dict(weekdays=[0, 0]),
+        dict(weekdays=[7]),
+        dict(weekdays=[True]),
+        dict(starts_minute=120, ends_minute=120),
+        dict(starts_minute=120),
+    ]:
+        with pytest.raises(ValidationError):
+            Promotion(code="BAD", name="Invalid", kind="fixed", value=100, **changes)

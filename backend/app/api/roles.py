@@ -20,7 +20,7 @@ PERMISSIONS = {
     "supplier_return": "Return supplier goods and record credits",
     "read": "View catalog and stock",
     "sale": "Create sales and view receipts",
-    "return": "Return whole sales",
+    "return": "Return and exchange sale items",
     "credit": "Manage customer credit activity",
     "credit_approve": "Approve credit limits",
     "cost": "View costs and management reports",

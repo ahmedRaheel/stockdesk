@@ -3,7 +3,7 @@
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Version 1.14** adds selected-item returns and exchanges for fully paid invoices: expired/damaged/incorrect/opened reasons, safe stock disposition, frozen-price return credit, replacement checkout, cash collection/refund difference, original invoice evidence and revision history. See [release instructions](docs/RELEASE-1.14.md) and [implementation status](docs/CHECKLIST.md). The full enterprise specification remains incomplete.
+**Version 1.15** adds reviewed CSV/XLSX updates for existing products, editable Excel export, and weekday/overnight promotion schedules. Returns/exchanges and original/revised receipts from 1.14 remain included. See [release instructions](docs/RELEASE-1.15.md) and [implementation status](docs/CHECKLIST.md). The full enterprise specification remains incomplete.
 
 ## Upgrade your existing deployment
 

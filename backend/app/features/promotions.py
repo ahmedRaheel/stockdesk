@@ -1,6 +1,6 @@
 """Deterministic promotional discounts. Caller owns tenant write lock on checkout."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 from ..rules import fail, clean, line_amount
@@ -11,17 +11,27 @@ def evaluate(rule, components, products, now, used=0):
     local = now.astimezone(ZoneInfo("Asia/Karachi"))
     day = local.date()
     minute = local.hour * 60 + local.minute
+    start, end = rule["starts_minute"], rule["ends_minute"]
+    if start is not None:
+        if start < end:
+            eligible = start <= minute < end
+        elif start > end:
+            eligible = minute >= start or minute < end
+            if minute < end:
+                day -= timedelta(days=1)
+        else:
+            eligible = False
+        if not eligible:
+            fail("Promotion is outside its daily time window.", 409)
+    # Overnight hours inherit the weekday and effective date of the window's start.
     if (
         not rule["active"]
         or (rule["starts_on"] and day < rule["starts_on"])
         or (rule["ends_on"] and day > rule["ends_on"])
     ):
         fail("Promotion is inactive or outside its effective dates.", 409)
-    if (
-        rule["starts_minute"] is not None
-        and not rule["starts_minute"] <= minute < rule["ends_minute"]
-    ):
-        fail("Promotion is outside its daily time window.", 409)
+    if day.weekday() not in rule.get("weekdays", list(range(7))):
+        fail("Promotion is not available on this weekday.", 409)
     if rule["usage_limit"] is not None and used >= rule["usage_limit"]:
         fail("Promotion usage limit has been reached.", 409)
     subtotal = sum(p["line_total"] for p in products)

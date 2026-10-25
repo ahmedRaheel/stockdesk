@@ -2,7 +2,8 @@
 
 import csv, io, json, hashlib
 from decimal import Decimal, InvalidOperation
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException, Query, Response
+from typing import Literal
 from pydantic import Field, ValidationError
 from .contracts import Contract, Identifier, ProductCreate
 from .router import User, authenticated
@@ -29,11 +30,13 @@ COLUMNS = [
 
 
 class Preview(Contract):
+    mode: Literal["create", "update"] = "create"
     csv_text: str = Field(min_length=1, max_length=200_000)
 
 
 class Commit(Preview):
     request: Identifier
+    preview_token: str | None = Field(default=None, max_length=64)
 
 
 def parse(text):
@@ -80,10 +83,42 @@ def parse(text):
     return rows
 
 
-async def apply(c, u, t, rows):
+async def apply(c, u, t, rows, mode="create"):
+    changes, state, seen = [], [], set()
     ids = []
-    for n, row, payload in rows:
+    for n, row, source in rows:
+        payload = dict(source)
         try:
+            sku = payload["sku"].upper()
+            if sku in seen:
+                fail("SKU appears more than once in this file.")
+            seen.add(sku)
+            current = None
+            if mode == "update":
+                if any(not row[k] for k in ("price", "cost", "reorder")):
+                    fail(
+                        "Update price, cost and reorder must be explicit; enter zero when intended."
+                    )
+                if payload["initial"] != 0:
+                    fail(
+                        "Opening stock must be zero for updates; use stock adjustments separately."
+                    )
+                current = await c.fetchrow(
+                    "SELECT * FROM products WHERE tenant=$1 AND sku=$2", t, sku
+                )
+                if not current:
+                    fail(
+                        "Existing SKU not found; update imports never create products.",
+                        404,
+                    )
+                state.append(
+                    {
+                        k: v
+                        for k, v in dict(current).items()
+                        if k not in ("stock", "stock_revision", "created")
+                    }
+                )
+
             for field, kind in [("category_code", "category"), ("unit_code", "unit")]:
                 identifier = await c.fetchval(
                     "SELECT id FROM lookups WHERE tenant=$1 AND kind=$2 AND code=$3 AND active=true",
@@ -94,11 +129,63 @@ async def apply(c, u, t, rows):
                 if not identifier:
                     fail(f"Unknown active {kind} code.")
                 payload[kind + "_id"] = identifier
-            r = await save_product(c, u, {**payload, "action": "product", "tenant": t})
+                if mode == "update":
+                    state.append(
+                        dict(
+                            await c.fetchrow(
+                                "SELECT * FROM lookups WHERE tenant=$1 AND id=$2",
+                                t,
+                                identifier,
+                            )
+                        )
+                    )
+            command = {**payload, "action": "product", "tenant": t}
+            if current:
+                # The file only owns these fields; retain tax, medical and lifecycle settings.
+                editable = (
+                    "name",
+                    "barcode",
+                    "price",
+                    "cost",
+                    "reorder",
+                    "category_id",
+                    "unit_id",
+                )
+                command = {
+                    **dict(current),
+                    **{k: payload[k] for k in editable},
+                    "action": "editProduct",
+                    "tenant": t,
+                }
+                diff = {
+                    k: {"before": current[k], "after": command[k]}
+                    for k in editable
+                    if (current[k] or "") != (command[k] or "")
+                }
+                if "category_id" in diff:
+                    diff["category_code"] = {
+                        "before": await c.fetchval(
+                            "SELECT code FROM lookups WHERE tenant=$1 AND id=$2",
+                            t,
+                            current["category_id"],
+                        ),
+                        "after": row["category_code"],
+                    }
+                    diff.pop("category_id")
+                changes.append(
+                    {"row": n, "sku": sku, "name": payload["name"], "changes": diff}
+                )
+            r = await save_product(c, u, command)
             ids.append(r["id"])
         except HTTPException as e:
             fail(f"CSV row {n}: {e.detail}", e.status_code)
-    return ids
+    return ids, changes, state
+
+
+def update_token(text, state):
+    return hashlib.sha256(
+        json.dumps({"csv": text, "state": state}, sort_keys=True, default=str).encode()
+    ).hexdigest()
 
 
 @router.post("/preview")
@@ -108,15 +195,22 @@ async def preview(tenant: str, payload: Preview, request: Request, user: User):
     async with db.pool.acquire() as c:
         async with c.transaction():
             await service.authorize(c, user, tenant, "product", lock=True)
+            if payload.mode == "update":
+                await service.authorize(c, user, tenant, "cost")
             # Explicit nested rollback leaves no product, movement or audit side effects.
             tx = c.transaction()
             await tx.start()
             try:
-                await apply(c, user, tenant, rows)
+                _, changes, state = await apply(c, user, tenant, rows, payload.mode)
             finally:
                 await tx.rollback()
     return {
         "count": len(rows),
+        "mode": payload.mode,
+        "changes": changes,
+        "preview_token": (
+            update_token(payload.csv_text, state) if payload.mode == "update" else None
+        ),
         "items": [
             {
                 "row": n,
@@ -134,10 +228,18 @@ async def preview(tenant: str, payload: Preview, request: Request, user: User):
 async def commit(tenant: str, payload: Commit, request: Request, user: User):
     security.csrf(request)
     rows = parse(payload.csv_text)
-    signature = hashlib.sha256(payload.csv_text.encode()).hexdigest()
+    signature = hashlib.sha256(
+        (
+            payload.csv_text
+            if payload.mode == "create"
+            else "update:" + payload.csv_text
+        ).encode()
+    ).hexdigest()
     async with db.pool.acquire() as c:
         async with c.transaction():
             await service.authorize(c, user, tenant, "product", lock=True)
+            if payload.mode == "update":
+                await service.authorize(c, user, tenant, "cost")
             previous = await c.fetchrow(
                 "SELECT * FROM catalog_imports WHERE tenant=$1 AND request=$2",
                 tenant,
@@ -150,7 +252,15 @@ async def commit(tenant: str, payload: Commit, request: Request, user: User):
                     "id": previous["id"],
                     "product_ids": json.loads(previous["product_ids"]),
                 }
-            ids = await apply(c, user, tenant, rows)
+            ids, changes, state = await apply(c, user, tenant, rows, payload.mode)
+            if payload.mode == "update" and payload.preview_token != update_token(
+                payload.csv_text, state
+            ):
+                # Reject inside this transaction so all product/audit updates roll back.
+                fail(
+                    "Catalog changed or preview is missing. Validate and review the update again.",
+                    409,
+                )
             identifier = service.uid()
             await c.execute(
                 "INSERT INTO catalog_imports(id,tenant,request,signature,product_ids,actor) VALUES($1,$2,$3,$4,$5,$6)",
@@ -165,8 +275,26 @@ async def commit(tenant: str, payload: Commit, request: Request, user: User):
                 c,
                 tenant,
                 user,
-                "Catalog imported",
-                {"id": identifier, "count": len(ids)},
+                (
+                    "Catalog updated by import"
+                    if payload.mode == "update"
+                    else "Catalog imported"
+                ),
+                {
+                    "id": identifier,
+                    "count": len(ids),
+                    "mode": payload.mode,
+                    "changes": [
+                        {
+                            **x,
+                            "changes": {
+                                k: ("changed" if k == "cost" else v)
+                                for k, v in x["changes"].items()
+                            },
+                        }
+                        for x in changes
+                    ],
+                },
             )
     return {"id": identifier, "product_ids": ids}
 
@@ -200,3 +328,84 @@ async def excel_template(tenant: str, user: User):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         filename="catalog-template.xlsx",
     )
+
+
+@router.get("/export.xlsx")
+async def editable_export(tenant: str, user: User, q: str = Query("", max_length=100)):
+    """Bounded editable snapshot. Text cell types prevent spreadsheet formula execution."""
+    import asyncio
+
+    async with db.pool.acquire() as c:
+        async with c.transaction(isolation="repeatable_read", readonly=True):
+            await service.authorize(c, user, tenant, "product")
+            await service.authorize(c, user, tenant, "cost")
+            records = service.rows(
+                await c.fetch(
+                    "SELECT p.*,cat.code AS category_code,u.code AS unit_code FROM products p JOIN lookups cat ON cat.tenant=p.tenant AND cat.id=p.category_id JOIN lookups u ON u.tenant=p.tenant AND u.id=p.unit_id WHERE p.tenant=$1 AND ($2='' OR strpos(lower(p.name||' '||p.sku||' '||COALESCE(p.barcode,'')),lower($2))>0) ORDER BY p.sku LIMIT 201",
+                    tenant,
+                    q,
+                )
+            )
+    if not records:
+        fail("No products match this export.", 404)
+    if len(records) > 200:
+        fail("More than 200 products match. Narrow the export search.", 422)
+    content = await asyncio.to_thread(export_workbook, records)
+    return Response(
+        content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": 'attachment; filename="catalog-update.xlsx"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+def export_workbook(records):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    from openpyxl.utils import get_column_letter
+    from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
+
+    book = Workbook()
+    sheet = book.active
+    sheet.title = "Catalog"
+    sheet.append(COLUMNS)
+    for p in records:
+        if any(
+            ILLEGAL_CHARACTERS_RE.search(str(p[k] or ""))
+            for k in ("sku", "name", "category_code", "unit_code", "barcode")
+        ):
+            fail(
+                "Catalog text contains characters that Excel cannot store. Correct the product text before exporting.",
+                422,
+            )
+        sheet.append(
+            [
+                p["sku"],
+                p["name"],
+                p["category_code"],
+                p["unit_code"],
+                p["barcode"] or "",
+                Decimal(p["price"]) / 100,
+                Decimal(p["cost"]) / 100,
+                0,
+                p["reorder"],
+            ]
+        )
+        for cell in list(sheet[sheet.max_row])[:5]:
+            cell.data_type = "s"
+        for cell in list(sheet[sheet.max_row])[5:7]:
+            cell.number_format = "0.00"
+        for cell in list(sheet[sheet.max_row])[7:]:
+            cell.number_format = "0.000"
+    for cell in sheet[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="24466C")
+    for i, width in enumerate([22, 40, 22, 18, 25, 16, 16, 16, 16], 1):
+        sheet.column_dimensions[get_column_letter(i)].width = width
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = sheet.dimensions
+    out = io.BytesIO()
+    book.save(out)
+    return out.getvalue()

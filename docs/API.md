@@ -211,3 +211,8 @@ The existing `/inventory-alerts` batch-summary API is unchanged.
 ## Invoice adjustments (1.14)
 
 See [release contract and accounting behavior](RELEASE-1.14.md). Preview/commit/history/original endpoints live under `/api/v1/tenants/{tenant}/sales/{sale_id}/adjustments`. Use a fresh revision and quote token, and retain the request ID for retries. Monetary amounts are integer minor units. Cash settlement requires an open till. Partial khata invoices are not supported.
+
+
+## Catalog updates and promotion schedules (1.15)
+
+See [1.15 contracts and boundaries](RELEASE-1.15.md). Catalog preview/commit accept explicit `mode=update`, requiring a reviewed state token; editable exports are at `/catalog-imports/export.xlsx`. Promotion bodies accept `weekdays` (Monday=0 through Sunday=6) and overnight windows. Effective dates and weekdays anchor to the window start day.

@@ -94,6 +94,7 @@ export default function Promotions({
         : null,
       buy_quantity: kind === "bogo" ? Number(text("buy_quantity")) : 1,
       free_quantity: kind === "bogo" ? Number(text("free_quantity")) : 1,
+      weekdays: f.getAll("weekdays").map(Number),
       starts_on: text("starts_on") || null,
       ends_on: text("ends_on") || null,
       starts_minute: minute("starts_minute"),
@@ -264,6 +265,45 @@ export default function Promotions({
                 {tr("Active promotion")}
               </label>
             </div>
+            <fieldset
+              style={{
+                border: "1px solid #dbe2ea",
+                padding: 12,
+                marginBlock: 12,
+              }}
+            >
+              <legend>{tr("Active weekdays")}</legend>
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                {[
+                  "Monday",
+                  "Tuesday",
+                  "Wednesday",
+                  "Thursday",
+                  "Friday",
+                  "Saturday",
+                  "Sunday",
+                ].map((day, index) => (
+                  <label className="check" key={day}>
+                    <input
+                      type="checkbox"
+                      name="weekdays"
+                      value={index}
+                      defaultChecked={
+                        selected?.weekdays
+                          ? selected.weekdays.includes(index)
+                          : true
+                      }
+                    />
+                    {tr(day)}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <p className="hint">
+              {tr(
+                "If end time is earlier than start time, the offer continues after midnight. Weekdays and effective dates refer to the start of that window.",
+              )}
+            </p>
             <p>
               {currency} ·{" "}
               {tr(

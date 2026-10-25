@@ -131,3 +131,8 @@ Large-store launch requires the remaining work in ARCHITECTURE.md and measured c
 ## 1.14 invoice adjustment acceptance
 
 Exercise an expired/damaged/opened return (no sellable stock increase), an inspected incorrect-item restock, partial/repeated returns, a more expensive exchange with extra cash/change, a cheaper exchange/refund, and an equal-value exchange. Check original/revised/replacement receipts, PDF, net till movements, failed replacement rollback, stale revision and duplicate request protection. Verify current historical reports revise retained sales values, while movement dates remain current. Reject insufficient till cash, short tender, unsafe/expired restock, excessive quantity, missing external reference and unauthorized/cross-tenant requests. Partial khata, gateways and statutory credit-note acceptance remain out of scope.
+
+
+## 1.15 acceptance
+
+Export a filtered editable workbook; retain leading-zero barcodes and literal text. Re-upload in update mode, review old/new values and apply. Check whole-file rollback, duplicate/missing SKU rejection, unit/opening-stock guards, stale preview protection, stock/metadata preservation, retry deduplication, role/tenant boundaries and 200-row export limits. Configure Sunday 22:00–02:00; verify Sunday 22:00 and Monday 01:59 qualify while Monday 02:00 and Sunday 01:00 do not. Verify effective end dates anchor to the start day. Check migrated promotions still select all days.

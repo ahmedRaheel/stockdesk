@@ -1,7 +1,7 @@
 """Tenant-scoped promotion administration and cashier code lookup."""
 
 from datetime import date
-from typing import Literal
+from typing import Literal, Annotated
 from fastapi import APIRouter, Depends, Request, Query
 from pydantic import Field, model_validator
 from .contracts import Contract, Identifier, Money, Quantity
@@ -33,6 +33,9 @@ class Promotion(Contract):
     )
     buy_quantity: int = Field(default=1, strict=True, ge=1, le=1_000_000)
     free_quantity: int = Field(default=1, strict=True, ge=1, le=1_000_000)
+    weekdays: list[Annotated[int, Field(strict=True, ge=0, le=6)]] = Field(
+        default_factory=lambda: list(range(7)), min_length=1, max_length=7
+    )
     starts_on: date | None = None
     ends_on: date | None = None
     starts_minute: int | None = Field(default=None, strict=True, ge=0, le=1439)
@@ -46,9 +49,13 @@ class Promotion(Contract):
         if self.starts_on and self.ends_on and self.ends_on < self.starts_on:
             raise ValueError("End date must follow start date.")
         if (self.starts_minute is None) != (self.ends_minute is None) or (
-            self.starts_minute is not None and self.ends_minute <= self.starts_minute
+            self.starts_minute is not None and self.ends_minute == self.starts_minute
         ):
-            raise ValueError("Choose a same-day start and end time; end is exclusive.")
+            raise ValueError(
+                "Choose both distinct start and end times; end is exclusive."
+            )
+        if len(set(self.weekdays)) != len(self.weekdays):
+            raise ValueError("Choose distinct weekdays.")
         if self.kind == "percentage" and not 1 <= self.value <= 10000:
             raise ValueError("Percentage rate must be 1–10000 basis points.")
         if self.kind == "fixed" and self.value <= 0:
