@@ -23,6 +23,7 @@ class Credentials(Contract):
 
 
 class ProductFields(Contract):
+    tax_profile_id: str | None = None
     expiry_required: bool = False
     generic_name: str = Field(default="", max_length=150)
     strength: str = Field(default="", max_length=80)
@@ -68,7 +69,15 @@ class SaleLine(Contract):
     quantity: Quantity
 
 
+class Tender(Contract):
+    method_id: Identifier
+    amount: int = Field(strict=True, gt=0, le=100_000_000_000)
+    reference: str = Field(default="", max_length=150)
+
+
 class Checkout(Contract):
+    tenders: list[Tender] | None = Field(default=None, min_length=1, max_length=10)
+    quote_token: str | None = None
     held_bill_id: str | None = None
     prescription_reference: str = Field(default="", max_length=150)
     customer_id: str | None = None
@@ -86,6 +95,7 @@ class Checkout(Contract):
 
 
 class ReturnSale(Contract):
+    reason_id: str | None = None
     reason: str = Field(min_length=1, max_length=500)
 
 

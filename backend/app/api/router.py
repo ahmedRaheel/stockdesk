@@ -131,7 +131,7 @@ async def products(
                 offset,
             )
     result = service.rows(items)
-    if "cost" not in service.ROLES[role]:
+    if "cost" not in service.grants(role):
         for item in result:
             item.pop("cost", None)
     return {
@@ -183,16 +183,18 @@ async def return_sale(
 async def suppliers(
     tenant: str,
     user: User,
+    q: str = Query("", max_length=100),
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
     async with db.pool.acquire() as connection:
         await service.authorize(connection, user, tenant, "stock")
         items = await connection.fetch(
-            "SELECT * FROM suppliers WHERE tenant=$1 ORDER BY name,id LIMIT $2 OFFSET $3",
+            "SELECT * FROM suppliers WHERE tenant=$1 AND ($4='' OR strpos(lower(name||' '||contact),lower($4))>0) ORDER BY name,id LIMIT $2 OFFSET $3",
             tenant,
             limit,
             offset,
+            q,
         )
     return {"items": service.rows(items), "limit": limit, "offset": offset}
 

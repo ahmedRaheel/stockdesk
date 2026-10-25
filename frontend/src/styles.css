@@ -15,7 +15,9 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, StockDeskArabic,
+    sans-serif;
   font-size: 13px;
 }
 button,
@@ -2515,4 +2517,240 @@ footer {
 }
 .cart .lookup-field {
   margin-top: 14px;
+}
+/* Bidirectional layout uses the same restrained typography and spacing. */
+html[dir="rtl"] body {
+  font-family: Tahoma, "Segoe UI", Arial, sans-serif;
+}
+html[dir="rtl"] .sidebar {
+  left: auto;
+  right: 0;
+  border-left: 1px solid #dce2e8;
+  border-right: 0;
+}
+html[dir="rtl"] th,
+html[dir="rtl"] td {
+  text-align: right;
+}
+html[dir="rtl"] .field input[type="email"],
+html[dir="rtl"] .field input[type="number"],
+html[dir="rtl"] input[type="date"],
+html[dir="rtl"] input[type="password"] {
+  direction: ltr;
+  text-align: right;
+}
+html[dir="rtl"] .table-scroll {
+  direction: rtl;
+}
+html[dir="rtl"] .receipt {
+  text-align: right;
+}
+html[dir="rtl"] .auth-story {
+  text-align: right;
+}
+html[dir="rtl"] .quantity {
+  direction: ltr;
+}
+.tax-profiles {
+  display: grid;
+  gap: 16px;
+}
+html[dir="rtl"] .main-shell {
+  margin-left: 0;
+  margin-right: 236px;
+}
+@media (max-width: 1150px) {
+  html[dir="rtl"] .main-shell {
+    margin-left: 0;
+    margin-right: 205px;
+  }
+}
+@media (max-width: 850px) {
+  html[dir="rtl"] .main-shell {
+    margin-left: 0;
+    margin-right: 74px;
+  }
+}
+.split-payment {
+  border-bottom: 1px solid #dce2e8;
+  padding: 12px 0;
+  display: grid;
+  gap: 8px;
+}
+@font-face {
+  font-family: StockDeskArabic;
+  src: url("/fonts/NotoNaskhArabic.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: StockDeskArabic;
+  src: url("/fonts/NotoNaskhArabicBold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+html[dir="rtl"] body,
+html[dir="rtl"] input,
+html[dir="rtl"] select,
+html[dir="rtl"] button,
+html[dir="rtl"] textarea {
+  font-family: StockDeskArabic, Tahoma, "Segoe UI", Arial, sans-serif;
+}
+html[dir="rtl"] body {
+  line-height: 1.8;
+}
+.tax-profiles fieldset,
+.retail-module > .panel > fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.pos-entry {
+  margin-bottom: 16px;
+  padding: 16px;
+}
+.entry-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.entry-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: white;
+  padding: 10px 12px;
+  color: var(--ink);
+}
+.entry-tabs button.selected {
+  border-color: var(--green);
+  background: var(--green-light);
+  color: var(--green);
+}
+.entry-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px auto;
+  gap: 10px;
+  align-items: end;
+}
+.entry-fields .field {
+  margin: 0;
+}
+.entry-fields .primary {
+  height: 40px;
+}
+.entry-status {
+  min-height: 22px;
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .entry-fields {
+    grid-template-columns: 1fr 90px;
+  }
+  .entry-fields .primary {
+    grid-column: 1/-1;
+  }
+  .entry-tabs {
+    flex-wrap: wrap;
+  }
+}
+.stock-counts {
+  display: grid;
+  gap: 16px;
+}
+.stock-counts > .panel {
+  padding: 20px;
+}
+.stock-counts fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.stock-counts select[multiple] {
+  min-height: 180px;
+}
+.stock-counts td input {
+  width: 130px;
+}
+.stock-counts textarea {
+  width: 100%;
+  min-height: 70px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 10px;
+  font: inherit;
+}
+
+.payables fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.payables .panel {
+  padding: 24px;
+  margin-block: 18px;
+}
+.payables-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-block: 20px;
+}
+.payables td input {
+  max-width: 130px;
+}
+.payables .kpis {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.role-management .panel {
+  padding: 24px;
+  margin-block: 20px;
+}
+.role-management fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.role-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-block: 16px;
+}
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+  margin-block: 24px;
+}
+.permission-grid label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.permission-grid input {
+  width: auto;
+}
+
+.audit-log {
+  padding: 24px;
+}
+.audit-log pre {
+  max-width: 480px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.audit-log summary {
+  cursor: pointer;
+  color: var(--accent, #285ba0);
 }

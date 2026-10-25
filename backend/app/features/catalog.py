@@ -135,4 +135,17 @@ async def save_product(c, u, b, t=None):
         tenant,
         pid,
     )
+    tax_id = b.get("tax_profile_id") or None
+    if tax_id and not await c.fetchval(
+        "SELECT 1 FROM tax_profiles WHERE tenant=$1 AND id=$2 AND active=true",
+        tenant,
+        tax_id,
+    ):
+        fail("Active tax profile not found.")
+    await c.execute(
+        "UPDATE products SET tax_profile_id=$1 WHERE tenant=$2 AND id=$3",
+        tax_id,
+        tenant,
+        pid,
+    )
     return {"id": pid, "ok": True}

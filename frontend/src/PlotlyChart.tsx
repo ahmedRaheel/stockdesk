@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import type { PlotlyHTMLElement } from "plotly.js";
 
@@ -70,11 +71,11 @@ export default function PlotlyChart({
   }, [figure, onSelect]);
   return (
     <div>
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{tr(error)}</p>}
       <div
         ref={ref}
         style={{ width: "100%", minHeight: 220 }}
-        aria-label="Interactive dashboard chart"
+        aria-label={tr("Interactive dashboard chart")}
       />
     </div>
   );

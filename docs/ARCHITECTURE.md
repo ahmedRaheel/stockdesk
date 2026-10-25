@@ -56,4 +56,33 @@ The following are explicit remaining requirements, not features claimed in this 
 
 Deploy this release as a single-stock-location inventory/POS with weighted units application after acceptance testing. It is not yet a full grocery chain platform or a certified fiscal POS. Do not add microservices before operational boundaries and measured bottlenecks justify them.
 
-See RELEASE-1.2.md for the authoritative current scope and operating constraints.
+See RELEASE-1.3.md for the authoritative current scope and operating constraints.
+
+## 1.3 boundaries
+
+`features/taxation.py` owns deterministic discount allocation and tax calculations, shared by quote and checkout. `api/taxes.py` owns tenant tax administration. Tax snapshots and tender parts are persisted with the same sale transaction. `src/i18n.ts` owns language state and literal translation; backend data values remain stable. Urdu fonts are self-hosted. Tenant-scoped fixed-role authorization remains unchanged; custom/scoped roles are not implied by these changes.
+
+
+## 1.4 stock-count concurrency
+
+Movement-triggered product revisions fence count snapshots. Posting holds the tenant transaction lock, checks every captured revision first, then writes batch deltas and completion audit atomically. A count cannot be approved by its creator. Management reports read consistent snapshots and derive exact included-tax exclusions from invoice snapshots.
+
+
+## 1.5 finance and importing
+
+Supplier ledger transactions use the tenant lock shared with goods receiving. Received minus previously posted bill quantities fences matching. No stock or cost revaluation occurs when billing/paying. Voids retain documents and audit records. CSV preview uses a rollback savepoint under tenant authorization; commit replays the same product rules and atomically stores import deduplication.
+
+
+## 1.6 authorization
+
+Each request resolves an active membership and any tenant-bound custom role. EffectiveRole carries a per-request frozen permission set; tenant grants never modify the global built-in role map. Legacy/versioned endpoints share authorization and cost redaction. Role writes serialize with other tenant mutations. Owner/role/team administration is excluded from the assignable capability catalogue. Application audit reads use a separate capability and UTC paging/filtering.
+
+
+## 1.7 supplier stock/finance boundary
+
+New receiving writes a structured movement-to-receipt/batch link atomically. Supplier returns reference these sources and the original billed purchase, enforce both lifetime source capacity and current aggregate batch stock, and commit stock, credit and audit together. All operations use the tenant lock. Credit allocation uses cumulative bill-line rounding; invoice totals and gross receipt quantities are immutable. Payments, credits and refunds form a derived signed balance. Legacy free-text movement notes are not inferred as provenance.
+
+
+## Purchasing controls (1.8)
+
+The existing tenant lock serializes order creation with policy updates and approval/receiving. A policy snapshot and rounded PO total are stored before line insertion in the same transaction. Decision authorization is separate from stock access and forbids the original actor. Receipt code accepts only open/partial status. Supplier quotes use optimistic versions; writes validate supplier/product tenancy and unit precision. Performance reads use a repeatable-read snapshot and first receipt per PO, never a join that multiplies receipt samples by line count. No new background jobs or external messages are introduced.

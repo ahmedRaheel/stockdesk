@@ -3,7 +3,7 @@
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Version 1.2** adds database-backed lookups, customer khata, approval-controlled credit limits, installments, fractional quantities, batch/expiry handling, held bills, and cashier tills. See [release scope](docs/RELEASE-1.2.md) for implemented features and remaining requirements.
+**Version 1.8** adds independent purchase-order approvals, supplier quotations with price comparison, and observed delivery-performance reports. English/Urdu screens and database search are included. See [release instructions](docs/RELEASE-1.8.md) and [implementation status](docs/CHECKLIST.md). The full enterprise specification remains incomplete.
 
 ## Upgrade your existing deployment
 
@@ -50,6 +50,13 @@ Open **http://localhost:8080**. Pending numbered migrations apply automatically 
 For a fresh installation, copy `.env.example` to `.env`, set credentials, and follow the same steps. To deliberately run a separate managed database instead, use `compose.managed.yaml` and set `POSTGRES_PASSWORD`; this is an optional alternative, not the default.
 
 After signing in, create/select a business, manage its lookup lists, add products, and add staff. Staff creation does not send invitation emails.
+
+## New controls
+
+- Open **Tax configuration** to choose disabled, configured, or legacy manual tax. Add profiles, choose a default, and optionally assign product overrides. Read `docs/RELEASE-1.3.md` for rounding and effective-date rules.
+- Switch **English / اردو** on login or in the top bar. Urdu invoice PDF downloads follow the selected UI language.
+- Enable **Split payment** at checkout to record cash plus other methods. Gateway processing is not included.
+- Use F2 for scanning focus, F4 for checkout and F8 to hold a bill. Buttons remain subject to validation.
 
 ## Implemented functionality
 
@@ -119,14 +126,14 @@ A product's SKU is also scannable. The optional barcode field can contain an exi
 ## Invoice and payment behavior
 
 - Money is stored as integer minor units (for example, PKR 100.50 is 10050).
-- Tax is a manually entered percentage stored as basis points. Half-cent ties round up.
+- Tax supports disabled, configured per-product/default profiles, or legacy manual entry. Rates use basis points; tax rounds half up. See the release guide for mixed inclusive/exclusive calculations.
 - Discount is a fixed amount applied before tax.
 - Invoice numbering is sequential within a business: `INV-0000001`.
 - The sale snapshots its seller name/address/tax number/currency and product prices/names. Later edits do not rewrite the invoice.
 - Cash checkout requires sufficient cash received and displays change.
 - “Paid externally” records a payment already collected outside the system. There is no card gateway or automatic charge.
 - A whole-sale return restores stock exactly once. The money refund must be handled externally.
-- PDFs embed DejaVu Sans fonts. RTL Arabic/Urdu shaping and jurisdiction-specific fiscal invoice rules are not implemented.
+- Invoice PDFs embed DejaVu Sans and Noto Naskh Arabic, with Urdu shaping. Customer-statement PDFs remain English. Jurisdiction-specific fiscal invoice rules are not implemented.
 
 ## Transaction and tenant safety
 
@@ -204,8 +211,8 @@ Restore into a separate empty database and verify before replacing any live syst
 
 ## Scope and limits
 
-This release is an operational foundation, not completion of the full enterprise feature list. See [the release matrix](docs/RELEASE-1.2.md) before rollout. There is one stock location per business and fixed server-enforced roles. Inventory valuation uses current product cost, not FIFO costing or weighted-average cost. FEFO is physical batch allocation only. Catalog snapshots still load the full catalog; large-store performance has not been established.
+This release is an operational foundation, not completion of the full enterprise feature list. See [the release matrix](docs/RELEASE-1.3.md) before rollout. There is one stock location per business and fixed server-enforced roles. Inventory valuation uses current product cost, not FIFO costing or weighted-average cost. FEFO is physical batch allocation only. Catalog snapshots still load the full catalog; large-store performance has not been established.
 
-English is the primary UI language. Urdu navigation and khata labels, RTL in the khata module, Urdu lookup names, and user-entered Roman Urdu aliases are included. Full translation, Roman Urdu transliteration and shaped Urdu PDF receipts remain pending. No offline financial transactions or automatic synchronization are implemented.
+English/Urdu operational labels, RTL layout and invoice PDFs are supported. Some dynamic errors, chart labels, exports and customer-statement PDFs remain English; see the explicit localization bounds in the release guide. No offline financial transactions or automatic synchronization are implemented.
 
 Use HTTPS, real PostgreSQL concurrency tests, restore drills and store acceptance testing before real trading. External integrations, physical hardware output and jurisdiction-specific compliance require separate work. See `VERIFICATION.md` for checks actually performed.

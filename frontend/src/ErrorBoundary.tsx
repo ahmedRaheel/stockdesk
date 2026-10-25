@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 /** Preserve a useful recovery route if an unexpected render error occurs. */
@@ -16,13 +17,16 @@ export default class ErrorBoundary extends Component<
     if (this.state.failed)
       return (
         <main>
-          <h1>Workspace could not be displayed</h1>
+          <h1>{tr("Workspace could not be displayed")}</h1>
           <p>
-            Reload to recover. If checkout was interrupted, check sales history
-            before creating another sale.
+            {" "}
+            {tr(
+              "Reload to recover. If checkout was interrupted, check sales history before creating another sale.",
+            )}{" "}
           </p>
           <button className="primary" onClick={() => location.reload()}>
-            Reload workspace
+            {" "}
+            {tr("Reload workspace")}{" "}
           </button>
         </main>
       );

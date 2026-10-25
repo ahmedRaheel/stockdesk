@@ -1,4 +1,6 @@
-"use client";
+import { t as tr } from "./i18n";
+import { useLanguage } from "./i18n";
+("use client");
 import { useEffect, useState, useRef } from "react";
 import {
   LayoutDashboard,
@@ -34,12 +36,36 @@ import PlotlyChart from "./PlotlyChart";
 import Forecasts from "./Forecasts";
 import Purchasing from "./Purchasing";
 import Retail from "./Retail";
+import AuditLog from "./AuditLog";
+import RoleManagement from "./RoleManagement";
+import CatalogImport from "./CatalogImport";
+import Payables from "./Payables";
+import ManagementReport from "./ManagementReport";
+import StockCounts from "./StockCounts";
+import PosEntry from "./PosEntry";
+import SplitPayments, { PaymentRow } from "./SplitPayments";
+import TaxSettings from "./TaxSettings";
 import Tills from "./Tills";
 import BatchAlerts from "./BatchAlerts";
 import LookupSelect from "./LookupSelect";
 import CustomerSelect from "./CustomerSelect";
 import { send } from "./api";
 const titles: any = {
+  roles: ["Custom roles", "Business permissions and staff assignments."],
+  imports: ["Catalog import", "Validate and import products from CSV."],
+  payables: [
+    "Supplier payables",
+    "Matched invoices, payments, and outstanding balances.",
+  ],
+  reports: [
+    "Management reports",
+    "Margin, category, cashier, hourly sales and ABC/XYZ.",
+  ],
+  counts: ["Stock counts", "Physical batch counts with independent approval."],
+  taxes: [
+    "Tax configuration",
+    "Configure rates, effective dates, and when tax applies.",
+  ],
   tills: [
     "Till sessions",
     "Opening cash, cash movements, and closing reconciliation.",
@@ -84,10 +110,16 @@ const titles: any = {
   ],
 };
 const icons: any = {
+  roles: ShieldCheck,
+  imports: Download,
+  payables: Receipt,
   tills: Receipt,
   batches: AlertTriangle,
   khata: Users,
   lookups: SlidersHorizontal,
+  taxes: SlidersHorizontal,
+  counts: Package,
+  reports: Package,
   purchasing: Package,
   forecasts: ArrowUpRight,
   dashboard: LayoutDashboard,
@@ -187,9 +219,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     [paidNow, setPaidNow] = useState("0"),
     [dueDate, setDueDate] = useState(""),
     [methodId, setMethodId] = useState("");
-  const [language, setLanguage] = useState<"en" | "ur">(() =>
-    localStorage.getItem("stockdesk-language") === "ur" ? "ur" : "en",
-  );
+  const [language, setLanguage] = useLanguage();
   const navUr: Record<string, string> = {
     dashboard: "خلاصہ",
     products: "مصنوعات",
@@ -280,6 +310,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     if (busy) return;
     setCart([]);
     setCustomerId("");
+    setSplit(false);
+    setPaymentRows([]);
     setCreditMode(false);
     setMethodId("");
     setHeldId("");
@@ -352,6 +384,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
           active: f.active === "on",
           expiry_required: f.expiry_required === "on",
           prescription_required: f.prescription_required === "on",
+          tax_profile_id: f.tax_profile_id || null,
         });
       } else if (kind === "movement") {
         const payload = {
@@ -422,30 +455,97 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
   const categories = [
     ...new Set<string>(data.products.map((p: any) => p.category)),
   ].sort();
+  const [taxSettings, setTaxSettings] = useState<any>(null),
+    [quote, setQuote] = useState<any>(null),
+    [quoteError, setQuoteError] = useState("");
+  useEffect(() => {
+    setTaxSettings(null);
+    if (!tenant) return;
+    const controller = new AbortController();
+    fetch(`/api/v1/tenants/${tenant}/tax-settings`, {
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then(setTaxSettings)
+      .catch(() => {});
+    return () => controller.abort();
+  }, [tenant, data.tenant]);
+  const quoteBody = JSON.stringify({
+    items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
+    discount: Math.round(Number(discount || 0) * 100),
+    tax_bps: Math.round(Number(taxRate || 0) * 100),
+  });
+  useEffect(() => {
+    setQuote(null);
+    setQuoteError("");
+    if (!tenant || !cart.length) return;
+    const c = new AbortController();
+    const timer = setTimeout(() => {
+      fetch(`/api/v1/tenants/${tenant}/sales/quote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: quoteBody,
+        signal: c.signal,
+      })
+        .then(async (r) => {
+          const d = await r.json();
+          if (!r.ok) throw Error(d.error);
+          return d;
+        })
+        .then((d) => setQuote({ ...d, body: quoteBody }))
+        .catch((e) => {
+          if (e.name !== "AbortError") setQuoteError(e.message);
+        });
+    }, 200);
+    return () => {
+      clearTimeout(timer);
+      c.abort();
+    };
+  }, [tenant, quoteBody, taxSettings]);
+  const quoteReady = quote?.body === quoteBody;
   const subtotal = cart.reduce(
       (s, p) => s + Math.round(p.price * p.quantity),
       0,
     ),
     discountCents = Math.round(Number(discount || 0) * 100),
     taxBps = Math.round(Number(taxRate || 0) * 100),
-    tax = Math.floor(((subtotal - discountCents) * taxBps + 5000) / 10000),
-    total = subtotal - discountCents + tax,
+    tax = quoteReady ? quote.tax : 0,
+    total = quoteReady ? quote.total : subtotal - discountCents,
     units = cart.reduce((s, p) => s + p.quantity, 0);
-  const collected = creditMode ? Math.round(Number(paidNow) * 100) : total;
-  function add(p: any) {
-    if (busy) return;
-    const old = cart.find((x) => x.id === p.id);
-    if ((old?.quantity || 0) >= p.stock) {
-      setToast("No more stock available for " + p.name);
-      return;
+  const [split, setSplit] = useState(false),
+    [paymentRows, setPaymentRows] = useState<PaymentRow[]>([]);
+  const collected = split
+    ? paymentRows.reduce(
+        (sum, r) => sum + Math.round(Number(r.amount) * 100),
+        0,
+      )
+    : creditMode
+      ? Math.round(Number(paidNow) * 100)
+      : total;
+  const cashCollected = split
+    ? paymentRows
+        .filter((r) => r.is_cash)
+        .reduce((sum, r) => sum + Math.round(Number(r.amount) * 100), 0)
+    : payment === "cash"
+      ? collected
+      : 0;
+  function add(p: any, amount = 1) {
+    if (busy) return false;
+    const existing = cart.find((x) => x.id === p.id);
+    const next = Math.round(((existing?.quantity || 0) + amount) * 1000) / 1000;
+    if (!Number.isFinite(amount) || amount <= 0 || next > Number(p.stock)) {
+      setToast(tr("Requested quantity exceeds available stock."));
+      return false;
     }
-    setCart(
-      old
-        ? cart.map((x) =>
-            x.id === p.id ? { ...x, quantity: x.quantity + 1 } : x,
-          )
-        : [...cart, { ...p, quantity: 1 }],
-    );
+    setCart((previous) => {
+      const current = previous.find((x) => x.id === p.id);
+      const qty = Math.round(((current?.quantity || 0) + amount) * 1000) / 1000;
+      if (qty > Number(p.stock)) return previous;
+      return current
+        ? previous.map((x) => (x.id === p.id ? { ...x, quantity: qty } : x))
+        : [...previous, { ...p, quantity: amount }];
+    });
+    return true;
   }
   function quantity(id: string, delta: number) {
     setCart(
@@ -458,19 +558,61 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
         .filter((p) => p.quantity > 0),
     );
   }
+  useEffect(() => {
+    const listener = (e: KeyboardEvent) => {
+      if (
+        view !== "pos" ||
+        modal ||
+        receipt ||
+        e.altKey ||
+        e.ctrlKey ||
+        e.metaKey
+      )
+        return;
+      const selectors: Record<string, string> = {
+        F2: "[data-pos-search]",
+        F4: ".checkout",
+        F8: "[data-hold-bill]",
+      };
+      const selector = selectors[e.key];
+      if (!selector) return;
+      e.preventDefault();
+      const element = document.querySelector<
+        HTMLInputElement | HTMLButtonElement
+      >(selector);
+      if (element && !element.disabled) {
+        if (e.key === "F2") element.focus();
+        else element.click();
+      }
+    };
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, [view, modal, receipt]);
   async function checkout() {
-    if (!cart.length || busy) return;
+    if (!cart.length || busy || !quoteReady) return;
     setBusy(true);
     setError("");
     const payload = {
+      quote_token: quote.quote_token,
       items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
       customer,
       held_bill_id: heldId || null,
       prescription_reference: prescriptionRef,
       customer_id: customerId || null,
-      paid_now: creditMode ? Math.round(Number(paidNow) * 100) : null,
+      paid_now: split
+        ? collected
+        : creditMode
+          ? Math.round(Number(paidNow) * 100)
+          : null,
+      tenders: split
+        ? paymentRows.map((r) => ({
+            method_id: r.method_id,
+            amount: Math.round(Number(r.amount) * 100),
+            reference: r.reference,
+          }))
+        : null,
       due_date: creditMode ? dueDate : null,
-      payment_method_id: methodId || null,
+      payment_method_id: split ? null : methodId || null,
       payment,
       discount: discountCents,
       tax_bps: taxBps,
@@ -486,6 +628,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
         request: pending.current.id,
       });
       setCart([]);
+      setSplit(false);
+      setPaymentRows([]);
       setTendered("");
       setHeldId("");
       await refreshHeld();
@@ -591,10 +735,15 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     "products",
     ...(can("sale") ? ["pos", "sales", "tills"] : []),
     "movements",
-    ...(can("stock") ? ["purchasing", "batches"] : []),
+    ...(can("stock") ? ["purchasing", "batches", "counts"] : []),
     ...(can("credit") ? ["khata"] : []),
-    ...(can("settings") ? ["lookups"] : []),
-    ...(can("team") ? ["team", "audit"] : []),
+    ...(can("settings") ? ["lookups", "taxes"] : []),
+    ...(can("cost") ? ["reports"] : []),
+    ...(can("finance") ? ["payables"] : []),
+    ...(can("product") ? ["imports"] : []),
+    ...(can("team") ? ["team"] : []),
+    ...(can("audit") ? ["audit"] : []),
+    ...(can("roles") ? ["roles"] : []),
     "businesses",
     ...(can("settings") ? ["settings"] : []),
   ];
@@ -617,7 +766,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
             : "")
       }
     >
-      {s}
+      {tr(s)}
     </span>
   );
   const empty = (label: string, detail: string, action?: () => void) => (
@@ -625,12 +774,11 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
       <div className="empty-icon">
         <Boxes size={30} />
       </div>
-      <h3>{label}</h3>
-      <p>{detail}</p>
+      <h3>{tr(label)}</h3>
+      <p>{tr(detail)}</p>
       {action && (
         <button className="primary" onClick={action}>
-          <Plus size={16} />
-          Add your first product
+          <Plus size={16} /> {tr("Add your first product")}{" "}
         </button>
       )}
     </div>
@@ -643,7 +791,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     required = true,
   ) => (
     <label className="field">
-      <span>{label}</span>
+      <span>{tr(label)}</span>
       <input
         name={name}
         type={type}
@@ -670,19 +818,20 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
         <a className="brand" href="/">
           <span>
             <Boxes size={24} />
-          </span>
-          StockDesk<span className="saas">HQ</span>
+          </span>{" "}
+          {tr("StockDesk")}
+          <span className="saas">{tr("HQ")}</span>
         </a>
-        <div className="workspace-label">WORKSPACE</div>
+        <div className="workspace-label">{tr("WORKSPACE")}</div>
         <div className="business-select">
           <Building2 size={18} />
           <select
-            aria-label="Select business"
+            aria-label={tr("Select business")}
             value={tenant}
             disabled={busy || loading}
             onChange={(e) => switchTenant(e.target.value)}
           >
-            <option value="">Select a business</option>
+            <option value="">{tr("Select a business")}</option>
             {data.tenants
               .filter((t: any) => t.status === "active")
               .map((t: any) => (
@@ -698,8 +847,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
             return (
               <button
                 key={v}
-                title={titles[v][0]}
-                aria-label={titles[v][0]}
+                title={tr(titles[v][0])}
+                aria-label={tr(titles[v][0])}
                 aria-current={view === v ? "page" : undefined}
                 className={view === v ? "active" : ""}
                 disabled={busy}
@@ -707,24 +856,24 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               >
                 <Icon size={18} />
                 {language === "ur"
-                  ? navUr[v]
+                  ? navUr[v] || tr(titles[v][0])
                   : v === "dashboard"
-                    ? "Overview"
+                    ? tr("Overview")
                     : v === "pos"
-                      ? "Point of sale"
+                      ? tr("Point of sale")
                       : v === "team"
-                        ? "Team & roles"
+                        ? tr("Team & roles")
                         : v === "businesses"
-                          ? "Businesses"
+                          ? tr("Businesses")
                           : v === "audit"
-                            ? "Activity log"
+                            ? tr("Activity log")
                             : v === "products"
-                              ? "Inventory"
+                              ? tr("Inventory")
                               : v === "forecasts"
-                                ? "Forecasts"
+                                ? tr("Forecasts")
                                 : v === "movements"
-                                  ? "Stock ledger"
-                                  : titles[v][0]}
+                                  ? tr("Stock ledger")
+                                  : tr(titles[v][0])}
                 {v === "products" && !!low.length && (
                   <small>{low.length}</small>
                 )}
@@ -735,7 +884,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
         <div className="sidebar-bottom">
           <div className="secure">
             <ShieldCheck size={17} />
-            <span>Private business workspace</span>
+            <span>{tr("Private business workspace")}</span>
           </div>
           <div className="profile">
             <div className="avatar">
@@ -744,13 +893,13 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
             <div>
               <b>{data.user?.displayName || "Connecting…"}</b>
               <small>
-                {data.user?.admin ? "Super Admin" : data.role || "Member"}
+                {tr(data.user?.admin ? "Super Admin" : data.role || "Member")}
               </small>
             </div>
             <button
               className="icon-button"
               onClick={onLogout}
-              aria-label="Sign out"
+              aria-label={tr("Sign out")}
             >
               <LogOut size={16} />
             </button>
@@ -760,47 +909,48 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
       <div className="main-shell">
         <header>
           <div className="breadcrumb">
-            Workspace <span>/</span> <b>{titles[view][0]}</b>
+            {" "}
+            {tr("Workspace")} <span>/</span> <b>{tr(titles[view][0])}</b>
           </div>
           <div className="header-right">
             <button
               className="mini"
               onClick={() => setLanguage(language === "en" ? "ur" : "en")}
             >
-              {language === "en" ? "اردو" : "English"}
+              {language === "en" ? "اردو" : tr("English")}
             </button>
             <button
               className="density-control"
-              aria-label="Toggle table density"
+              aria-label={tr("Toggle table density")}
               aria-pressed={density === "compact"}
               onClick={() =>
                 setDensity(density === "compact" ? "comfortable" : "compact")
               }
             >
               <SlidersHorizontal size={15} />
-              {density === "compact" ? "Compact" : "Comfortable"}
+              {density === "compact" ? tr("Compact") : tr("Comfortable")}
             </button>
             <span className="connected">
               <i />
-              {loading ? "Syncing…" : "Connected"}
+              {loading ? tr("Syncing…") : tr("Connected")}
             </span>
             <button
               className="icon-button"
-              aria-label="Change password"
+              aria-label={tr("Change password")}
               onClick={() => open("password")}
             >
               <ShieldCheck size={17} />
             </button>
             <button
               className="icon-button"
-              aria-label="Refresh"
+              aria-label={tr("Refresh")}
               disabled={busy || loading}
               onClick={() => load()}
             >
               <RefreshCw size={17} className={loading ? "spin" : ""} />
             </button>
             <span className="role-chip">
-              {data.user?.admin ? "Super Admin" : data.role || "Account"}
+              {data.user?.admin ? tr("Super Admin") : data.role || "Account"}
             </span>
           </div>
         </header>
@@ -810,44 +960,38 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               <div className="eyebrow">
                 {data.tenant?.name || "YOUR BUSINESS, ORGANIZED"}
               </div>
-              <h1>{titles[view][0]}</h1>
-              <p>{titles[view][1]}</p>
+              <h1>{tr(titles[view][0])}</h1>
+              <p>{tr(titles[view][1])}</p>
             </div>
             <div className="actions">
               {["dashboard", "products"].includes(view) && can("product") && (
                 <button className="secondary" onClick={() => open("product")}>
-                  <Plus size={16} />
-                  Add product
+                  <Plus size={16} /> {tr("Add product")}{" "}
                 </button>
               )}
               {view === "dashboard" && can("sale") && (
                 <button className="primary" onClick={() => navigate("pos")}>
-                  <ShoppingCart size={16} />
-                  Open point of sale
+                  <ShoppingCart size={16} /> {tr("Open point of sale")}{" "}
                 </button>
               )}
               {view === "products" && (
                 <button className="secondary" onClick={csv}>
-                  <Download size={16} />
-                  Export
+                  <Download size={16} /> {tr("Export")}{" "}
                 </button>
               )}
               {view === "movements" && can("stock") && (
                 <button className="primary" onClick={() => open("movement")}>
-                  <Plus size={16} />
-                  Stock adjustment
+                  <Plus size={16} /> {tr("Stock adjustment")}{" "}
                 </button>
               )}
               {view === "team" && (
                 <button className="primary" onClick={() => open("member")}>
-                  <Plus size={16} />
-                  Add team member
+                  <Plus size={16} /> {tr("Add team member")}{" "}
                 </button>
               )}
               {view === "businesses" && data.user?.admin && (
                 <button className="primary" onClick={() => open("tenant")}>
-                  <Plus size={16} />
-                  New business
+                  <Plus size={16} /> {tr("New business")}{" "}
                 </button>
               )}
             </div>
@@ -855,8 +999,11 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
           {error && (
             <div className="alert error" role="alert">
               <AlertTriangle size={18} />
-              <span>{error}</span>
-              <button onClick={() => setError("")} aria-label="Dismiss error">
+              <span>{tr(error)}</span>
+              <button
+                onClick={() => setError("")}
+                aria-label={tr("Dismiss error")}
+              >
                 <X size={16} />
               </button>
             </div>
@@ -864,7 +1011,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
           {toast && (
             <div className="toast" role="status">
               <Check size={17} />
-              {toast}
+              {tr(toast)}
             </div>
           )}
           {!tenant && view !== "businesses" && !loading ? (
@@ -872,34 +1019,36 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               <span className="welcome-icon">
                 <Building2 size={38} />
               </span>
-              <div className="eyebrow">A FRESH START</div>
-              <h2>Your business starts here.</h2>
+              <div className="eyebrow">{tr("A FRESH START")}</div>
+              <h2>{tr("Your business starts here.")}</h2>
               <p>
-                Create your workspace, add your products, and make your first
-                sale.
-                <br />
-                Your inventory and team stay organized from day one.
+                {" "}
+                {tr(
+                  "Create your workspace, add your products, and make your first sale.",
+                )}{" "}
+                <br />{" "}
+                {tr(
+                  "Your inventory and team stay organized from day one.",
+                )}{" "}
               </p>
               {data.user?.admin ? (
                 <button className="primary" onClick={() => open("tenant")}>
-                  <Plus size={17} />
-                  Create a business
+                  <Plus size={17} /> {tr("Create a business")}{" "}
                 </button>
               ) : (
-                <p>Ask your administrator to assign you to a business.</p>
+                <p>
+                  {tr("Ask your administrator to assign you to a business.")}
+                </p>
               )}
               <div className="welcome-features">
                 <span>
-                  <ShieldCheck />
-                  Role-based access
+                  <ShieldCheck /> {tr("Role-based access")}{" "}
                 </span>
                 <span>
-                  <Package />
-                  Live stock tracking
+                  <Package /> {tr("Live stock tracking")}{" "}
                 </span>
                 <span>
-                  <Receipt />
-                  Connected checkout
+                  <Receipt /> {tr("Connected checkout")}{" "}
                 </span>
               </div>
             </div>
@@ -948,7 +1097,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         className={"kpi " + (i === 3 ? "warm" : "")}
                       >
                         <div>
-                          <span>{label}</span>
+                          <span>{tr(label)}</span>
                           <Icon size={19} />
                         </div>
                         <strong>{val}</strong>
@@ -961,7 +1110,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                 setFilter("Low stock");
                               }}
                             >
-                              Review <ArrowUpRight size={13} />
+                              {" "}
+                              {tr("Review")} <ArrowUpRight size={13} />
                             </button>
                           )}
                         </small>
@@ -972,10 +1122,12 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                     <section className="panel revenue">
                       <div className="panel-heading">
                         <div>
-                          <h2>Sales performance</h2>
-                          <p>Completed sales over the last 7 days · UTC</p>
+                          <h2>{tr("Sales performance")}</h2>
+                          <p>
+                            {tr("Completed sales over the last 7 days · UTC")}
+                          </p>
                         </div>
-                        <span className="subtle-tag">Last 7 days</span>
+                        <span className="subtle-tag">{tr("Last 7 days")}</span>
                       </div>
                       <div className="chart-total">
                         {money(
@@ -984,22 +1136,25 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                             0,
                           ),
                         )}
-                        <span>total revenue</span>
+                        <span>{tr("total revenue")}</span>
                       </div>
                       {data.salesChart && (
                         <PlotlyChart figure={data.salesChart} />
                       )}
                       {!can("sale") && (
                         <p className="muted">
-                          Sales reporting is restricted to sales roles.
+                          {" "}
+                          {tr(
+                            "Sales reporting is restricted to sales roles.",
+                          )}{" "}
                         </p>
                       )}
                     </section>
                     <section className="panel health-panel">
                       <div className="panel-heading">
                         <div>
-                          <h2>Inventory health</h2>
-                          <p>Know where your stock stands</p>
+                          <h2>{tr("Inventory health")}</h2>
+                          <p>{tr("Know where your stock stands")}</p>
                         </div>
                         <Package size={19} />
                       </div>
@@ -1023,14 +1178,19 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   <section className="panel">
                     <div className="panel-heading">
                       <div>
-                        <h2>Needs your attention</h2>
-                        <p>Replenish these products to keep business moving</p>
+                        <h2>{tr("Needs your attention")}</h2>
+                        <p>
+                          {tr(
+                            "Replenish these products to keep business moving",
+                          )}
+                        </p>
                       </div>
                       <button
                         className="text-button"
                         onClick={() => navigate("products")}
                       >
-                        View inventory <ArrowUpRight size={15} />
+                        {" "}
+                        {tr("View inventory")} <ArrowUpRight size={15} />
                       </button>
                     </div>
                     {low.length ? (
@@ -1038,11 +1198,11 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         <table>
                           <thead>
                             <tr>
-                              <th>Product</th>
-                              <th>Category</th>
-                              <th>Available</th>
-                              <th>Reorder point</th>
-                              <th>Status</th>
+                              <th>{tr("Product")}</th>
+                              <th>{tr("Category")}</th>
+                              <th>{tr("Available")}</th>
+                              <th>{tr("Reorder point")}</th>
+                              <th>{tr("Status")}</th>
                               <th />
                             </tr>
                           </thead>
@@ -1055,9 +1215,11 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                 </td>
                                 <td>{p.category}</td>
                                 <td>
-                                  <b>{p.stock}</b> units
+                                  <b>{p.stock}</b> {tr("units")}{" "}
                                 </td>
-                                <td>{p.reorder} units</td>
+                                <td>
+                                  {p.reorder} {tr("units")}
+                                </td>
                                 <td>{badge(status(p))}</td>
                                 <td>
                                   {can("stock") && (
@@ -1065,7 +1227,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                       className="mini"
                                       onClick={() => open("movement", p)}
                                     >
-                                      Restock <Plus size={12} />
+                                      {" "}
+                                      {tr("Restock")} <Plus size={12} />
                                     </button>
                                   )}
                                 </td>
@@ -1096,6 +1259,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   tenant={tenant}
                   currency={currency}
                   products={data.products}
+                  canApprove={can("purchase_approve")}
+                  canConfigure={can("roles")}
+                  userEmail={data.user?.email || ""}
                   onReceived={() => load()}
                 />
               )}
@@ -1118,6 +1284,40 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   lookupAdmin={can("settings")}
                   language={language}
                 />
+              )}
+              {view === "roles" && can("roles") && (
+                <RoleManagement key={tenant} tenant={tenant} />
+              )}
+              {view === "imports" && can("product") && (
+                <CatalogImport
+                  key={tenant}
+                  tenant={tenant}
+                  onImported={() => load()}
+                />
+              )}
+              {view === "payables" && can("finance") && (
+                <Payables
+                  key={tenant}
+                  tenant={tenant}
+                  currency={currency}
+                  canReturn={can("supplier_return")}
+                />
+              )}
+              {view === "reports" && can("cost") && (
+                <ManagementReport tenant={tenant} currency={currency} />
+              )}
+              {view === "counts" && can("stock") && (
+                <StockCounts
+                  key={tenant}
+                  tenant={tenant}
+                  products={data.products}
+                  userId={data.user?.userId}
+                  canApprove={can("count_approve")}
+                  onPosted={() => load()}
+                />
+              )}
+              {view === "taxes" && (
+                <TaxSettings tenant={tenant} onSaved={() => load()} />
               )}
               {view === "lookups" && can("settings") && (
                 <Retail
@@ -1144,7 +1344,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                     <div className="search">
                       <Search size={17} />
                       <input
-                        placeholder="Search product name or SKU…"
+                        placeholder={tr("Search product name or SKU…")}
                         value={search}
                         onChange={(e) => {
                           setSearch(e.target.value);
@@ -1153,27 +1353,27 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       />
                     </div>
                     <select
-                      aria-label="Category"
+                      aria-label={tr("Category")}
                       value={category}
                       onChange={(e) => {
                         setCategory(e.target.value);
                         setPage(0);
                       }}
                     >
-                      <option value="">All categories</option>
+                      <option value="">{tr("All categories")}</option>
                       {categories.map((c) => (
                         <option key={c}>{c}</option>
                       ))}
                     </select>
                     <select
-                      aria-label="Stock status"
+                      aria-label={tr("Stock status")}
                       value={filter}
                       onChange={(e) => {
                         setFilter(e.target.value);
                         setPage(0);
                       }}
                     >
-                      <option value="">All statuses</option>
+                      <option value="">{tr("All statuses")}</option>
                       {[
                         "In stock",
                         "Low stock",
@@ -1190,12 +1390,12 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         <table>
                           <thead>
                             <tr>
-                              <th>Product</th>
-                              <th>Category</th>
-                              <th>Selling price</th>
-                              <th>On hand</th>
-                              <th>Reorder</th>
-                              <th>Status</th>
+                              <th>{tr("Product")}</th>
+                              <th>{tr("Category")}</th>
+                              <th>{tr("Selling price")}</th>
+                              <th>{tr("On hand")}</th>
+                              <th>{tr("Reorder")}</th>
+                              <th>{tr("Status")}</th>
                               <th />
                             </tr>
                           </thead>
@@ -1211,7 +1411,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                   <td>{p.category}</td>
                                   <td>{money(p.price)}</td>
                                   <td>
-                                    <b>{p.stock}</b> units
+                                    <b>{p.stock}</b> {tr("units")}{" "}
                                   </td>
                                   <td>{p.reorder}</td>
                                   <td>
@@ -1224,7 +1424,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                           className="mini"
                                           onClick={() => open("editProduct", p)}
                                         >
-                                          Edit <SlidersHorizontal size={12} />
+                                          {" "}
+                                          {tr("Edit")}{" "}
+                                          <SlidersHorizontal size={12} />
                                         </button>
                                         <a
                                           className="mini"
@@ -1235,7 +1437,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                             encodeURIComponent(tenant)
                                           }
                                         >
-                                          Barcode label
+                                          {" "}
+                                          {tr("Barcode label")}{" "}
                                         </a>
                                       </div>
                                     )}
@@ -1248,8 +1451,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       <div className="pagination">
                         <span>
                           {page * 15 + 1}–
-                          {Math.min(page * 15 + 15, products.length)} of{" "}
-                          {products.length} products
+                          {Math.min(page * 15 + 15, products.length)} {tr("of")}{" "}
+                          {products.length} {tr("products")}{" "}
                         </span>
                         <div>
                           <button
@@ -1257,14 +1460,16 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                             disabled={!page}
                             onClick={() => setPage(page - 1)}
                           >
-                            Previous
+                            {" "}
+                            {tr("Previous")}{" "}
                           </button>
                           <button
                             className="mini"
                             disabled={(page + 1) * 15 >= products.length}
                             onClick={() => setPage(page + 1)}
                           >
-                            Next
+                            {" "}
+                            {tr("Next")}{" "}
                           </button>
                         </div>
                       </div>
@@ -1281,37 +1486,28 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               {view === "pos" && can("sale") && (
                 <div className="pos-grid">
                   <section>
+                    <PosEntry
+                      key={tenant}
+                      products={data.products}
+                      busy={busy}
+                      onAdd={add}
+                    />
                     <div className="toolbar pos-toolbar">
                       <div className="search">
                         <Search size={17} />
                         <input
-                          autoFocus
-                          placeholder="Scan barcode / SKU here, then Enter…"
+                          placeholder={tr("Search product name or SKU…")}
+                          aria-label={tr("Search catalog")}
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              const p = data.products.find(
-                                (p: any) =>
-                                  p.active &&
-                                  (p.sku.toLowerCase() ===
-                                    search.toLowerCase() ||
-                                    p.barcode === search),
-                              );
-                              if (p) {
-                                add(p);
-                                setSearch("");
-                              }
-                            }
-                          }}
                         />
                       </div>
                       <select
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
-                        aria-label="Product category"
+                        aria-label={tr("Product category")}
                       >
-                        <option value="">All categories</option>
+                        <option value="">{tr("All categories")}</option>
                         {categories.map((c) => (
                           <option key={c}>{c}</option>
                         ))}
@@ -1341,7 +1537,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                     p.stock <= p.reorder ? "warning" : ""
                                   }
                                 >
-                                  {p.stock} in stock
+                                  {p.stock} {tr("in stock")}{" "}
                                 </span>
                               </div>
                             </div>
@@ -1361,11 +1557,12 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   <section className="panel cart">
                     <div className="panel-heading">
                       <h2>
-                        Current order <span>{units}</span>
+                        {" "}
+                        {tr("Current order")} <span>{units}</span>
                       </h2>
                       <button
                         className="icon-button"
-                        aria-label="Clear cart"
+                        aria-label={tr("Clear cart")}
                         disabled={busy}
                         onClick={() => {
                           setCart([]);
@@ -1378,13 +1575,17 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                     <div className="actions">
                       <button
                         className="mini"
-                        disabled={busy || !cart.length || !!heldId}
+                        disabled={
+                          busy || !quoteReady || !cart.length || !!heldId
+                        }
+                        data-hold-bill
                         onClick={holdCurrent}
                       >
-                        Hold bill
+                        {" "}
+                        {tr("Hold bill")}{" "}
                       </button>
                       <select
-                        aria-label="Resume held bill"
+                        aria-label={tr("Resume held bill")}
                         value={heldId}
                         disabled={busy || !!cart.length}
                         onChange={(e) => {
@@ -1395,7 +1596,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                           }
                         }}
                       >
-                        <option value="">Resume held bill…</option>
+                        <option value="">{tr("Resume held bill…")}</option>
                         {heldBills.map((b) => (
                           <option key={b.id} value={b.id}>
                             {b.label}
@@ -1406,8 +1607,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                     <label className="customer">
                       <Users size={16} />
                       <input
-                        aria-label="Customer"
-                        placeholder="Walk-in customer"
+                        aria-label={tr("Customer")}
+                        placeholder={tr("Walk-in customer")}
                         value={customer}
                         disabled={busy}
                         onChange={(e) => setCustomer(e.target.value)}
@@ -1430,7 +1631,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                           <div className="cart-item" key={p.id}>
                             <div>
                               <b>{p.name}</b>
-                              <small>{money(p.price)} each</small>
+                              <small>
+                                {money(p.price)} {tr("each")}
+                              </small>
                               <div className="quantity">
                                 <button
                                   disabled={busy}
@@ -1476,18 +1679,21 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       ) : (
                         <div className="cart-empty">
                           <ShoppingCart size={34} />
-                          <h3>Your cart is empty</h3>
-                          <p>Select a product to start an order.</p>
+                          <h3>{tr("Your cart is empty")}</h3>
+                          <p>{tr("Select a product to start an order.")}</p>
                         </div>
                       )}
                     </div>
                     <div className="cart-math">
-                      <span>Subtotal</span>
+                      <span>{tr("Subtotal")}</span>
                       <b>{money(subtotal)}</b>
                     </div>
                     <div className="form-grid">
                       <label className="field">
-                        <span>Discount ({currency})</span>
+                        <span>
+                          {tr("Discount (")}
+                          {currency})
+                        </span>
                         <input
                           type="number"
                           min="0"
@@ -1499,29 +1705,45 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         />
                       </label>
                       <label className="field">
-                        <span>Tax (%)</span>
+                        <span>{tr("Tax (%)")}</span>
                         <input
                           type="number"
                           min="0"
                           max="100"
                           step="0.01"
                           value={taxRate}
-                          disabled={busy}
+                          disabled={busy || taxSettings?.mode !== "manual"}
                           onChange={(e) => setTaxRate(e.target.value)}
                         />
                       </label>
                     </div>
                     <div className="cart-math">
-                      <span>Tax</span>
-                      <b>{money(tax)}</b>
+                      <span>{tr("Tax added")}</span>
+                      <b>
+                        {money(tax - (quoteReady ? quote.tax_included : 0))}
+                      </b>
                     </div>
+                    {quoteReady && quote.tax_included > 0 && (
+                      <div className="cart-math">
+                        <span>{tr("Tax included in prices")}</span>
+                        <b>{money(quote.tax_included)}</b>
+                      </div>
+                    )}
+                    {quoteError && (
+                      <p role="alert" className="form-error">
+                        {tr(quoteError)}
+                      </p>
+                    )}
+                    {cart.length > 0 && !quoteReady && !quoteError && (
+                      <p>{tr("Calculating tax…")}</p>
+                    )}
                     <div className="cart-total">
-                      <span>Total</span>
+                      <span>{tr("Total")}</span>
                       <strong>{money(total)}</strong>
                     </div>
                     {cart.some((p) => p.prescription_required) && (
                       <label className="field">
-                        <span>Prescription reference</span>
+                        <span>{tr("Prescription reference")}</span>
                         <input
                           required
                           value={prescriptionRef}
@@ -1537,25 +1759,31 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                             checked={creditMode}
                             disabled={busy}
                             onChange={(e) => setCreditMode(e.target.checked)}
-                          />
-                          Part payment / khata · ادھار
+                          />{" "}
+                          {tr("Part payment / khata · ادھار")}{" "}
                         </label>
                         {creditMode && (
                           <div className="form-grid">
                             <label className="field">
-                              <span>Pay now ({currency})</span>
+                              <span>
+                                {tr("Pay now (")}
+                                {currency})
+                              </span>
                               <input
                                 type="number"
                                 min="0"
                                 max={total / 100}
                                 step="0.01"
                                 required
-                                value={paidNow}
+                                value={
+                                  split ? (collected / 100).toString() : paidNow
+                                }
+                                disabled={split}
                                 onChange={(e) => setPaidNow(e.target.value)}
                               />
                             </label>
                             <label className="field">
-                              <span>Credit due date</span>
+                              <span>{tr("Credit due date")}</span>
                               <input
                                 type="date"
                                 required
@@ -1567,43 +1795,73 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         )}
                       </>
                     )}
-                    <LookupSelect
-                      tenant={tenant}
-                      kind="payment_method"
-                      label="Payment method"
-                      value={methodId}
-                      required={false}
-                      onChange={(id, item) => {
-                        setMethodId(id);
-                        setPayment(item?.code === "cash" ? "cash" : "external");
-                      }}
-                      language={language}
-                    />
-                    <div className="payment-tabs">
-                      <button
-                        disabled={busy}
-                        className={payment === "cash" ? "selected" : ""}
-                        onClick={() => {
-                          setPayment("cash");
-                          setMethodId("");
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={split}
+                        onChange={(e) => {
+                          setSplit(e.target.checked);
+                          setPaymentRows([]);
                         }}
-                      >
-                        Cash
-                      </button>
-                      <button
-                        disabled={busy}
-                        className={payment === "external" ? "selected" : ""}
-                        onClick={() => {
-                          setPayment("external");
-                          setMethodId("");
+                      />
+                      {tr("Split payment")}
+                    </label>
+                    {split && (
+                      <SplitPayments
+                        tenant={tenant}
+                        rows={paymentRows}
+                        onChange={setPaymentRows}
+                        busy={busy}
+                      />
+                    )}
+                    {!split && (
+                      <LookupSelect
+                        tenant={tenant}
+                        kind="payment_method"
+                        label="Payment method"
+                        value={methodId}
+                        required={false}
+                        onChange={(id, item) => {
+                          setMethodId(id);
+                          setPayment(
+                            item?.code === "cash" ? "cash" : "external",
+                          );
                         }}
-                      >
-                        Paid externally
-                      </button>
-                    </div>
-                    {payment === "cash" ? (
+                        language={language}
+                      />
+                    )}
+                    {!split && (
+                      <div className="payment-tabs">
+                        <button
+                          disabled={busy}
+                          className={payment === "cash" ? "selected" : ""}
+                          onClick={() => {
+                            setPayment("cash");
+                            setMethodId("");
+                          }}
+                        >
+                          {" "}
+                          {tr("Cash")}{" "}
+                        </button>
+                        <button
+                          disabled={busy}
+                          className={payment === "external" ? "selected" : ""}
+                          onClick={() => {
+                            setPayment("external");
+                            setMethodId("");
+                          }}
+                        >
+                          {" "}
+                          {tr("Paid externally")}{" "}
+                        </button>
+                      </div>
+                    )}
+                    {(split ? cashCollected > 0 : payment === "cash") ? (
                       <label className="field">
-                        <span>Cash received ({currency})</span>
+                        <span>
+                          {tr("Cash received (")}
+                          {currency})
+                        </span>
                         <input
                           type="number"
                           min="0"
@@ -1613,35 +1871,49 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                           onChange={(e) => setTendered(e.target.value)}
                         />
                         <small>
-                          Change:{" "}
+                          {" "}
+                          {tr("Change:")}{" "}
                           {money(
                             Math.max(
                               0,
-                              Math.round(Number(tendered) * 100) - collected,
+                              Math.round(Number(tendered) * 100) -
+                                cashCollected,
                             ),
                           )}
                         </small>
                       </label>
                     ) : (
                       <p className="hint">
-                        Records a payment already collected elsewhere. No card
-                        is charged.
+                        {" "}
+                        {tr(
+                          "Records a payment already collected elsewhere. No card is charged.",
+                        )}{" "}
                       </p>
                     )}
                     <button
                       className="primary checkout"
                       disabled={
                         busy ||
+                        !quoteReady ||
                         !cart.length ||
                         discountCents > subtotal ||
                         discountCents < 0 ||
                         taxBps < 0 ||
                         taxBps > 10000 ||
-                        (payment === "cash" &&
-                          Number(tendered) * 100 < collected) ||
+                        (cashCollected > 0 &&
+                          Number(tendered) * 100 < cashCollected) ||
                         collected < 0 ||
                         collected > total ||
-                        (creditMode && (!customerId || !dueDate))
+                        (collected < total &&
+                          (!creditMode || !customerId || !dueDate)) ||
+                        (split &&
+                          (!paymentRows.length ||
+                            paymentRows.some(
+                              (r) =>
+                                !r.method_id ||
+                                !Number.isFinite(Number(r.amount)) ||
+                                Number(r.amount) <= 0,
+                            )))
                       }
                       onClick={checkout}
                     >
@@ -1649,12 +1921,12 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         <Loader2 className="spin" size={17} />
                       ) : (
                         <Check size={17} />
-                      )}
-                      Complete sale <span>{money(total)}</span>
+                      )}{" "}
+                      {tr("Complete sale")} <span>{money(total)}</span>
                     </button>
                     <p className="checkout-note">
-                      <ShieldCheck size={12} />
-                      Stock updates securely at checkout
+                      <ShieldCheck size={12} />{" "}
+                      {tr("Stock updates securely at checkout")}{" "}
                     </p>
                   </section>
                 </div>
@@ -1663,14 +1935,16 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                 <section className="panel">
                   <div className="panel-heading">
                     <div>
-                      <h2>Sales history</h2>
+                      <h2>{tr("Sales history")}</h2>
                       <p>
-                        Latest 500 receipts · refunds are recorded separately
+                        {" "}
+                        {tr(
+                          "Latest 500 receipts · refunds are recorded separately",
+                        )}{" "}
                       </p>
                     </div>
                     <button className="secondary" onClick={csv}>
-                      <Download size={15} />
-                      Export CSV
+                      <Download size={15} /> {tr("Export CSV")}{" "}
                     </button>
                   </div>
                   {data.sales.length ? (
@@ -1678,11 +1952,11 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       <table>
                         <thead>
                           <tr>
-                            <th>Receipt</th>
-                            <th>Customer</th>
-                            <th>Payment</th>
-                            <th>Total</th>
-                            <th>Status</th>
+                            <th>{tr("Receipt")}</th>
+                            <th>{tr("Customer")}</th>
+                            <th>{tr("Payment")}</th>
+                            <th>{tr("Total")}</th>
+                            <th>{tr("Status")}</th>
                             <th />
                           </tr>
                         </thead>
@@ -1694,7 +1968,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                 <small>{date(s.created)}</small>
                               </td>
                               <td>{s.customer}</td>
-                              <td className="capitalize">{s.payment}</td>
+                              <td className="capitalize">{tr(s.payment)}</td>
                               <td>
                                 <b>{money(s.total)}</b>
                               </td>
@@ -1705,7 +1979,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                     className="mini"
                                     onClick={() => showReceipt(s.id)}
                                   >
-                                    Receipt
+                                    {" "}
+                                    {tr("Receipt")}{" "}
                                   </button>
                                   {can("return") &&
                                     s.status === "completed" && (
@@ -1713,7 +1988,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                         className="mini"
                                         onClick={() => open("return", s)}
                                       >
-                                        Return
+                                        {" "}
+                                        {tr("Return")}{" "}
                                       </button>
                                     )}
                                 </div>
@@ -1735,9 +2011,12 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                 <section className="panel">
                   <div className="panel-heading">
                     <div>
-                      <h2>Stock ledger</h2>
+                      <h2>{tr("Stock ledger")}</h2>
                       <p>
-                        Latest 500 movements · positive quantities add stock
+                        {" "}
+                        {tr(
+                          "Latest 500 movements · positive quantities add stock",
+                        )}{" "}
                       </p>
                     </div>
                     <ArrowLeftRight size={20} />
@@ -1747,12 +2026,12 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       <table>
                         <thead>
                           <tr>
-                            <th>Product</th>
-                            <th>Movement</th>
-                            <th>Quantity</th>
-                            <th>Recorded by</th>
-                            <th>Date</th>
-                            <th>Notes</th>
+                            <th>{tr("Product")}</th>
+                            <th>{tr("Movement")}</th>
+                            <th>{tr("Quantity")}</th>
+                            <th>{tr("Recorded by")}</th>
+                            <th>{tr("Date")}</th>
+                            <th>{tr("Notes")}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1792,33 +2071,37 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   <div className="team-banner">
                     <ShieldCheck size={25} />
                     <div>
-                      <h3>Access that matches each responsibility</h3>
+                      <h3>{tr("Access that matches each responsibility")}</h3>
                       <p>
-                        Membership applies only to this business. Users sign in
-                        with their own email and password.
+                        {" "}
+                        {tr(
+                          "Membership applies only to this business. Users sign in with their own email and password.",
+                        )}{" "}
                       </p>
                     </div>
                   </div>
                   <section className="panel">
                     <div className="panel-heading">
                       <div>
-                        <h2>Team members</h2>
+                        <h2>{tr("Team members")}</h2>
                         <p>
-                          Create staff accounts or assign existing users. No
-                          invitation email is sent.
+                          {" "}
+                          {tr(
+                            "Create staff accounts or assign existing users. No invitation email is sent.",
+                          )}{" "}
                         </p>
                       </div>
                       <span className="subtle-tag">
-                        {data.members.length} members
+                        {data.members.length} {tr("members")}{" "}
                       </span>
                     </div>
                     <div className="table-scroll">
                       <table>
                         <thead>
                           <tr>
-                            <th>User</th>
-                            <th>Role</th>
-                            <th>Status</th>
+                            <th>{tr("User")}</th>
+                            <th>{tr("Role")}</th>
+                            <th>{tr("Status")}</th>
                             <th />
                           </tr>
                         </thead>
@@ -1828,7 +2111,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                               <td>
                                 <b>{m.email}</b>
                               </td>
-                              <td>{m.role}</td>
+                              <td>{m.custom_name || m.role}</td>
                               <td>{badge(m.active ? "Active" : "Disabled")}</td>
                               <td>
                                 {m.role !== "Owner" && (
@@ -1837,7 +2120,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                       className="mini"
                                       onClick={() => open("member", m)}
                                     >
-                                      Change role
+                                      {" "}
+                                      {tr("Change role")}{" "}
                                     </button>
                                     <button
                                       disabled={busy}
@@ -1849,7 +2133,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                         })
                                       }
                                     >
-                                      {m.active ? "Disable" : "Enable"}
+                                      {m.active ? tr("Disable") : tr("Enable")}
                                     </button>
                                   </div>
                                 )}
@@ -1862,13 +2146,13 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   </section>
                   <section className="panel role-matrix">
                     <div className="panel-heading">
-                      <h2>Role permissions</h2>
+                      <h2>{tr("Role permissions")}</h2>
                     </div>
                     <div className="table-scroll">
                       <table>
                         <thead>
                           <tr>
-                            <th>Permission</th>
+                            <th>{tr("Permission")}</th>
                             {ROLES.map((r) => (
                               <th key={r}>{r}</th>
                             ))}
@@ -1915,7 +2199,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         <div>{badge(t.status)}</div>
                         <h2>{t.name}</h2>
                         <p>
-                          {t.currency} · Created{" "}
+                          {t.currency} {tr("· Created")}{" "}
                           {new Date(t.created).toLocaleDateString()}
                         </p>
                         <div className="actions">
@@ -1924,14 +2208,17 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                             disabled={busy || t.status !== "active"}
                             onClick={() => switchTenant(t.id)}
                           >
-                            Open workspace <ArrowUpRight size={15} />
+                            {" "}
+                            {tr("Open workspace")} <ArrowUpRight size={15} />
                           </button>
                           {data.user?.admin && (
                             <button
                               className="secondary"
                               onClick={() => open("tenantStatus", t)}
                             >
-                              {t.status === "active" ? "Suspend" : "Reactivate"}
+                              {t.status === "active"
+                                ? tr("Suspend")
+                                : tr("Reactivate")}
                             </button>
                           )}
                         </div>
@@ -1941,18 +2228,19 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   {!data.tenants.length && (
                     <div className="welcome panel">
                       <Building2 size={36} />
-                      <h2>Give your business a home.</h2>
+                      <h2>{tr("Give your business a home.")}</h2>
                       <p>
-                        Create an isolated workspace for your inventory, sales
-                        and team.
+                        {" "}
+                        {tr(
+                          "Create an isolated workspace for your inventory, sales and team.",
+                        )}{" "}
                       </p>
                       {data.user?.admin && (
                         <button
                           className="primary"
                           onClick={() => open("tenant")}
                         >
-                          <Plus size={16} />
-                          Create business
+                          <Plus size={16} /> {tr("Create business")}{" "}
                         </button>
                       )}
                     </div>
@@ -1962,81 +2250,60 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               {view === "settings" && can("settings") && (
                 <section className="panel settings">
                   <div className="panel-heading">
-                    <h2>Business details</h2>
+                    <h2>{tr("Business details")}</h2>
                   </div>
                   <dl>
-                    <dt>Business name</dt>
+                    <dt>{tr("Business name")}</dt>
                     <dd>{data.tenant?.name}</dd>
-                    <dt>Currency</dt>
+                    <dt>{tr("Currency")}</dt>
                     <dd>
                       {currency}{" "}
                       <small>
-                        Fixed after creation to preserve sales history.
+                        {" "}
+                        {tr(
+                          "Fixed after creation to preserve sales history.",
+                        )}{" "}
                       </small>
                     </dd>
-                    <dt>Business ID</dt>
+                    <dt>{tr("Business ID")}</dt>
                     <dd className="mono">{tenant}</dd>
                   </dl>
                   <button
                     className="secondary"
                     onClick={() => open("settings", data.tenant)}
                   >
-                    Edit business name
+                    {" "}
+                    {tr("Edit business name")}{" "}
                   </button>
                   <div className="settings-note">
                     <ShieldCheck size={20} />
                     <p>
-                      Team access is enforced on the server. User accounts are
-                      managed by the platform and business owners. Staff can
-                      only access businesses where they have active membership.
+                      {" "}
+                      {tr(
+                        "Team access is enforced on the server. User accounts are managed by the platform and business owners. Staff can only access businesses where they have active membership.",
+                      )}{" "}
                     </p>
                   </div>
                 </section>
               )}
-              {view === "audit" && can("team") && (
-                <section className="panel">
-                  <div className="panel-heading">
-                    <h2>Recent activity</h2>
-                    <span className="subtle-tag">Latest 100 actions</span>
-                  </div>
-                  <div className="table-scroll">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Action</th>
-                          <th>User</th>
-                          <th>Date</th>
-                          <th>Details</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.audit.map((a: any) => (
-                          <tr key={a.id}>
-                            <td>
-                              <b>{a.action}</b>
-                            </td>
-                            <td>{a.actor}</td>
-                            <td>{date(a.created)}</td>
-                            <td className="wrap mono">{a.details}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
+              {view === "audit" && can("audit") && (
+                <AuditLog key={tenant} tenant={tenant} />
               )}
             </>
           )}
           {loading && !data.tenant && (
             <div className="loading">
-              <Loader2 className="spin" />
-              Connecting to your workspace…
+              <Loader2 className="spin" />{" "}
+              {tr("Connecting to your workspace…")}{" "}
             </div>
           )}
           <footer>
-            <ShieldCheck size={13} />
-            StockDesk / Retail operations
-            <span>All sales reporting dates use UTC.</span>
+            <ShieldCheck size={13} /> {tr("StockDesk / Retail operations")}{" "}
+            <span>
+              {tr(
+                "Management reports use Asia/Karachi; other sales charts use UTC.",
+              )}
+            </span>
           </footer>
         </main>
       </div>
@@ -2072,7 +2339,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               <button
                 disabled={busy}
                 className="icon-button"
-                aria-label="Close dialog"
+                aria-label={tr("Close dialog")}
                 onClick={() => setModal(null)}
               >
                 <X size={21} />
@@ -2132,8 +2399,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         type="checkbox"
                         name="expiry_required"
                         defaultChecked={modal.item?.expiry_required || false}
-                      />
-                      Batch and expiry required
+                      />{" "}
+                      {tr("Batch and expiry required")}{" "}
                     </label>
                     <label className="checkbox">
                       <input
@@ -2142,8 +2409,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         defaultChecked={
                           modal.item?.prescription_required || false
                         }
-                      />
-                      Prescription reference required at sale
+                      />{" "}
+                      {tr("Prescription reference required at sale")}{" "}
                     </label>
                     {field(
                       "Generic name (optional)",
@@ -2174,6 +2441,20 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       modal.item?.search_aliases || "",
                       false,
                     )}
+                    <label className="field">
+                      <span>{tr("Tax profile")}</span>
+                      <select
+                        name="tax_profile_id"
+                        defaultValue={modal.item?.tax_profile_id || ""}
+                      >
+                        <option value="">{tr("Business default")}</option>
+                        {taxSettings?.profiles.map((p: any) => (
+                          <option key={p.id} value={p.id} disabled={!p.active}>
+                            {p.name} · {p.rate_bps / 100}%
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     {field(
                       "Barcode (optional; SKU is also scannable)",
                       "barcode",
@@ -2211,13 +2492,15 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                           type="checkbox"
                           name="active"
                           defaultChecked={!!modal.item.active}
-                        />
-                        Active product (available at checkout)
+                        />{" "}
+                        {tr("Active product (available at checkout)")}{" "}
                       </label>
                     )}
                     <p className="hint">
-                      Stock changes are recorded through the ledger. Prices are
-                      stored with two decimal places.
+                      {" "}
+                      {tr(
+                        "Stock changes are recorded through the ledger. Prices are stored with two decimal places.",
+                      )}{" "}
                     </p>
                   </>
                 )}
@@ -2234,33 +2517,36 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                 {modal.kind === "movement" && (
                   <>
                     <label className="field">
-                      <span>Product</span>
+                      <span>{tr("Product")}</span>
                       <select
                         name="product"
                         defaultValue={modal.item?.id || ""}
                         required
                       >
-                        <option value="">Choose product</option>
+                        <option value="">{tr("Choose product")}</option>
                         {data.products
                           .filter((p: any) => p.active)
                           .map((p: any) => (
                             <option key={p.id} value={p.id}>
-                              {p.sku} — {p.name} ({p.stock} available)
+                              {p.sku} — {p.name} ({p.stock}{" "}
+                              {tr("available)")}{" "}
                             </option>
                           ))}
                       </select>
                     </label>
                     <div className="form-grid">
                       <label className="field">
-                        <span>Movement</span>
+                        <span>{tr("Movement")}</span>
                         <select
                           name="type"
-                          defaultValue={modal.item?.batch_id ? "OUT" : "IN"}
+                          defaultValue={
+                            modal.item?.batch_id ? tr("OUT") : tr("IN")
+                          }
                         >
                           {!modal.item?.batch_id && (
-                            <option value="IN">Stock IN</option>
+                            <option value="IN">{tr("Stock IN")}</option>
                           )}
-                          <option value="OUT">Stock OUT</option>
+                          <option value="OUT">{tr("Stock OUT")}</option>
                         </select>
                       </label>
                       {field("Quantity", "quantity", "number", 1)}
@@ -2287,8 +2573,10 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                     )}
                     {field("Reason / reference", "notes")}
                     <p className="hint">
-                      Stock OUT cannot exceed available stock. Every change is
-                      recorded in the activity log.
+                      {" "}
+                      {tr(
+                        "Stock OUT cannot exceed available stock. Every change is recorded in the activity log.",
+                      )}{" "}
                     </p>
                   </>
                 )}
@@ -2315,7 +2603,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       false,
                     )}
                     <label className="field">
-                      <span>Role in this business</span>
+                      <span>{tr("Role in this business")}</span>
                       <select
                         name="role"
                         defaultValue={modal.item?.role || "Cashier"}
@@ -2326,10 +2614,10 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       </select>
                     </label>
                     <p className="hint">
-                      For a new account, provide a name and a password of at
-                      least 12 characters. Share credentials through your own
-                      secure channel. For existing users, name and password
-                      fields are ignored.
+                      {" "}
+                      {tr(
+                        "For a new account, provide a name and a password of at least 12 characters. Share credentials through your own secure channel. For existing users, name and password fields are ignored.",
+                      )}{" "}
                     </p>
                   </>
                 )}
@@ -2337,7 +2625,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   <>
                     {field("Business name", "name")}
                     <label className="field">
-                      <span>Business currency</span>
+                      <span>{tr("Business currency")}</span>
                       <select name="currency">
                         {["PKR", "USD", "SAR", "AED", "EUR", "GBP"].map((c) => (
                           <option key={c}>{c}</option>
@@ -2366,9 +2654,10 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       false,
                     )}
                     <p className="hint">
-                      Leave owner email blank to own this workspace yourself.
-                      Products, sales and team permissions are separate from
-                      other businesses.
+                      {" "}
+                      {tr(
+                        "Leave owner email blank to own this workspace yourself. Products, sales and team permissions are separate from other businesses.",
+                      )}{" "}
                     </p>
                   </>
                 )}
@@ -2383,11 +2672,19 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         </p>
                       </div>
                     </div>
+                    <LookupSelect
+                      tenant={tenant}
+                      kind="return_reason"
+                      label="Return reason"
+                      name="reason_id"
+                      required={false}
+                    />
                     {field("Reason for return", "reason")}
                     <p className="hint">
-                      This returns the entire sale and restores all stock once.
-                      Refund the customer separately; this action does not move
-                      money.
+                      {" "}
+                      {tr(
+                        "This returns the entire sale and restores all stock once. Refund the customer separately; this action does not move money.",
+                      )}{" "}
                     </p>
                   </>
                 )}
@@ -2413,12 +2710,14 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                 {modal.kind === "tenantStatus" && (
                   <p>
                     {modal.item.status === "active"
-                      ? "Suspending"
-                      : "Reactivating"}{" "}
+                      ? tr("Suspending")
+                      : tr("Reactivating")}{" "}
                     <b>{modal.item.name}</b>{" "}
                     {modal.item.status === "active"
-                      ? "will block all inventory and sales access for this business."
-                      : "will restore access for active members."}
+                      ? tr(
+                          "will block all inventory and sales access for this business.",
+                        )
+                      : tr("will restore access for active members.")}
                   </p>
                 )}
                 {formError && (
@@ -2432,7 +2731,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                     type="button"
                     onClick={() => setModal(null)}
                   >
-                    Cancel
+                    {" "}
+                    {tr("Cancel")}{" "}
                   </button>
                   <button className="primary" type="submit">
                     {busy ? (
@@ -2441,8 +2741,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       <Check size={16} />
                     )}{" "}
                     {modal.kind === "return"
-                      ? "Confirm return"
-                      : "Save changes"}
+                      ? tr("Confirm return")
+                      : tr("Save changes")}
                   </button>
                 </div>
               </fieldset>
@@ -2456,14 +2756,16 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
             className="modal receipt"
             role="dialog"
             aria-modal="true"
-            aria-label="Sales receipt"
+            aria-label={tr("Sales receipt")}
           >
             <div className="receipt-top">
               <Boxes size={30} />
               <h2>{receipt.sale.seller_name}</h2>
               <p>{receipt.sale.seller_address}</p>
               <small>{receipt.sale.seller_tax_number}</small>
-              <p>Invoice · {receipt.sale.invoice_number}</p>
+              <p>
+                {tr("Invoice ·")} {receipt.sale.invoice_number}
+              </p>
               <small>{date(receipt.sale.created)}</small>
             </div>
             <div className="receipt-customer">
@@ -2475,7 +2777,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                 <div>
                   <b>{i.name}</b>
                   <small>
-                    {i.quantity} {i.unit_name} × {money(i.price)}
+                    {i.quantity} {tr(i.unit_name || "")} × {money(i.price)}
                   </small>
                 </div>
                 <strong>
@@ -2484,41 +2786,64 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               </div>
             ))}
             <div className="cart-math">
-              <span>Subtotal</span>
+              <span>{tr("Subtotal")}</span>
               <b>{money(receipt.sale.subtotal)}</b>
             </div>
             <div className="cart-math">
-              <span>Discount</span>
+              <span>{tr("Discount")}</span>
               <b>−{money(receipt.sale.discount)}</b>
             </div>
             <div className="cart-math">
-              <span>Tax ({receipt.sale.tax_bps / 100}%)</span>
-              <b>{money(receipt.sale.tax)}</b>
+              <span>{tr("Tax added")}</span>
+              <b>
+                {money(receipt.sale.tax - (receipt.sale.tax_included || 0))}
+              </b>
             </div>
             <div className="receipt-total">
-              <b>Total</b>
+              <b>{tr("Total")}</b>
               <strong>{money(receipt.sale.total)}</strong>
             </div>
+            {receipt.sale.tax_included > 0 && (
+              <div className="cart-math">
+                <span>{tr("Tax included in prices")}</span>
+                <b>{money(receipt.sale.tax_included)}</b>
+              </div>
+            )}
             <p className="hint">
-              Payment:{" "}
-              {receipt.sale.payment === "cash"
-                ? "Cash"
-                : "Collected externally"}
-              <br />
-              Served by {receipt.sale.actor}
+              {" "}
+              {tr("Payment:")}{" "}
+              {receipt.tenders?.length > 1
+                ? tr("Split payment")
+                : receipt.sale.payment === "cash"
+                  ? tr("Cash")
+                  : tr("Collected externally")}
+              <br /> {tr("Served by")} {receipt.sale.actor}
             </p>
             <div className="cart-math">
-              <span>Paid now / وصول</span>
+              <span>{tr("Paid now / وصول")}</span>
               <b>{money(receipt.sale.paid_now ?? receipt.sale.total)}</b>
             </div>
             <div className="cart-math">
-              <span>Khata / ادھار</span>
+              <span>{tr("Khata / ادھار")}</span>
               <b>{money(receipt.sale.credit_amount || 0)}</b>
             </div>
-            <p className="receipt-thanks">Thank you for your business.</p>
+            {receipt.tenders?.map((r: any, i: number) => (
+              <div className="cart-math" key={i}>
+                <span>
+                  {language === "ur" && r.method_name_ur
+                    ? r.method_name_ur
+                    : tr(r.method_name)}
+                </span>
+                <b>{money(r.amount)}</b>
+              </div>
+            ))}
+            <p className="receipt-thanks">
+              {tr("Thank you for your business.")}
+            </p>
             <div className="modal-actions no-print">
               <button className="secondary" onClick={() => setReceipt(null)}>
-                Close
+                {" "}
+                {tr("Close")}{" "}
               </button>
               <a
                 className="secondary"
@@ -2526,15 +2851,15 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   "/api/invoices/" +
                   receipt.sale.id +
                   ".pdf?tenant=" +
-                  encodeURIComponent(tenant)
+                  encodeURIComponent(tenant) +
+                  "&language=" +
+                  language
                 }
               >
-                <Download size={16} />
-                PDF
+                <Download size={16} /> {tr("PDF")}{" "}
               </a>
               <button className="primary" onClick={() => window.print()}>
-                <Printer size={16} />
-                Print receipt
+                <Printer size={16} /> {tr("Print receipt")}{" "}
               </button>
             </div>
           </section>

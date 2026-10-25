@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import { useEffect, useState } from "react";
 import { api } from "./api";
 export default function BatchAlerts({
@@ -38,10 +39,10 @@ export default function BatchAlerts({
       <table>
         <thead>
           <tr>
-            <th>Product</th>
-            <th>Batch</th>
-            <th>Expiry</th>
-            <th>Quantity</th>
+            <th>{tr("Product")}</th>
+            <th>{tr("Batch")}</th>
+            <th>{tr("Expiry")}</th>
+            <th>{tr("Quantity")}</th>
             <th />
           </tr>
         </thead>
@@ -62,7 +63,8 @@ export default function BatchAlerts({
                     onAdjust({ id: b.product, batch_id: b.id, lot: b.lot })
                   }
                 >
-                  Adjust this batch
+                  {" "}
+                  {tr("Adjust this batch")}{" "}
                 </button>
               </td>
             </tr>
@@ -80,49 +82,61 @@ export default function BatchAlerts({
       )}
       <div className="actions">
         <button className="secondary" disabled={loading} onClick={load}>
-          Refresh alerts
+          {" "}
+          {tr("Refresh alerts")}{" "}
         </button>
       </div>
       <div className="forecast-grid retail-table">
         <section className="panel">
-          <h2>Expired batches</h2>
+          <h2>{tr("Expired batches")}</h2>
           <p>
-            Blocked from sale; record disposal or supplier return separately.
-            First 200 matches.
+            {" "}
+            {tr(
+              "Blocked from sale; record disposal or supplier return separately. First 200 matches.",
+            )}{" "}
           </p>
           {table(data.expired)}
         </section>
         <section className="panel">
-          <h2>Due to expire in 30 days</h2>
+          <h2>{tr("Due to expire in 30 days")}</h2>
           <p>
-            FEFO checkout allocates earliest expiry first. First 200 matches.
+            {" "}
+            {tr(
+              "FEFO checkout allocates earliest expiry first. First 200 matches.",
+            )}{" "}
           </p>
           {table(data.near_expiry)}
         </section>
       </div>
       <section className="panel retail-table">
-        <h2>Batch inventory</h2>
+        <h2>{tr("Batch inventory")}</h2>
         <p>
-          Expiry dates are inclusive through the labelled date, using Pakistan
-          time.
+          {" "}
+          {tr(
+            "Expiry dates are inclusive through the labelled date, using Pakistan time.",
+          )}{" "}
         </p>
         {table(batches)}
         <div className="pagination">
-          <span>Page {page + 1}</span>
+          <span>
+            {tr("Page")} {page + 1}
+          </span>
           <div>
             <button
               className="mini"
               disabled={!page || loading}
               onClick={() => setPage(page - 1)}
             >
-              Previous
+              {" "}
+              {tr("Previous")}{" "}
             </button>
             <button
               className="mini"
               disabled={batches.length < 100 || loading}
               onClick={() => setPage(page + 1)}
             >
-              Next
+              {" "}
+              {tr("Next")}{" "}
             </button>
           </div>
         </div>

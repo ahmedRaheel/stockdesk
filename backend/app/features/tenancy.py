@@ -58,7 +58,7 @@ async def assign_member(c, u, b, t=None):
     if previous and previous["role"] == "Owner" and (role != "Owner"):
         fail("An owner cannot be demoted here.")
     await c.execute(
-        "INSERT INTO members(id,tenant,user_id,role) VALUES($1,$2,$3,$4) ON CONFLICT(tenant,user_id) DO UPDATE SET role=excluded.role,active=true",
+        "INSERT INTO members(id,tenant,user_id,role) VALUES($1,$2,$3,$4) ON CONFLICT(tenant,user_id) DO UPDATE SET role=excluded.role,custom_role_id=NULL,active=true",
         uid(),
         tenant,
         account["id"],

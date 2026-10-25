@@ -1,3 +1,5 @@
+import { t as tr } from "./i18n";
+import { useLanguage } from "./i18n";
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Boxes, ShieldCheck, ArrowRight, Loader2 } from "lucide-react";
@@ -5,6 +7,7 @@ import Workspace from "./Workspace";
 import ErrorBoundary from "./ErrorBoundary";
 import "./styles.css";
 function App() {
+  const [language, setLanguage] = useLanguage();
   const [user, setUser] = useState<any>(null),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false),
@@ -47,7 +50,7 @@ function App() {
   if (loading)
     return (
       <div className="auth-page">
-        <Loader2 className="spin" /> Connecting…
+        <Loader2 className="spin" /> {tr("Connecting…")}{" "}
       </div>
     );
   if (user) return <Workspace onLogout={logout} />;
@@ -57,32 +60,37 @@ function App() {
         <div className="brand">
           <span>
             <Boxes size={26} />
-          </span>
-          StockDesk
+          </span>{" "}
+          {tr("StockDesk")}{" "}
         </div>
-        <div className="eyebrow">INVENTORY & POINT OF SALE</div>
+        <div className="eyebrow">{tr("INVENTORY & POINT OF SALE")}</div>
         <h1>
-          Retail operations,
-          <br />
-          under control.
+          {" "}
+          {tr("Retail operations,")} <br /> {tr("under control.")}{" "}
         </h1>
         <p>
-          Inventory, purchasing, and point of sale.
-          <br />
-          One workspace for the people running your store.
+          {" "}
+          {tr("Inventory, purchasing, and point of sale.")} <br />{" "}
+          {tr("One workspace for the people running your store.")}{" "}
         </p>
         <div className="auth-feature">
-          <ShieldCheck size={20} />
-          StockDesk / Operations console
+          <ShieldCheck size={20} /> {tr("StockDesk / Operations console")}{" "}
         </div>
       </div>
       <section className="auth-card">
-        <div className="eyebrow">WELCOME BACK</div>
-        <h2>Sign in to your workspace</h2>
-        <p>Use the account provided by your business owner.</p>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => setLanguage(language === "en" ? "ur" : "en")}
+        >
+          {language === "en" ? "اردو" : tr("English")}
+        </button>
+        <div className="eyebrow">{tr("WELCOME BACK")}</div>
+        <h2>{tr("Sign in to your workspace")}</h2>
+        <p>{tr("Use the account provided by your business owner.")}</p>
         <form onSubmit={login}>
           <label className="field">
-            <span>Email address</span>
+            <span>{tr("Email address")}</span>
             <input
               type="email"
               name="email"
@@ -92,7 +100,7 @@ function App() {
             />
           </label>
           <label className="field">
-            <span>Password</span>
+            <span>{tr("Password")}</span>
             <input
               type="password"
               name="password"
@@ -111,12 +119,15 @@ function App() {
               <Loader2 className="spin" size={17} />
             ) : (
               <ArrowRight size={17} />
-            )}
-            Sign in
+            )}{" "}
+            {tr("Sign in")}{" "}
           </button>
         </form>
         <small>
-          Need access? Contact your business owner or platform administrator.
+          {" "}
+          {tr(
+            "Need access? Contact your business owner or platform administrator.",
+          )}{" "}
         </small>
       </section>
     </div>

@@ -357,6 +357,12 @@ async def test_khata_installments_weighted_goods_and_expiry():
                     )
                 ).status_code == 409
                 assert not (await cashier.get(base + "/held-bills")).json()["items"]
+                assert (
+                    await cashier.get(base + "/management-report")
+                ).status_code == 403
+                report = await owner.get(base + "/management-report")
+                assert report.status_code == 200, report.text
+                assert report.json()["timezone"] == "Asia/Karachi"
                 # Lot provenance and expiry rules.
                 med = await owner.post(
                     base + "/products",

@@ -6,7 +6,7 @@ The ledger trigger and database CHECK prevent negative stock independently.
 import json, uuid
 from datetime import datetime, timezone, timedelta
 import plotly.graph_objects as go
-from .rules import ROLES, clean, fail, require_permission
+from .rules import ROLES, clean, fail, require_permission, EffectiveRole, grants
 from .security import hash_password
 
 
@@ -48,13 +48,28 @@ async def authorize(c, u, tenant, permission="read", lock=False):
         fail("This business is suspended.", 403)
     role = "Owner"
     if not u["is_admin"]:
-        role = await c.fetchval(
-            "SELECT role FROM members WHERE tenant=$1 AND user_id=$2 AND active=true",
+        member = await c.fetchrow(
+            "SELECT role,custom_role_id FROM members WHERE tenant=$1 AND user_id=$2 AND active=true",
             tenant,
             u["id"],
         )
-        if not role:
+        if not member:
             fail("You do not have access to this business.", 403)
+        role = member["role"]
+        if member["custom_role_id"]:
+            custom = await c.fetchrow(
+                "SELECT name FROM tenant_roles WHERE tenant=$1 AND id=$2 AND active=true",
+                tenant,
+                member["custom_role_id"],
+            )
+            if not custom:
+                fail("Your assigned role is disabled. Contact the business owner.", 403)
+            permissions = await c.fetch(
+                "SELECT permission FROM tenant_role_permissions WHERE tenant=$1 AND role_id=$2",
+                tenant,
+                member["custom_role_id"],
+            )
+            role = EffectiveRole(custom["name"], [p["permission"] for p in permissions])
     require_permission(role, permission)
     return t, role
 
@@ -76,7 +91,14 @@ async def get_receipt(c, u, tenant, sale_id):
             )
         ),
     }
-    if "cost" not in ROLES[receipt_role]:
+    result["tenders"] = rows(
+        await c.fetch(
+            "SELECT method_name,method_name_ur,is_cash,amount,reference FROM sale_tenders WHERE tenant=$1 AND sale=$2 ORDER BY id",
+            tenant,
+            sale_id,
+        )
+    )
+    if "cost" not in grants(receipt_role):
         for item in result["items"]:
             item.pop("cost", None)
     return result
@@ -105,7 +127,7 @@ async def snapshot(c, u, tenant):
     if not tenant:
         return out
     t, role = await authorize(c, u, tenant)
-    perms = ROLES[role]
+    perms = grants(role)
     out.update(tenant=dict(t), role=role, permissions=sorted(perms))
     out["products"] = rows(
         await c.fetch("SELECT * FROM products WHERE tenant=$1 ORDER BY name", tenant)
@@ -191,10 +213,11 @@ async def snapshot(c, u, tenant):
     if "team" in perms:
         out["members"] = rows(
             await c.fetch(
-                "SELECT m.*,u.email,u.name FROM members m JOIN users u ON u.id=m.user_id WHERE m.tenant=$1 ORDER BY u.email",
+                "SELECT m.*,u.email,u.name,r.name AS custom_name FROM members m JOIN users u ON u.id=m.user_id LEFT JOIN tenant_roles r ON r.tenant=m.tenant AND r.id=m.custom_role_id WHERE m.tenant=$1 ORDER BY u.email",
                 tenant,
             )
         )
+    if "audit" in perms:
         out["audit"] = rows(
             await c.fetch(
                 "SELECT * FROM audit WHERE tenant=$1 ORDER BY created DESC LIMIT 100",

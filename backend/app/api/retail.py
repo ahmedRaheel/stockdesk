@@ -21,11 +21,13 @@ Kind = Literal[
     "payment_method",
     "adjustment_reason",
     "return_reason",
+    "supplier_return_reason",
     "customer_segment",
 ]
 
 
 class LookupWrite(Contract):
+    fractional: bool | None = None
     kind: Kind
     code: str = Field(min_length=1, max_length=60, pattern=r"^[a-z0-9_-]+$")
     name: str = Field(min_length=1, max_length=150)
@@ -119,6 +121,15 @@ async def create_lookup(
                 payload.active,
                 payload.sort_order,
             )
+            if payload.fractional is not None:
+                if payload.kind != "unit" and payload.fractional:
+                    fail("Fractional quantities apply only to units.")
+                await c.execute(
+                    "UPDATE lookups SET fractional=$1 WHERE tenant=$2 AND id=$3",
+                    payload.fractional,
+                    tenant,
+                    identifier,
+                )
             await service.audit(
                 c,
                 tenant,
@@ -153,6 +164,26 @@ async def update_lookup(
                 tenant,
                 identifier,
             )
+            if (
+                payload.fractional is not None
+                and payload.fractional != current["fractional"]
+            ):
+                if payload.kind != "unit":
+                    fail("Fractional quantities apply only to units.")
+                if await c.fetchval(
+                    "SELECT 1 FROM products WHERE tenant=$1 AND unit_id=$2",
+                    tenant,
+                    identifier,
+                ):
+                    fail(
+                        "Quantity rules cannot change after the unit is used. Create another unit."
+                    )
+                await c.execute(
+                    "UPDATE lookups SET fractional=$1 WHERE tenant=$2 AND id=$3",
+                    payload.fractional,
+                    tenant,
+                    identifier,
+                )
             if payload.kind == "category":
                 await c.execute(
                     "UPDATE products SET category=$1 WHERE tenant=$2 AND category_id=$3",
@@ -652,7 +683,7 @@ class CloseTill(Contract):
 
 async def till_totals(c, tenant, session):
     sales = await c.fetchval(
-        "SELECT COALESCE(SUM(paid_now),0)::bigint FROM sales WHERE tenant=$1 AND till_session=$2 AND payment='cash'",
+        "SELECT COALESCE(SUM(cash_amount),0)::bigint FROM sales WHERE tenant=$1 AND till_session=$2",
         tenant,
         session["id"],
     )

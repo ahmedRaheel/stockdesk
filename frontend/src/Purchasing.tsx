@@ -1,6 +1,9 @@
+import { t as tr } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { Plus, RefreshCw, Truck, X } from "lucide-react";
 import { api, send } from "./api";
+import PurchasingPolicy from "./PurchasingPolicy";
+import SupplierInsights from "./SupplierInsights";
 
 type Product = {
   id: string;
@@ -29,6 +32,9 @@ type Order = {
   supplier_name: string;
   status: string;
   created: string;
+  actor: string;
+  order_total: number;
+  decision_note: string | null;
   lines: Line[];
 };
 type DraftLine = { product: string; quantity: number; unit_cost: number };
@@ -37,6 +43,9 @@ type Props = {
   currency: string;
   products: Product[];
   onReceived: () => void;
+  canApprove: boolean;
+  canConfigure: boolean;
+  userEmail: string;
 };
 
 /** Purchasing owns its remote state. Tenant changes remount the feature at its boundary. */
@@ -45,6 +54,9 @@ export default function Purchasing({
   currency,
   products,
   onReceived,
+  canApprove,
+  canConfigure,
+  userEmail,
 }: Props) {
   const base = `/api/v1/tenants/${encodeURIComponent(tenant)}`;
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -54,7 +66,7 @@ export default function Purchasing({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [modal, setModal] = useState<
-    "supplier" | "order" | "receive" | "cancel" | null
+    "supplier" | "order" | "receive" | "cancel" | "decision" | null
   >(null);
   const [selected, setSelected] = useState<Order | null>(null);
   const [lines, setLines] = useState<DraftLine[]>([
@@ -160,6 +172,11 @@ export default function Purchasing({
           deduplicated({ lines: receipts }),
         );
         onReceived();
+      } else if (modal === "decision" && selected) {
+        await send(`${base}/purchase-orders/${selected.id}/decision`, {
+          decision: form.get("decision"),
+          note: form.get("note"),
+        });
       } else if (modal === "cancel" && selected) {
         await send(`${base}/purchase-orders/${selected.id}/cancel`, {});
       }
@@ -191,60 +208,71 @@ export default function Purchasing({
           {notice}
         </div>
       )}
+      <PurchasingPolicy
+        tenant={tenant}
+        currency={currency}
+        canConfigure={canConfigure}
+      />
       <div className="purchasing-toolbar">
-        <p>Order stock, record deliveries, and track outstanding quantities.</p>
+        <p>
+          {tr(
+            "Order stock, record deliveries, and track outstanding quantities.",
+          )}
+        </p>
         <div className="actions">
           <button
             className="secondary"
             onClick={() => load()}
             disabled={loading}
           >
-            <RefreshCw size={15} />
-            Refresh
+            <RefreshCw size={15} /> {tr("Refresh")}{" "}
           </button>
           <button className="secondary" onClick={() => open("supplier")}>
-            <Plus size={15} />
-            Supplier
+            <Plus size={15} /> {tr("Supplier")}{" "}
           </button>
           <button
             className="primary"
             disabled={!suppliers.length || !activeProducts.length}
             onClick={() => open("order")}
           >
-            <Plus size={15} />
-            Purchase order
+            <Plus size={15} /> {tr("Purchase order")}{" "}
           </button>
         </div>
       </div>
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <h2>Purchase orders</h2>
+            <h2>{tr("Purchase orders")}</h2>
             <p>
-              50 orders per page · quantities use each product’s selling unit
+              {" "}
+              {tr(
+                "50 orders per page · quantities use each product’s selling unit",
+              )}{" "}
             </p>
           </div>
           <Truck size={20} />
         </div>
         {loading ? (
-          <p role="status">Loading purchasing…</p>
+          <p role="status">{tr("Loading purchasing…")}</p>
         ) : !orders.length ? (
           <div className="empty">
-            <h3>No purchase orders on this page</h3>
-            <p>Add a supplier and products, then create your first order.</p>
+            <h3>{tr("No purchase orders on this page")}</h3>
+            <p>
+              {tr("Add a supplier and products, then create your first order.")}
+            </p>
           </div>
         ) : (
           <div className="table-scroll">
             <table>
               <thead>
                 <tr>
-                  <th>Reference / created</th>
-                  <th>Supplier</th>
-                  <th>Status</th>
-                  <th>Ordered</th>
-                  <th>Outstanding</th>
-                  <th>Order value</th>
-                  <th>Actions</th>
+                  <th>{tr("Reference / created")}</th>
+                  <th>{tr("Supplier")}</th>
+                  <th>{tr("Status")}</th>
+                  <th>{tr("Ordered")}</th>
+                  <th>{tr("Outstanding")}</th>
+                  <th>{tr("Order value")}</th>
+                  <th>{tr("Actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -263,7 +291,7 @@ export default function Purchasing({
                       <span
                         className={`badge ${order.status === "partial" ? "amber" : order.status === "cancelled" ? "red" : ""}`}
                       >
-                        {order.status}
+                        {tr(order.status)}
                       </span>
                     </td>
                     <td>
@@ -271,20 +299,13 @@ export default function Purchasing({
                     </td>
                     <td>
                       {order.status === "cancelled"
-                        ? "Cancelled"
+                        ? tr("Cancelled")
                         : order.lines.reduce(
                             (sum, l) => sum + l.quantity - l.received,
                             0,
                           )}
                     </td>
-                    <td className="numeric">
-                      {money(
-                        order.lines.reduce(
-                          (sum, l) => sum + l.quantity * l.unit_cost,
-                          0,
-                        ),
-                      )}
-                    </td>
+                    <td className="numeric">{money(order.order_total)}</td>
                     <td>
                       <div className="actions">
                         <button
@@ -292,15 +313,28 @@ export default function Purchasing({
                           onClick={() => open("receive", order)}
                         >
                           {["open", "partial"].includes(order.status)
-                            ? "Receive / details"
-                            : "View details"}
+                            ? tr("Receive / details")
+                            : tr("View details")}
                         </button>
-                        {["open", "partial"].includes(order.status) && (
+                        {order.status === "pending_approval" &&
+                          canApprove &&
+                          order.actor !== userEmail && (
+                            <button
+                              className="mini"
+                              onClick={() => open("decision", order)}
+                            >
+                              {tr("Review order")}
+                            </button>
+                          )}
+                        {["open", "partial", "pending_approval"].includes(
+                          order.status,
+                        ) && (
                           <button
                             className="mini"
                             onClick={() => open("cancel", order)}
                           >
-                            Cancel remainder
+                            {" "}
+                            {tr("Cancel remainder")}{" "}
                           </button>
                         )}
                       </div>
@@ -312,37 +346,41 @@ export default function Purchasing({
           </div>
         )}
         <div className="pagination">
-          <span>Page {page + 1}</span>
+          <span>
+            {tr("Page")} {page + 1}
+          </span>
           <div>
             <button
               className="mini"
               disabled={!page || loading}
               onClick={() => setPage(page - 1)}
             >
-              Previous
+              {" "}
+              {tr("Previous")}{" "}
             </button>
             <button
               className="mini"
               disabled={orders.length < 50 || loading}
               onClick={() => setPage(page + 1)}
             >
-              Next
+              {" "}
+              {tr("Next")}{" "}
             </button>
           </div>
         </div>
       </section>
       <section className="panel supplier-panel">
         <div className="panel-heading">
-          <h2>Suppliers</h2>
-          <span className="subtle-tag">First 200 by name</span>
+          <h2>{tr("Suppliers")}</h2>
+          <span className="subtle-tag">{tr("First 200 by name")}</span>
         </div>
         <div className="table-scroll">
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Contact</th>
-                <th>Lead time</th>
+                <th>{tr("Name")}</th>
+                <th>{tr("Contact")}</th>
+                <th>{tr("Lead time")}</th>
               </tr>
             </thead>
             <tbody>
@@ -352,13 +390,16 @@ export default function Purchasing({
                     <b>{s.name}</b>
                   </td>
                   <td>{s.contact || "—"}</td>
-                  <td>{s.lead_days} days</td>
+                  <td>
+                    {s.lead_days} {tr("days")}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </section>
+      <SupplierInsights tenant={tenant} currency={currency} />
       {modal && (
         <div className="modal-overlay">
           <section
@@ -372,7 +413,7 @@ export default function Purchasing({
               if (event.key === "Tab") {
                 const nodes = [
                   ...(modalRef.current?.querySelectorAll<HTMLElement>(
-                    "button:not(:disabled),input:not(:disabled),select:not(:disabled)",
+                    "button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)",
                   ) || []),
                 ];
                 const first = nodes[0],
@@ -390,18 +431,19 @@ export default function Purchasing({
           >
             <div className="modal-heading">
               <h2 id="purchase-title">
-                {
+                {tr(
                   {
                     supplier: "New supplier",
                     order: "New purchase order",
                     receive: "Goods receiving",
                     cancel: "Cancel outstanding quantities",
-                  }[modal]
-                }
+                    decision: "Review order",
+                  }[modal],
+                )}
               </h2>
               <button
                 className="icon-button"
-                aria-label="Close"
+                aria-label={tr("Close")}
                 disabled={busy}
                 onClick={() => setModal(null)}
               >
@@ -413,21 +455,21 @@ export default function Purchasing({
                 {modal === "supplier" && (
                   <>
                     <label className="field">
-                      <span>Supplier name</span>
+                      <span>{tr("Supplier name")}</span>
                       <input name="name" required maxLength={150} />
                     </label>
                     <label className="field">
-                      <span>Contact details</span>
+                      <span>{tr("Contact details")}</span>
                       <input name="contact" maxLength={250} />
                     </label>
                     <label className="field">
-                      <span>Typical lead time (days)</span>
+                      <span>{tr("Typical lead time (days)")}</span>
                       <input
                         name="lead_days"
                         type="number"
                         min={0}
                         max={365}
-                        step="0.001"
+                        step="1"
                         defaultValue={7}
                         required
                       />
@@ -438,7 +480,7 @@ export default function Purchasing({
                   <>
                     <div className="form-grid">
                       <label className="field">
-                        <span>Supplier</span>
+                        <span>{tr("Supplier")}</span>
                         <select name="supplier" required>
                           {suppliers.map((s) => (
                             <option key={s.id} value={s.id}>
@@ -448,7 +490,7 @@ export default function Purchasing({
                         </select>
                       </label>
                       <label className="field">
-                        <span>Your order reference</span>
+                        <span>{tr("Your order reference")}</span>
                         <input name="reference" maxLength={150} />
                       </label>
                     </div>
@@ -456,7 +498,7 @@ export default function Purchasing({
                       {lines.map((line, i) => (
                         <div className="purchase-line" key={i}>
                           <label className="field">
-                            <span>Product</span>
+                            <span>{tr("Product")}</span>
                             <select
                               required
                               aria-label={`Product line ${i + 1}`}
@@ -471,7 +513,7 @@ export default function Purchasing({
                                 });
                               }}
                             >
-                              <option value="">Select product</option>
+                              <option value="">{tr("Select product")}</option>
                               {activeProducts.map((p) => (
                                 <option key={p.id} value={p.id}>
                                   {p.sku} · {p.name}
@@ -480,10 +522,10 @@ export default function Purchasing({
                             </select>
                           </label>
                           <label className="field">
-                            <span>Units</span>
+                            <span>{tr("Units")}</span>
                             <input
                               type="number"
-                              min={1}
+                              min={0.001}
                               max={1000000}
                               step="0.001"
                               required
@@ -496,7 +538,10 @@ export default function Purchasing({
                             />
                           </label>
                           <label className="field">
-                            <span>Unit cost ({currency})</span>
+                            <span>
+                              {tr("Unit cost (")}
+                              {currency})
+                            </span>
                             <input
                               type="number"
                               min={0}
@@ -537,13 +582,68 @@ export default function Purchasing({
                         ])
                       }
                     >
-                      <Plus size={15} />
-                      Add line
+                      <Plus size={15} /> {tr("Add line")}{" "}
                     </button>
                     <p className="hint">
-                      Creating an order does not change stock. Costs are
-                      recorded on the order; receiving does not change the
-                      catalog purchase cost.
+                      {" "}
+                      {tr(
+                        "Creating an order does not change stock. Costs are recorded on the order; receiving does not change the catalog purchase cost.",
+                      )}{" "}
+                    </p>
+                  </>
+                )}
+                {modal === "decision" && selected && (
+                  <>
+                    <p>
+                      {selected.reference || selected.id} ·{" "}
+                      {selected.supplier_name}
+                    </p>
+                    <p>
+                      {tr("Created by")} {selected.actor} ·{" "}
+                      {money(selected.order_total)}
+                    </p>
+                    <div className="table-scroll">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>{tr("Product")}</th>
+                            <th>{tr("Units")}</th>
+                            <th>{tr("Unit cost")}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selected.lines.map((l) => (
+                            <tr key={l.product}>
+                              <td>
+                                {l.sku} · {l.name}
+                              </td>
+                              <td>{l.quantity}</td>
+                              <td>{money(l.unit_cost)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <label className="field">
+                      <span>{tr("Decision")}</span>
+                      <select
+                        name="decision"
+                        aria-label={tr("Decision")}
+                        required
+                      >
+                        <option value="">{tr("Select decision")}</option>
+                        <option value="approve">{tr("Approve order")}</option>
+                        <option value="reject">{tr("Reject order")}</option>
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>{tr("Decision reason")}</span>
+                      <textarea name="note" required maxLength={500} />
+                    </label>
+                    <p className="hint">
+                      {tr(
+                        "Decisions are final. Approval allows receiving; rejection closes the order.",
+                      )}
                     </p>
                   </>
                 )}
@@ -553,15 +653,23 @@ export default function Purchasing({
                       {selected.supplier_name} ·{" "}
                       {selected.reference || selected.id}
                     </p>
+                    <p>
+                      {tr(selected.status)} · {money(selected.order_total)}
+                    </p>
+                    {selected.decision_note && (
+                      <p>
+                        {tr("Decision reason")}: {selected.decision_note}
+                      </p>
+                    )}
                     <div className="table-scroll">
                       <table>
                         <thead>
                           <tr>
-                            <th>Product</th>
-                            <th>Ordered</th>
-                            <th>Received</th>
-                            <th>Receive now</th>
-                            <th>Batch / expiry</th>
+                            <th>{tr("Product")}</th>
+                            <th>{tr("Ordered")}</th>
+                            <th>{tr("Received")}</th>
+                            <th>{tr("Receive now")}</th>
+                            <th>{tr("Batch / expiry")}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -598,7 +706,7 @@ export default function Purchasing({
                               <td>
                                 <input
                                   aria-label={"Batch " + l.name}
-                                  placeholder="Batch number"
+                                  placeholder={tr("Batch number")}
                                   value={batchInfo[l.product]?.lot || ""}
                                   onChange={(e) =>
                                     setBatchInfo({
@@ -632,16 +740,19 @@ export default function Purchasing({
                       </table>
                     </div>
                     <p className="hint">
-                      Enter physically received units only. Partial deliveries
-                      leave the remainder open.
+                      {" "}
+                      {tr(
+                        "Enter physically received units only. Partial deliveries leave the remainder open.",
+                      )}{" "}
                     </p>
                   </>
                 )}
                 {modal === "cancel" && (
                   <p>
-                    Cancel the unreceived remainder? Previously received stock
-                    stays in inventory. This does not send a cancellation to the
-                    supplier.
+                    {" "}
+                    {tr(
+                      "Cancel the unreceived remainder? Previously received stock stays in inventory. This does not send a cancellation to the supplier.",
+                    )}{" "}
                   </p>
                 )}
                 {error && (
@@ -655,7 +766,8 @@ export default function Purchasing({
                     className="secondary"
                     onClick={() => setModal(null)}
                   >
-                    Close
+                    {" "}
+                    {tr("Close")}{" "}
                   </button>
                   {!(
                     modal === "receive" &&
@@ -664,12 +776,12 @@ export default function Purchasing({
                   ) && (
                     <button className="primary" disabled={busy}>
                       {busy
-                        ? "Saving…"
+                        ? tr("Saving…")
                         : modal === "receive"
-                          ? "Record delivery"
+                          ? tr("Record delivery")
                           : modal === "cancel"
-                            ? "Cancel remainder"
-                            : "Save"}
+                            ? tr("Cancel remainder")
+                            : tr("Save")}
                     </button>
                   )}
                 </div>

@@ -28,3 +28,60 @@ Large-store launch requires the remaining work in ARCHITECTURE.md and measured c
 19. Hold a cart, resume at current prices and complete it once. A second checkout of that hold under a new request must fail.
 20. Open a cashier till, sell cash and recover cash, record a refund cash OUT, reconcile expected/counted cash, and require a note for discrepancies. No-till sales are intentionally outside session totals.
 21. Inspect Urdu khata layout and lookup labels on your target device. Full Urdu receipts and full localization are not supplied.
+
+## Release 1.3 acceptance
+
+22. Configure inclusive and exclusive tax profiles, assign a business default and a product override, then sell a mixed cart with a discount. Verify every minor unit reconciles and included tax is not added twice.
+23. Expire an assigned profile and verify checkout blocks. Change a rate after obtaining a quote: reject the stale quote. Verify the original invoice remains unchanged.
+24. Set disabled mode and verify a client-supplied rate cannot charge tax. Legacy manual mode intentionally retains cashier input; choose configured mode before trading if this is not desired.
+25. Collect cash plus bank/wallet, verify split sum and cash change, duplicate the same request once, and check that the till includes only the cash portion. Verify remaining credit still requires customer approval and a due date.
+26. Switch English/Urdu on login and within the app, inspect RTL forms and downloaded invoice, and check real Urdu business/product names. Some dynamic messages and customer statements remain English.
+27. Add a fractional unit, use it in a product, then attempt to change its quantity rule: reject. Change/deactivate lookup labels without deleting historical IDs.
+28. Verify F2 scan focus, F4 validated checkout and F8 hold on the actual POS keyboard. Confirm Alt/Ctrl combinations are not intercepted.
+
+
+## 1.4 acceptance
+
+1. Configure a keyboard-mode barcode reader to append Enter. Test an actual leading-zero barcode and consecutive reads; compare with manual SKU and quantity entry. Test unknown code and insufficient stock.
+2. Count batches as stock staff, submit, then approve as a different manager. Retry posting and confirm exactly one set of adjustments.
+3. Open another count, perform any stock movement, and verify posting rejects it; cancel and recount.
+4. Check reports against invoices with inclusive/exclusive tax and discount. Verify cashier access is denied.
+5. Repeat POS entry in Urdu and at a narrow mobile width.
+
+
+## 1.5 acceptance
+
+1. Receive part of a PO. Attempt billing more than received, then post an allowed invoice and verify exact PO cost enforcement.
+2. Record part-payment from a database payment method. Verify balance and ageing; reject overpayment and cross-tenant records.
+3. Void with reasons; payment void restores balance and bill void releases matched quantities without moving stock.
+4. Preview CSV and verify no products exist. Submit a file with a bad second row and verify full rollback. Commit a valid file; check barcode zeros and weighted stock. Retry the request and verify no duplicates.
+5. Test both English and Urdu screens, mobile widths, actual deployment PostgreSQL and Docker startup.
+
+
+## 1.6 acceptance
+
+1. As Owner, create a sales-only custom role and assign a Cashier account. Verify costs are absent in product and receipt API responses.
+2. Add finance with its cost prerequisite. Verify the already-signed-in user gains the capability on the next request, then loses tenant access when the role is disabled.
+3. Attempt an Owner override, a cross-tenant role assignment and delegated team management; each must fail.
+4. Restore a built-in role using Team & roles and confirm custom grants are cleared.
+5. Give a reviewer read/cost/audit only; search and export the current audit page. Confirm business writes are denied.
+6. Check the role editor and assignments in English/Urdu and on mobile. Run real PostgreSQL concurrency/deployment checks before production use.
+
+
+## 1.7 acceptance
+
+1. Receive and bill goods after upgrading. Return part of a sourced batch with a supplier credit number and lookup reason. Check inventory and payable both decrease once.
+2. Retry the identical request; verify no duplicate stock movement or credit. Reject excess source/billed/batch quantity, wrong tenant/source, excessive tax credit and invalid dates.
+3. Pay a bill, then return goods. Check a supplier credit balance appears, record a partial external refund, and void only the refund record with a reason.
+4. Check three fractional returns sum to the original rounded bill amount.
+5. Confirm pre-upgrade receipts are not guessed into return sources; confirm stock-only staff cannot post credits.
+6. Test Urdu/mobile return forms and reconciliation using disposable normal PostgreSQL before real inventory.
+
+
+## Purchasing controls (1.8)
+
+- Owner enables approval at PKR 100; another Manager creates a PKR 400 order. Creator sees pending status without self-approval; receiving is blocked.
+- Owner reviews line costs and approves with a reason; receiver can then post the delivery. Rejected orders remain closed. Turning policy off must not release an existing pending order.
+- Add two quotes for one product. Change comparison quantity across a minimum and check eligible filtering and price ordering. Verify expired/inactive offers are excluded when filtering and stale updates fail.
+- Verify first receipt contributes one performance sample, not one per line, and unreceived orders have no elapsed-delivery value.
+- Check Urdu/RTL and mobile layouts. Confirm real PostgreSQL concurrency and deployed Docker health separately before production use.

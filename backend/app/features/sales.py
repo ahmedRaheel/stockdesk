@@ -2,7 +2,7 @@
 
 import json
 from datetime import date
-from . import credit
+from . import credit, taxation
 from .reference import lookup
 from ..rules import clean, number, cart_items, totals, fail, line_amount, business_date
 from ..service import uid, audit
@@ -33,6 +33,8 @@ async def checkout(c, u, b, t=None):
     signature = json.dumps(
         {
             "items": cart,
+            "tenders": b.get("tenders"),
+            "quote_token": b.get("quote_token"),
             "prescription_reference": prescription_reference,
             "held_bill_id": held_id,
             "customer_id": customer_id,
@@ -107,7 +109,15 @@ async def checkout(c, u, b, t=None):
         )
     subtotal = sum(p["line_total"] for p in products)
     number(subtotal, "Subtotal")
-    tax, total = totals(subtotal, discount, tax_bps)
+    tax_quote = await taxation.quote(c, tenant, products, discount, tax_bps)
+    if (
+        tax_quote["mode"] != "manual"
+        and b.get("quote_token") != tax_quote["quote_token"]
+    ):
+        fail("Tax or prices changed. Refresh the quote and review the total.", 409)
+    tax, total = tax_quote["tax"], tax_quote["total"]
+    if tax_quote["mode"] != "manual":
+        tax_bps = 0
     if total != expected:
         fail("Prices changed. Refresh and review the cart total.")
     paid_now = total if paid_now is None else paid_now
@@ -140,7 +150,39 @@ async def checkout(c, u, b, t=None):
             fail("Choose a valid payment due date.")
         if due < business_date():
             fail("Due date cannot be in the past.")
-    if payment == "cash" and tendered < paid_now:
+    parts = []
+    if b.get("tenders"):
+        from ..api.contracts import Tender
+
+        for raw in b["tenders"]:
+            part = Tender.model_validate(raw).model_dump()
+            method = await lookup(c, tenant, part["method_id"], "payment_method")
+            parts.append(
+                {
+                    **part,
+                    "name": method["name"],
+                    "name_ur": method["name_ur"],
+                    "is_cash": method["code"] == "cash",
+                }
+            )
+        if sum(p["amount"] for p in parts) != paid_now:
+            fail("Payment parts must equal the paid-now amount.")
+    elif paid_now:
+        method = (
+            await lookup(c, tenant, method_id, "payment_method") if method_id else None
+        )
+        parts = [
+            {
+                "method_id": method_id,
+                "amount": paid_now,
+                "reference": "",
+                "name": method["name"] if method else payment,
+                "name_ur": method["name_ur"] if method else "",
+                "is_cash": payment == "cash",
+            }
+        ]
+    cash_amount = sum(p["amount"] for p in parts if p["is_cash"])
+    if tendered < cash_amount:
         fail("Cash received is less than the sale total.")
     seq = await c.fetchval(
         "UPDATE tenants SET invoice_seq=invoice_seq+1 WHERE id=$1 RETURNING invoice_seq",
@@ -178,6 +220,13 @@ async def checkout(c, u, b, t=None):
         tenant,
         sid,
     )
+    await c.execute(
+        "UPDATE sales SET tax_included=$1,tax_snapshot=$2 WHERE tenant=$3 AND id=$4",
+        tax_quote["tax_included"],
+        json.dumps(tax_quote),
+        tenant,
+        sid,
+    )
     if credit_amount:
         await credit.create_receivable(
             c, tenant, customer_id, sid, credit_amount, due, u["email"], inv
@@ -193,6 +242,25 @@ async def checkout(c, u, b, t=None):
         tenant,
         u["id"],
     )
+    await c.execute(
+        "UPDATE sales SET cash_amount=$1 WHERE tenant=$2 AND id=$3",
+        cash_amount,
+        tenant,
+        sid,
+    )
+    for part in parts:
+        await c.execute(
+            "INSERT INTO sale_tenders(id,tenant,sale,method_id,method_name,method_name_ur,is_cash,amount,reference) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+            uid(),
+            tenant,
+            sid,
+            part["method_id"],
+            part["name"],
+            part["name_ur"],
+            part["is_cash"],
+            part["amount"],
+            part["reference"],
+        )
     if till:
         await c.execute(
             "UPDATE sales SET till_session=$1 WHERE tenant=$2 AND id=$3",
@@ -238,7 +306,7 @@ async def checkout(c, u, b, t=None):
         "id": sid,
         "total": total,
         "invoice_number": inv,
-        "change": tendered - paid_now if payment == "cash" else 0,
+        "change": tendered - cash_amount if cash_amount else 0,
         "credit_amount": credit_amount,
         "paid_now": paid_now,
     }
@@ -255,6 +323,15 @@ async def return_sale(c, u, b, t=None):
         fail("Sale not found.", 404)
     if sale["status"] == "returned":
         return {"ok": True}
+    reason_id = b.get("reason_id") or None
+    if reason_id:
+        await lookup(c, tenant, reason_id, "return_reason")
+    await c.execute(
+        "UPDATE sales SET return_reason_id=$1 WHERE tenant=$2 AND id=$3",
+        reason_id,
+        tenant,
+        sid,
+    )
     refund_due = (
         await credit.reverse_credit_sale(c, u, tenant, sale)
         if sale["credit_amount"]

@@ -1,4 +1,59 @@
-# Verification record
+# Verification record — StockDesk 1.8
+
+## Release 1.8 checks
+
+- Full backend suite: **42 passed, 1 skipped** in PGlite. New purchasing coverage includes owner-only policy updates, threshold boundary and frozen policy, self-approval rejection (including Owner), cross-tenant decisions, approval replay/conflicts, receiving blocks before approval/after rejection, quote duplicate and whole-unit checks, validity validation, eligible quantity filters, price ordering, version conflicts, immediate role revocation and observed receipt counts.
+- Chromium exercised actual React/FastAPI UI: owner policy enablement, separate buyer PO creation, hidden self-approval action, independent approval, receiving, supplier quote create/edit and eligible comparison, performance, English/Urdu and mobile. No JavaScript page errors. Browser SQL used a test-only single-connection pool because PGlite's socket adapter does not provide independent PostgreSQL sessions; production pool settings remain unchanged.
+- TypeScript/Vite production build and literal Urdu coverage checked. OpenAPI 1.8 regenerated. Migration 016 is additive; migrations 001–015 are byte-identical to the delivered 1.7 archive.
+- Real PostgreSQL concurrency remains skipped. Docker deployment, external services and hardware are not verified by these checks.
+
+
+## Release 1.7 checks
+
+- Full backend suite: **41 passed, 1 skipped** under PGlite. New tests cover receipt replay/provenance, source/billed quantity limits, excessive tax credit rejection, atomic invalid-source rejection, fractional cumulative credit rounding, changed request conflicts, credit-adjusted payment limits, supplier credit balances, partial refund/over-refund protection, refund correction replay, protected credited bills, tenant isolation and stock-only access denial.
+- Focused supplier-return and retail checks were rerun after introducing the separate supplier-return reason family.
+- Chromium actual API/UI flow: matched bill, partial payment, goods return, credit note, supplier refund, reasoned refund void and English/Urdu mobile screens passed without page errors. Desktop/mobile screens inspected.
+- TypeScript build and literal locale coverage passed. OpenAPI regenerated. Migrations 001–013 preserved; 014/015 are additive.
+- Real PostgreSQL concurrency remains skipped; production Docker/hardware/bank acceptance is not claimed.
+
+## Release 1.6 checks
+
+- Full backend suite: **40 passed, 1 skipped** under PGlite. Custom-role tests exercise cost redaction in legacy/versioned product and receipt APIs, existing-session grant changes/revocation, reserved Owner names, blocked team/role escalation, required capability prerequisites, protected Owner membership, cross-tenant assignment denial, optimistic version conflicts and restoring built-in membership.
+- The focused custom-role test also covers audit permission denial, filtered totals, page bounds and invalid date ranges, and was rerun after the audit endpoint was added.
+- Chromium: create role, automatic prerequisite selection, database member/role selection, assignment, English/Urdu mobile views, audit search/details and CSV download passed without JavaScript page errors. Desktop/mobile layouts inspected.
+- TypeScript production build and literal Urdu coverage passed. OpenAPI regenerated. Additive migration 013 preserves 001–012.
+- Real PostgreSQL concurrency remains skipped. Production load, Docker startup, external integrations and hardware acceptance remain unverified.
+
+## Release 1.5 checks
+
+- Full backend suite: **39 passed, 1 skipped** using PGlite. New supplier tests exercise received/unbilled limits, cost mismatch rejection, unique invoice numbers, duplicate/conflicting requests, partial payments, overpayment rejection, cross-tenant lookups, role denial, audited voids and unchanged stock. New CSV tests verify exact minor-unit parsing, preview rollback, full rollback on a later invalid row, duplicate barcode rejection, weighted stock and replay safety. After parser hardening the focused import suite passed again (2 tests).
+- Chromium actual UI/API: supplier bill registration, database payment lookup, partial payment, payment void and English/Urdu mobile views passed without page errors. CSV preview and commit passed; the imported weighted product appeared in the inventory catalog. Screens visually reviewed.
+- TypeScript production build and literal Urdu catalogue coverage passed. Dynamic data/errors remain outside locale coverage.
+- Migrations 001–010 were preserved; 011/012 are additive. OpenAPI regenerated for 1.5.
+- Real PostgreSQL concurrency remains skipped; Docker, production load, provider transfers and physical hardware are not verified.
+
+## Release 1.4 checks
+
+- Backend: 36 passed, 1 skipped in PGlite. New tests cover independent stock-count approval, idempotent post, fractional-unit rejection, cross-tenant isolation, stale revisions after net-zero movements, exact mixed included-tax profit, and ABC/XYZ history boundaries. Real PostgreSQL concurrency remains skipped.
+- TypeScript, Vite production build and literal Urdu translation coverage passed.
+- Chromium flow: manual exact code and fractional quantity, repeated scanner keyboard input, unknown code, stock bound, F4 checkout, count submission/self-approval UI, management reports, and Urdu/mobile POS. Physical readers are not tested.
+- New migrations preserve prior migrations 001–009. OpenAPI regenerated for 1.4.
+
+## Previous 1.3 checks
+
+- Backend: 33 tests passed, one real-PostgreSQL concurrency test skipped in the PGlite run. Includes tax rounding/discount allocation, mixed inclusive/exclusive and disabled tax, effective-date blocking, changed-quote rejection, immutable invoice totals, cross-tenant profile rejection, split-tender exact sums, duplicate retry, cash-only till totals and fractional-unit immutability.
+- Browser: actual React/FastAPI flow in Chromium exercised English/Urdu switching, RTL tax screen, weighted inclusive-tax checkout, Urdu receipt/PDF, then cash/bank split checkout. No JavaScript page errors. Desktop Urdu tax/receipt and mobile split receipt visually inspected.
+- PDF: rendered and inspected Urdu invoice with joined glyphs, tax extraction, quantity/unit and bilingual synthetic data. Bundled Noto Naskh Arabic covers the Urdu catalogue's Arabic-block characters; licenses are included.
+- TypeScript and production build passed. Literal translation coverage check passed; it excludes dynamic data/errors and does not establish exhaustive localization.
+- Existing tests for stock, khata, FEFO, purchasing, auth, tenant isolation and forecasting remain in the suite.
+
+## Not verified
+
+Docker startup, normal PostgreSQL multi-process concurrency, live provider integrations, hardware output, accessibility audit, high-load performance, backup/restore operations and production availability were not verified. PGlite SQL testing does not establish real PostgreSQL concurrency behavior. No statutory, GDPR or PCI-DSS certification is claimed.
+
+## Previous 1.2 verification record
+
+
 
 ## Release 1.2 checks
 

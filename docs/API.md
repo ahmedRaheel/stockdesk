@@ -82,3 +82,86 @@ Catalog writes accept `category_id`, `unit_id`, `search_aliases`, `expiry_requir
 Checkout adds `customer_id`, `paid_now`, `due_date`, `payment_method_id`, `prescription_reference` and optional `held_bill_id`. `paid_now` is applied to the invoice, while `tendered` is the cash handed over including change. Invoice total remains the full sale value; credit amount is total minus paid now. Cash-mode and payment lookup must agree. Partial payment means paid-now plus receivable, not multiple payment tenders.
 
 Product responses and receipt lines omit `cost` for roles without that permission. Customer ledger is append-only. Every credit, batch, sales and cash side effect runs in the tenant transaction. Holds and till openings have different retry semantics: a duplicate open till returns conflict; a held bill ID deduplicates an unchanged draft. Customer creation/credit requests/plan creation are not generic idempotent endpoints; inspect state after uncertain results.
+
+## Tax quotes and split tenders (1.3)
+
+- GET/PUT `/tax-settings`: mode (`manual`, `configured`, `disabled`) and default profile.
+- POST `/tax-profiles`, PUT `/tax-profiles/{id}`: name/name_ur, rate_bps, inclusive, active, starts_on/ends_on.
+- POST `/sales/quote`: items, discount, tax_bps; returns subtotal, tax, tax_included, total, line tax allocation and quote_token. This preview does not reserve stock.
+- Product writes support nullable `tax_profile_id`; null inherits the business default.
+- Checkout carries `quote_token` and optional `tenders` array of `{method_id, amount, reference}`. Sum of tenders must equal paid_now. Tendered cash must cover the cash subset.
+- Receipt JSON adds `tenders`; sale adds `tax_included`, `tax_snapshot` and `cash_amount`. Tax snapshot is stored JSON. Invoice PDFs support `language=en|ur`.
+- Return payload accepts nullable `reason_id` from return_reason lookups.
+- Lookup writes accept nullable `fractional` for unit creation/editing. The rule cannot change after catalog use.
+
+All configuration changes require settings permission and tenant write serialization. Preview requires sale permission and a consistent read transaction. Quotes cannot bypass checkout stock, credit, expiry or prescription checks.
+
+
+## Version 1.4 endpoints
+
+Tenant prefix `/api/v1/tenants/{tenant}` applies throughout.
+
+- `GET/POST /stock-counts`: page counts or open an idempotent reference/product batch snapshot.
+- `GET /stock-counts/{id}`: lines, current revisions and quantities.
+- `PUT /stock-counts/{id}/lines`: creator saves draft counted quantities.
+- `POST /stock-counts/{id}/submit`: all quantities required.
+- `POST /stock-counts/{id}/post`: independent Owner/Manager posts with note, rejects changed stock revisions.
+- `POST /stock-counts/{id}/cancel`: creator or authorized approver, reason required.
+- `GET /management-report?days=30`: cost permission required; 1–90 complete days, Asia/Karachi, net/cost/profit and ABC/XYZ breakdowns.
+
+See openapi.json for exact request fields. All mutation authentication/tenant/CSRF rules remain in force.
+
+
+## Version 1.5 endpoints
+
+Tenant prefix `/api/v1/tenants/{tenant}` applies.
+
+- `GET/POST /payables`: paginated bill register/global current ageing or matched supplier bill creation.
+- `GET /payables/matchable-orders?q=&offset=0`: database order lookup, 50 per page, received unbilled quantities.
+- `GET /payables/{id}`: lines and payment history.
+- `POST /payables/{id}/payments`: record external payment, idempotency key required.
+- `POST /payables/{id}/void` and `/payables/{id}/payments/{payment}/void`: reasoned ledger corrections.
+- `POST /catalog-imports/preview`: validate CSV using rolled-back creation rules.
+- `POST /catalog-imports`: atomic new-product creation with request idempotency.
+
+Finance permission is restricted to Owner/Manager; CSV import uses product permission. All write CSRF/tenant rules apply. Exact schemas and bounds are in openapi.json.
+
+
+## Version 1.6 endpoints
+
+Tenant prefix `/api/v1/tenants/{tenant}` applies.
+
+- `GET /roles`: owner-only role records, supported capabilities and prerequisites.
+- `GET /roles/members?q=&offset=0`: owner-only staff search, 50 per page.
+- `POST /roles`, `PUT /roles/{id}`: create/version-checked update and disable.
+- `POST /roles/assignments`: assign active custom role to an existing non-owner member.
+- `GET /audit-events?q=&start=&end=&limit=50&offset=0`: separate audit capability; inclusive UTC dates, total and bounded page.
+
+Custom permissions replace built-in permissions at authorization time. Role assignment does not reactivate staff. Membership/owner/role administration cannot be delegated. Schemas are in openapi.json.
+
+
+## Version 1.7 endpoints
+
+Prefix `/api/v1/tenants/{tenant}/payables/{bill_id}`.
+
+- `GET /return-options?q=&offset=0`: receipt sources, stock and remaining billed/received quantities, 50 per page.
+- `POST /returns`: source-bound physical return and original-bill credit in one transaction. Requires supplier_return permission and request ID.
+- `POST /refunds`: record supplier money received against a credit balance; finance permission and request ID.
+- `POST /refunds/{refund_id}/void`: reasoned correction, no external money transfer.
+
+Bill detail now includes credited/refunded totals and credit/refund history; listing includes signed balance and summary supplier_credit. Positive outstanding and ageing exclude negative balances. Goods credits cannot be voided. Lookup kind supplier_return_reason is supported. See OpenAPI for exact contracts.
+
+
+## Version 1.8 endpoints
+
+Prefix `/api/v1/tenants/{tenant}`. Money is integer minor units; quantity supports up to three decimal places on writes.
+
+- `GET /purchasing-policy`: stock permission; disabled/version 0 if not configured.
+- `PUT /purchasing-policy`: owner-only, enabled/threshold/version, stale version 409.
+- `POST /purchase-orders/{id}/decision`: purchase_approve, decision approve/reject and note, no self-decision. Matching repeated decision returns replayed=true.
+- `GET /supplier-offers?q=&product=&quantity=1&eligible=false&offset=0`: 50 matches, product/price ordering, date and minimum-quantity eligibility.
+- `POST /supplier-offers`, `PUT /supplier-offers/{id}`: stock permission, validated tenant references, unique supplier/product, versioned updates.
+- `GET /supplier-performance?q=&offset=0`: stock permission, 50 suppliers, observed first-receipt metrics.
+- `GET /suppliers` additionally accepts literal case-insensitive `q` search across name/contact.
+
+Purchase-order reads now include order_total, approval_required, approval_threshold, lead_days_snapshot and decision fields. Legacy orders keep their status; pending/rejected orders cannot receive. Exact schemas are in openapi.json.

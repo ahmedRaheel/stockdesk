@@ -1,3 +1,4 @@
+import { useLanguage, t as tr } from "./i18n";
 import { useEffect, useState } from "react";
 import { api } from "./api";
 export type Lookup = {
@@ -18,7 +19,7 @@ export default function LookupSelect({
   value,
   onChange,
   required = true,
-  language = "en",
+  language,
 }: {
   tenant: string;
   kind: string;
@@ -29,6 +30,8 @@ export default function LookupSelect({
   required?: boolean;
   language?: string;
 }) {
+  const [currentLanguage] = useLanguage();
+  language = language || currentLanguage;
   const [query, setQuery] = useState(""),
     [options, setOptions] = useState<Lookup[]>([]),
     [selected, setSelected] = useState(value || ""),
@@ -77,11 +80,11 @@ export default function LookupSelect({
   return (
     <div className="lookup-field">
       <label className="field">
-        <span>{label}</span>
+        <span>{tr(label)}</span>
         <input
           aria-label={`Search ${label}`}
           type="search"
-          placeholder={language === "ur" ? "تلاش کریں" : "Search options…"}
+          placeholder={language === "ur" ? "تلاش کریں" : tr("Search options…")}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -100,11 +103,11 @@ export default function LookupSelect({
             onChange?.(e.target.value, option);
           }}
         >
-          <option value="">{loading ? "Loading…" : "Select…"}</option>
+          <option value="">{loading ? tr("Loading…") : tr("Select…")}</option>
           {all.map((x) => (
             <option key={x.id} value={x.id} disabled={!x.active}>
               {language === "ur" && x.name_ur ? x.name_ur : x.name}
-              {!x.active ? " (inactive)" : ""}
+              {!x.active ? tr(" (inactive)") : ""}
             </option>
           ))}
         </select>
@@ -121,7 +124,8 @@ export default function LookupSelect({
           disabled={loading}
           onClick={() => setOffset(offset + 50)}
         >
-          More options
+          {" "}
+          {tr("More options")}{" "}
         </button>
       )}
     </div>

@@ -6,6 +6,12 @@ from fastapi import HTTPException
 
 ROLES = {
     "Owner": {
+        "roles",
+        "audit",
+        "count_approve",
+        "purchase_approve",
+        "supplier_return",
+        "finance",
         "credit",
         "credit_approve",
         "cost",
@@ -19,6 +25,10 @@ ROLES = {
         "settings",
     },
     "Manager": {
+        "count_approve",
+        "purchase_approve",
+        "supplier_return",
+        "finance",
         "credit",
         "credit_approve",
         "cost",
@@ -38,8 +48,21 @@ def fail(message, status=400):
     raise HTTPException(status, message)
 
 
+class EffectiveRole(str):
+    """Per-request role; never store tenant grants in the global built-in role map."""
+
+    def __new__(cls, name, permissions):
+        instance = super().__new__(cls, name)
+        instance.permissions = frozenset(permissions)
+        return instance
+
+
+def grants(role):
+    return getattr(role, "permissions", ROLES.get(role, set()))
+
+
 def require_permission(role, permission):
-    if permission not in ROLES.get(role, set()):
+    if permission not in grants(role):
         fail("Your role cannot perform this action.", 403)
 
 

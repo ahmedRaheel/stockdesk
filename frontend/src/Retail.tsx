@@ -1,3 +1,4 @@
+import { t as translate } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { Plus, RefreshCw, Download, X, ArrowLeft } from "lucide-react";
 import { api, send } from "./api";
@@ -25,6 +26,7 @@ const kinds = [
   ["payment_method", "Payment methods"],
   ["adjustment_reason", "Adjustment reasons"],
   ["return_reason", "Return reasons"],
+  ["supplier_return_reason", "Supplier return reasons"],
   ["customer_segment", "Customer segments"],
 ];
 const labels: Record<string, string> = {
@@ -54,7 +56,7 @@ export default function Retail({
   mode = "khata",
   language,
 }: Props) {
-  const t = (s: string) => (language === "ur" ? labels[s] || s : s);
+  const tr = (s: string) => (language === "ur" ? labels[s] || translate(s) : s);
   const money = (n: number) =>
     `${currency === "PKR" ? "Rs." : currency} ${(n / 100).toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const base = `/api/v1/tenants/${tenant}`;
@@ -143,7 +145,7 @@ export default function Retail({
     required = true,
   ) => (
     <label className="field">
-      <span>{t(label)}</span>
+      <span>{tr(label)}</span>
       <input
         name={name}
         aria-label={label}
@@ -214,6 +216,7 @@ export default function Retail({
             name_ur: f.name_ur,
             sort_order: Number(f.sort_order),
             active: f.active === "on",
+            fractional: kind === "unit" ? f.fractional === "on" : null,
           },
           record ? "PUT" : "POST",
         );
@@ -268,7 +271,7 @@ export default function Retail({
           {statement && (
             <button className="secondary" onClick={() => setStatement(null)}>
               <ArrowLeft size={16} />
-              {t("Customers & khata")}
+              {tr("Customers & khata")}
             </button>
           )}
           <button
@@ -276,27 +279,25 @@ export default function Retail({
             disabled={loading}
             onClick={() => load()}
           >
-            <RefreshCw size={16} />
-            Refresh
+            <RefreshCw size={16} /> {tr("Refresh")}{" "}
           </button>
           {mode === "lookups" ? (
             lookupAdmin && (
               <button className="primary" onClick={() => open("lookup")}>
-                <Plus size={16} />
-                Add lookup
+                <Plus size={16} /> {tr("Add lookup")}{" "}
               </button>
             )
           ) : (
             <button className="primary" onClick={() => open("customer")}>
               <Plus size={16} />
-              {t("New customer")}
+              {tr("New customer")}
             </button>
           )}
         </div>
         <input
           className="retail-search"
           type="search"
-          placeholder="Search / تلاش / Roman Urdu"
+          placeholder={tr("Search / تلاش / Roman Urdu")}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -307,9 +308,9 @@ export default function Retail({
       {mode === "lookups" ? (
         <section className="panel">
           <div className="panel-heading">
-            <h2>{t("Lookup management")}</h2>
+            <h2>{tr("Lookup management")}</h2>
             <select
-              aria-label="Lookup type"
+              aria-label={tr("Lookup type")}
               value={kind}
               onChange={(e) => {
                 setKind(e.target.value);
@@ -324,17 +325,19 @@ export default function Retail({
             </select>
           </div>
           <p>
-            Codes are stable. Deactivate used values instead of deleting
-            historical references.
+            {" "}
+            {tr(
+              "Codes are stable. Deactivate used values instead of deleting historical references.",
+            )}{" "}
           </p>
           <div className="table-scroll">
             <table>
               <thead>
                 <tr>
-                  <th>Code</th>
-                  <th>Name</th>
-                  <th>Urdu</th>
-                  <th>Status</th>
+                  <th>{tr("Code")}</th>
+                  <th>{tr("Name")}</th>
+                  <th>{tr("Urdu")}</th>
+                  <th>{tr("Status")}</th>
                   <th />
                 </tr>
               </thead>
@@ -350,7 +353,8 @@ export default function Retail({
                         className="mini"
                         onClick={() => open("lookup", l)}
                       >
-                        Edit
+                        {" "}
+                        {tr("Edit")}{" "}
                       </button>
                     </td>
                   </tr>
@@ -366,7 +370,7 @@ export default function Retail({
               <div>
                 <h2>{statement.customer.name}</h2>
                 <p>
-                  {statement.customer.phone} · {t("Outstanding")}:{" "}
+                  {statement.customer.phone} · {tr("Outstanding")}:{" "}
                   <b>{money(statement.balance)}</b>
                 </p>
               </div>
@@ -376,8 +380,7 @@ export default function Retail({
                 target="_blank"
                 rel="noreferrer"
               >
-                <Download size={15} />
-                PDF
+                <Download size={15} /> {tr("PDF")}{" "}
               </a>
             </div>
             <div className="actions">
@@ -385,20 +388,20 @@ export default function Retail({
                 className="primary"
                 onClick={() => open("recover", statement.customer)}
               >
-                {t("Recovery")}
+                {tr("Recovery")}
               </button>
               <button
                 className="secondary"
                 onClick={() => open("promise", statement.customer)}
               >
-                {t("Payment promise")}
+                {tr("Payment promise")}
               </button>
               {approve && (
                 <button
                   className="secondary"
                   onClick={() => open("plan", statement)}
                 >
-                  {t("Installment plan")}
+                  {tr("Installment plan")}
                 </button>
               )}
             </div>
@@ -406,11 +409,11 @@ export default function Retail({
               <table>
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Entry</th>
-                    <th>Reference</th>
-                    <th>Debit / credit</th>
-                    <th>Balance</th>
+                    <th>{tr("Date")}</th>
+                    <th>{tr("Entry")}</th>
+                    <th>{tr("Reference")}</th>
+                    <th>{tr("Debit / credit")}</th>
+                    <th>{tr("Balance")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -428,15 +431,15 @@ export default function Retail({
             </div>
           </section>
           <section className="panel retail-table">
-            <h2>Installments / اقساط</h2>
+            <h2>{tr("Installments / اقساط")}</h2>
             <div className="table-scroll retail-table">
               <table>
                 <thead>
                   <tr>
-                    <th>Due</th>
-                    <th>Amount</th>
-                    <th>Paid</th>
-                    <th>Status</th>
+                    <th>{tr("Due")}</th>
+                    <th>{tr("Amount")}</th>
+                    <th>{tr("Paid")}</th>
+                    <th>{tr("Status")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -459,14 +462,14 @@ export default function Retail({
             </div>
           </section>
           <section className="panel retail-table">
-            <h2>Recovery receipts</h2>
+            <h2>{tr("Recovery receipts")}</h2>
             <div className="table-scroll retail-table">
               <table>
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Amount</th>
-                    <th>Method</th>
+                    <th>{tr("Date")}</th>
+                    <th>{tr("Amount")}</th>
+                    <th>{tr("Method")}</th>
                     <th />
                   </tr>
                 </thead>
@@ -481,7 +484,8 @@ export default function Retail({
                           className="mini"
                           onClick={() => printRecovery(p)}
                         >
-                          Print receipt
+                          {" "}
+                          {tr("Print receipt")}{" "}
                         </button>
                       </td>
                     </tr>
@@ -491,7 +495,7 @@ export default function Retail({
             </div>
           </section>
           <section className="panel retail-table">
-            <h2>Promises and recovery notes</h2>
+            <h2>{tr("Promises and recovery notes")}</h2>
             {statement.promises.map((p: any) => (
               <p key={p.id}>
                 {p.promised_date} · {money(p.amount)} · {p.notes}
@@ -525,24 +529,24 @@ export default function Retail({
                 className={tab === key ? "active" : ""}
                 onClick={() => setTab(key)}
               >
-                {t(label)}
+                {tr(label)}
               </button>
             ))}
           </div>
           <section className="panel">
             {loading ? (
-              <p role="status">Loading…</p>
+              <p role="status">{tr("Loading…")}</p>
             ) : (
               <div className="table-scroll">
                 {tab === "customers" ? (
                   <table>
                     <thead>
                       <tr>
-                        <th>{t("Name")}</th>
-                        <th>{t("Phone")}</th>
-                        <th>{t("Credit limit")}</th>
-                        <th>{t("Outstanding")}</th>
-                        <th>Actions</th>
+                        <th>{tr("Name")}</th>
+                        <th>{tr("Phone")}</th>
+                        <th>{tr("Credit limit")}</th>
+                        <th>{tr("Outstanding")}</th>
+                        <th>{tr("Actions")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -565,19 +569,19 @@ export default function Retail({
                                 className="mini"
                                 onClick={() => show(c.id)}
                               >
-                                {t("Statement")}
+                                {tr("Statement")}
                               </button>
                               <button
                                 className="mini"
                                 onClick={() => open("recover", c)}
                               >
-                                {t("Recovery")}
+                                {tr("Recovery")}
                               </button>
                               <button
                                 className="mini"
                                 onClick={() => open("credit", c)}
                               >
-                                {t("Request credit")}
+                                {tr("Request credit")}
                               </button>
                             </div>
                           </td>
@@ -589,10 +593,10 @@ export default function Retail({
                   <table>
                     <thead>
                       <tr>
-                        <th>Customer</th>
-                        <th>Requested limit</th>
-                        <th>Requested by</th>
-                        <th>Status</th>
+                        <th>{tr("Customer")}</th>
+                        <th>{tr("Requested limit")}</th>
+                        <th>{tr("Requested by")}</th>
+                        <th>{tr("Status")}</th>
                         <th />
                       </tr>
                     </thead>
@@ -612,7 +616,8 @@ export default function Retail({
                                 className="mini"
                                 onClick={() => open("decision", r)}
                               >
-                                Review
+                                {" "}
+                                {tr("Review")}{" "}
                               </button>
                             )}
                           </td>
@@ -624,10 +629,10 @@ export default function Retail({
                   <table>
                     <thead>
                       <tr>
-                        <th>Customer</th>
-                        <th>Due date</th>
-                        <th>Amount</th>
-                        <th>Days overdue</th>
+                        <th>{tr("Customer")}</th>
+                        <th>{tr("Due date")}</th>
+                        <th>{tr("Amount")}</th>
+                        <th>{tr("Days overdue")}</th>
                         <th />
                       </tr>
                     </thead>
@@ -643,7 +648,8 @@ export default function Retail({
                               className="mini"
                               onClick={() => show(d.customer)}
                             >
-                              Open khata
+                              {" "}
+                              {tr("Open khata")}{" "}
                             </button>
                           </td>
                         </tr>
@@ -655,9 +661,12 @@ export default function Retail({
             )}
             {tab === "dues" && (
               <p>
-                Scheduled next 30 days: {money(overview?.scheduled_next30 || 0)}
-                . These are contractual amounts, not guaranteed collections.
-                Reminders are listed here; no external message is sent.
+                {" "}
+                {tr("Scheduled next 30 days:")}{" "}
+                {money(overview?.scheduled_next30 || 0)}{" "}
+                {tr(
+                  ". These are contractual amounts, not guaranteed collections. Reminders are listed here; no external message is sent.",
+                )}{" "}
               </p>
             )}
           </section>
@@ -665,14 +674,17 @@ export default function Retail({
       )}
       {!statement && (
         <div className="pagination">
-          <span>Page {page + 1}</span>
+          <span>
+            {tr("Page")} {page + 1}
+          </span>
           <div>
             <button
               className="mini"
               disabled={!page || loading}
               onClick={() => setPage(page - 1)}
             >
-              Previous
+              {" "}
+              {tr("Previous")}{" "}
             </button>
             <button
               className="mini"
@@ -682,7 +694,8 @@ export default function Retail({
               }
               onClick={() => setPage(page + 1)}
             >
-              Next
+              {" "}
+              {tr("Next")}{" "}
             </button>
           </div>
         </div>
@@ -718,7 +731,7 @@ export default function Retail({
           >
             <div className="modal-heading">
               <h2 id="retail-title">
-                {t(
+                {tr(
                   (
                     {
                       customer: "New customer",
@@ -734,7 +747,7 @@ export default function Retail({
               </h2>
               <button
                 className="icon-button"
-                aria-label="Close"
+                aria-label={tr("Close")}
                 disabled={busy}
                 onClick={() => setModal("")}
               >
@@ -767,8 +780,10 @@ export default function Retail({
                 {modal === "credit" && (
                   <>
                     <p>
-                      {record.name}. A different authorized manager must approve
-                      this request.
+                      {record.name}
+                      {tr(
+                        ". A different authorized manager must approve this request.",
+                      )}{" "}
                     </p>
                     {field(
                       "Credit limit",
@@ -785,10 +800,10 @@ export default function Retail({
                       {record.customer_name} · {money(record.proposed_limit)}
                     </p>
                     <label className="field">
-                      <span>Decision</span>
+                      <span>{tr("Decision")}</span>
                       <select name="decision">
-                        <option value="approved">Approve</option>
-                        <option value="rejected">Reject</option>
+                        <option value="approved">{tr("Approve")}</option>
+                        <option value="rejected">{tr("Reject")}</option>
                       </select>
                     </label>
                     {field("Decision reason", "note")}
@@ -808,9 +823,10 @@ export default function Retail({
                     />
                     {field("Payment reference", "reference", "text", "", false)}
                     <p className="hint">
-                      Confirm payment was collected. Wallet and bank methods
-                      record external receipts; this does not initiate a
-                      transfer. Retrying unchanged data is safe.
+                      {" "}
+                      {tr(
+                        "Confirm payment was collected. Wallet and bank methods record external receipts; this does not initiate a transfer. Retrying unchanged data is safe.",
+                      )}{" "}
                     </p>
                   </>
                 )}
@@ -824,9 +840,9 @@ export default function Retail({
                 {modal === "plan" && (
                   <>
                     <label className="field">
-                      <span>Outstanding invoice</span>
+                      <span>{tr("Outstanding invoice")}</span>
                       <select name="receivable" required>
-                        <option value="">Choose invoice</option>
+                        <option value="">{tr("Choose invoice")}</option>
                         {record.documents
                           .filter(
                             (d: any) =>
@@ -844,11 +860,11 @@ export default function Retail({
                       </select>
                     </label>
                     <label className="field">
-                      <span>Frequency</span>
+                      <span>{tr("Frequency")}</span>
                       <select name="frequency">
-                        <option value="weekly">Weekly</option>
-                        <option value="fortnightly">Fortnightly</option>
-                        <option value="monthly">Monthly</option>
+                        <option value="weekly">{tr("Weekly")}</option>
+                        <option value="fortnightly">{tr("Fortnightly")}</option>
+                        <option value="monthly">{tr("Monthly")}</option>
                       </select>
                     </label>
                     {field(
@@ -865,14 +881,25 @@ export default function Retail({
                       0,
                     )}
                     <p className="hint">
-                      A plan applies to the remaining invoice balance after the
-                      down payment. Markup is a fixed agreed amount, not a
-                      recurring rate.
+                      {" "}
+                      {tr(
+                        "A plan applies to the remaining invoice balance after the down payment. Markup is a fixed agreed amount, not a recurring rate.",
+                      )}{" "}
                     </p>
                   </>
                 )}
                 {modal === "lookup" && (
                   <>
+                    {kind === "unit" && (
+                      <label className="checkbox">
+                        <input
+                          name="fractional"
+                          type="checkbox"
+                          defaultChecked={record?.fractional ?? false}
+                        />
+                        {tr("Allow fractional quantities")}
+                      </label>
+                    )}
                     {field(
                       "Code (immutable)",
                       "code",
@@ -898,8 +925,8 @@ export default function Retail({
                         type="checkbox"
                         name="active"
                         defaultChecked={record?.active ?? true}
-                      />
-                      Active
+                      />{" "}
+                      {tr("Active")}{" "}
                     </label>
                   </>
                 )}
@@ -914,10 +941,10 @@ export default function Retail({
                     className="secondary"
                     onClick={() => setModal("")}
                   >
-                    {t("Close")}
+                    {tr("Close")}
                   </button>
                   <button className="primary" disabled={busy}>
-                    {busy ? "Saving…" : t("Save")}
+                    {busy ? "Saving…" : tr("Save")}
                   </button>
                 </div>
               </fieldset>

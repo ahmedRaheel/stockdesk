@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { api, send } from "./api";
 export default function Tills({
@@ -77,16 +78,18 @@ export default function Tills({
       )}
       <div className="actions">
         <button className="secondary" onClick={load}>
-          Refresh
+          {" "}
+          {tr("Refresh")}{" "}
         </button>
       </div>
       <p>
-        Sessions belong to the signed-in cashier. Open a session before billing
-        to include sales here. Existing sales without a session remain outside
-        till reports.
+        {" "}
+        {tr(
+          "Sessions belong to the signed-in cashier. Open a session before billing to include sales here. Existing sales without a session remain outside till reports.",
+        )}{" "}
       </p>
       {!data ? (
-        <p>Loading…</p>
+        <p>{tr("Loading…")}</p>
       ) : (
         <>
           {data.current ? (
@@ -102,40 +105,42 @@ export default function Tills({
               <div className="forecast-grid">
                 <form className="panel" onSubmit={(e) => submit(e, "move")}>
                   <fieldset disabled={busy}>
-                    <h2>Cash in / out</h2>
+                    <h2>{tr("Cash in / out")}</h2>
                     <label className="field">
-                      <span>Movement</span>
+                      <span>{tr("Movement")}</span>
                       <select name="type">
-                        <option value="IN">Cash in</option>
-                        <option value="OUT">Cash out / refund</option>
+                        <option value="IN">{tr("Cash in")}</option>
+                        <option value="OUT">{tr("Cash out / refund")}</option>
                       </select>
                     </label>
                     {amount("Amount")}
                     <label className="field">
-                      <span>Reason / refund reference</span>
+                      <span>{tr("Reason / refund reference")}</span>
                       <input name="reason" required maxLength={500} />
                     </label>
-                    <button className="primary">Record movement</button>
+                    <button className="primary">{tr("Record movement")}</button>
                   </fieldset>
                 </form>
                 <form className="panel" onSubmit={(e) => submit(e, "close")}>
                   <fieldset disabled={busy}>
-                    <h2>Close and reconcile</h2>
+                    <h2>{tr("Close and reconcile")}</h2>
                     {amount("Counted cash")}
                     <label className="field">
-                      <span>Discrepancy explanation / note</span>
+                      <span>{tr("Discrepancy explanation / note")}</span>
                       <input name="note" maxLength={500} />
                     </label>
                     <p>
-                      Returns do not move cash automatically. Record an actual
-                      cash refund as cash out before closing.
+                      {" "}
+                      {tr(
+                        "Returns do not move cash automatically. Record an actual cash refund as cash out before closing.",
+                      )}{" "}
                     </p>
-                    <button className="primary">Close session</button>
+                    <button className="primary">{tr("Close session")}</button>
                   </fieldset>
                 </form>
               </div>
               <section className="panel retail-table">
-                <h2>Cash movements</h2>
+                <h2>{tr("Cash movements")}</h2>
                 {data.movements.map((m: any) => (
                   <p key={m.id}>
                     {new Date(m.created).toLocaleString()} · {money(m.amount)} ·{" "}
@@ -150,24 +155,24 @@ export default function Tills({
               onSubmit={(e) => submit(e, "open")}
             >
               <fieldset disabled={busy}>
-                <h2>Open till</h2>
+                <h2>{tr("Open till")}</h2>
                 {amount("Opening cash")}
-                <button className="primary">Open session</button>
+                <button className="primary">{tr("Open session")}</button>
               </fieldset>
             </form>
           )}
           <section className="panel retail-table">
-            <h2>Session history</h2>
+            <h2>{tr("Session history")}</h2>
             <div className="table-scroll">
               <table>
                 <thead>
                   <tr>
-                    <th>Opened</th>
-                    <th>Status</th>
-                    <th>Expected</th>
-                    <th>Counted</th>
-                    <th>Variance</th>
-                    <th>Notes</th>
+                    <th>{tr("Opened")}</th>
+                    <th>{tr("Status")}</th>
+                    <th>{tr("Expected")}</th>
+                    <th>{tr("Counted")}</th>
+                    <th>{tr("Variance")}</th>
+                    <th>{tr("Notes")}</th>
                   </tr>
                 </thead>
                 <tbody>

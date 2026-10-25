@@ -1,6 +1,12 @@
 export const ROLES = ["Owner", "Manager", "Cashier", "Stock Manager"] as const;
 export const permissions: Record<string, string[]> = {
   Owner: [
+    "roles",
+    "audit",
+    "count_approve",
+    "supplier_return",
+    "purchase_approve",
+    "finance",
     "credit",
     "credit_approve",
     "cost",
@@ -14,6 +20,10 @@ export const permissions: Record<string, string[]> = {
     "settings",
   ],
   Manager: [
+    "count_approve",
+    "supplier_return",
+    "purchase_approve",
+    "finance",
     "credit",
     "credit_approve",
     "cost",

@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import { useEffect, useState } from "react";
 import { api } from "./api";
 export default function CustomerSelect({
@@ -49,13 +50,13 @@ export default function CustomerSelect({
   return (
     <div className="customer-select">
       <input
-        aria-label="Search customer"
-        placeholder="Name, phone, Roman Urdu…"
+        aria-label={tr("Search customer")}
+        placeholder={tr("Name, phone, Roman Urdu…")}
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
       <select
-        aria-label="Khata customer"
+        aria-label={tr("Khata customer")}
         value={value}
         onChange={(e) =>
           onChange(
@@ -64,7 +65,7 @@ export default function CustomerSelect({
           )
         }
       >
-        <option value="">Walk-in / no khata</option>
+        <option value="">{tr("Walk-in / no khata")}</option>
         {selected && !items.some((c) => c.id === selected.id) && (
           <option value={selected.id}>
             {selected.name} · {selected.phone}
@@ -76,8 +77,8 @@ export default function CustomerSelect({
           </option>
         ))}
       </select>
-      {error && <small role="alert">{error}</small>}
-      <small>First 50 matches; search to narrow results.</small>
+      {error && <small role="alert">{tr(error)}</small>}
+      <small>{tr("First 50 matches; search to narrow results.")}</small>
     </div>
   );
 }

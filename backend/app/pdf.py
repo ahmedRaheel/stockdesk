@@ -1,6 +1,7 @@
 """Paginated invoice PDFs and printable Code128 labels. Text is escaped."""
 
 from io import BytesIO
+from decimal import Decimal
 from pathlib import Path
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -16,8 +17,64 @@ FONT_DIR = Path(__file__).parent / "fonts"
 pdfmetrics.registerFont(TTFont("StockDesk", str(FONT_DIR / "DejaVuSans.ttf")))
 pdfmetrics.registerFont(TTFont("StockDeskBold", str(FONT_DIR / "DejaVuSans-Bold.ttf")))
 
+pdfmetrics.registerFont(TTFont("StockDeskUrdu", str(FONT_DIR / "NotoNaskhArabic.ttf")))
+pdfmetrics.registerFont(
+    TTFont("StockDeskUrduBold", str(FONT_DIR / "NotoNaskhArabicBold.ttf"))
+)
 
-def invoice_pdf(sale, items):
+
+def invoice_pdf(sale, items, language="en", tenders=None):
+    from arabic_reshaper import reshape
+    from bidi.algorithm import get_display
+    import re
+
+    labels = {
+        "Split payment": "مختلف طریقوں سے ادائیگی",
+        "cash": "نقد",
+        "external": "بیرونی ادائیگی",
+        "Kilogram": "کلوگرام",
+        "Piece": "عدد",
+        "Litre": "لیٹر",
+        "Dozen": "درجن",
+        "Pack": "پیکٹ",
+        "Walk-in customer": "عام گاہک",
+        "COMPLETED": "مکمل",
+        "RETURNED": "واپس شدہ",
+        "Tax ID": "ٹیکس نمبر",
+        "INVOICE": "رسید",
+        "Date": "تاریخ",
+        "Customer": "گاہک",
+        "Status": "حالت",
+        "Product / SKU": "مصنوعات / SKU",
+        "Qty": "مقدار",
+        "Unit price": "فی اکائی قیمت",
+        "Amount": "رقم",
+        "Subtotal": "ذیلی مجموعہ",
+        "Discount": "رعایت",
+        "Tax added": "اضافی ٹیکس",
+        "Tax included in prices": "قیمتوں میں شامل ٹیکس",
+        "TOTAL": "کل",
+        "Paid now": "اب وصول شدہ",
+        "Khata credit": "کھاتہ ادھار",
+        "Payment": "ادائیگی",
+        "Cash": "نقد",
+        "Collected externally": "بیرونی وصولی",
+        "Served by": "فروخت کنندہ",
+        "Thank you for your business.": "آپ کی خریداری کا شکریہ۔",
+        "RETURNED — stock restored. Refund payment must be completed separately.": "واپس شدہ — اسٹاک بحال ہو گیا۔ رقم الگ واپس کریں۔",
+    }
+
+    def label(value):
+        return labels.get(value, value) if language == "ur" else value
+
+    def shape(value):
+        value = str(value)
+        return (
+            get_display(reshape(value))
+            if re.search("[\u0600-\u06ff]", value)
+            else value
+        )
+
     buf = BytesIO()
     styles = getSampleStyleSheet()
     for name in styles.byName:
@@ -26,12 +83,34 @@ def invoice_pdf(sale, items):
             if name in ["Title", "Heading1", "Heading2", "Heading3"]
             else "StockDesk"
         )
+    if language == "ur":
+        for style in styles.byName.values():
+            style.alignment = 2
     doc = SimpleDocTemplate(
         buf, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=45
     )
 
     def p(value, style="Normal"):
-        return Paragraph(escape(str(value)), styles[style])
+        value = str(value)
+        if re.search("[\u0600-\u06ff]", value):
+            font = (
+                "StockDeskUrduBold"
+                if style in ["Title", "Heading1", "Heading2", "Heading3"]
+                else "StockDeskUrdu"
+            )
+            # Render Arabic runs using the bundled font; retain Latin/numbers with DejaVu.
+            shaped = shape(value)
+            chunks = re.split("([\u0600-\u06ff\ufb50-\ufdff\ufe70-\ufeff]+)", shaped)
+            html = "".join(
+                (
+                    '<font name="' + font + '">' + escape(x) + "</font>"
+                    if re.search("[\u0600-\u06ff\ufb50-\ufdff\ufe70-\ufeff]", x)
+                    else escape(x)
+                )
+                for x in chunks
+            )
+            return Paragraph(html, styles[style])
+        return Paragraph(escape(value), styles[style])
 
     def money(n):
         return f"{sale['currency']} {n/100:,.2f}"
@@ -39,25 +118,43 @@ def invoice_pdf(sale, items):
     story = [
         p(sale["seller_name"], "Title"),
         p(sale["seller_address"]),
-        p("Tax ID: " + sale["seller_tax_number"] if sale["seller_tax_number"] else ""),
+        p(
+            label("Tax ID") + ": " + sale["seller_tax_number"]
+            if sale["seller_tax_number"]
+            else ""
+        ),
         Spacer(1, 20),
-        p("INVOICE " + sale["invoice_number"], "Heading1"),
-        p("Date: " + sale["created"].strftime("%Y-%m-%d %H:%M UTC")),
-        p("Customer: " + sale["customer"]),
-        p("Status: " + sale["status"].upper()),
+        p(label("INVOICE") + " " + sale["invoice_number"], "Heading1"),
+        p(label("Date") + ": " + sale["created"].strftime("%Y-%m-%d %H:%M UTC")),
+        p(label("Customer") + ": " + label(sale["customer"])),
+        p(label("Status") + ": " + label(sale["status"].upper())),
         Spacer(1, 18),
     ]
-    rows = [[p("Product / SKU"), p("Qty"), p("Unit price"), p("Amount")]]
+    rows = [
+        [
+            p(label("Product / SKU")),
+            p(label("Qty")),
+            p(label("Unit price")),
+            p(label("Amount")),
+        ]
+    ]
     for i in items:
         rows.append(
             [
                 p(i["name"] + " / " + i["sku"]),
-                str(i["quantity"]) + " " + i.get("unit_name", ""),
+                p(
+                    format(
+                        Decimal(str(i["quantity"])).normalize(),
+                        "f",
+                    )
+                    + " "
+                    + label(i.get("unit_name", ""))
+                ),
                 money(i["price"]),
                 money(i.get("line_total", i["quantity"] * i["price"])),
             ]
         )
-    table = Table(rows, colWidths=[235, 40, 110, 110], repeatRows=1, hAlign="LEFT")
+    table = Table(rows, colWidths=[195, 80, 110, 110], repeatRows=1, hAlign="LEFT")
     table.setStyle(
         TableStyle(
             [
@@ -73,30 +170,48 @@ def invoice_pdf(sale, items):
         )
     )
     story += [table, Spacer(1, 20)]
-    for label, value in [
+    for caption, value in [
         ("Subtotal", sale["subtotal"]),
         ("Discount", -sale["discount"]),
-        (f"Tax ({sale['tax_bps']/100:g}%)", sale["tax"]),
+        ("Tax added", sale["tax"] - sale.get("tax_included", 0)),
+        ("Tax included in prices", sale.get("tax_included", 0)),
         ("TOTAL", sale["total"]),
         ("Paid now", sale.get("paid_now", sale["total"])),
         ("Khata credit", sale.get("credit_amount", 0)),
     ]:
         story.append(
-            p(label + ": " + money(value), "Heading3" if label == "TOTAL" else "Normal")
+            p(
+                label(caption) + ": " + money(value),
+                "Heading3" if caption == "TOTAL" else "Normal",
+            )
         )
     story += [
         Spacer(1, 16),
         p(
-            "Payment: "
-            + ("Cash" if sale["payment"] == "cash" else "Collected externally")
+            label("Payment")
+            + ": "
+            + label(
+                "Split payment"
+                if len(tenders or []) > 1
+                else "Cash" if sale["payment"] == "cash" else "Collected externally"
+            )
         ),
-        p("Served by: " + sale["actor"]),
+        p(label("Served by") + ": " + sale["actor"]),
         Spacer(1, 16),
-        p("Thank you for your business."),
+        p(label("Thank you for your business.")),
     ]
+    for part in tenders or []:
+        name = part.get("method_name_ur") if language == "ur" else part["method_name"]
+        story.append(
+            p(label(name or part["method_name"]) + ": " + money(part["amount"]))
+        )
     if sale["status"] == "returned":
         story.append(
-            p("RETURNED — stock restored. Refund payment must be completed separately.")
+            p(
+                label(
+                    "RETURNED — stock restored. Refund payment must be completed separately."
+                )
+            )
         )
 
     def footer(c, d):

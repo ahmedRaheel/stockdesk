@@ -38,7 +38,7 @@ async def lifespan(app):
 
 app = FastAPI(
     title="StockDesk Inventory & POS",
-    version="1.2.0",
+    version="1.8.0",
     lifespan=lifespan,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
@@ -206,11 +206,15 @@ async def mutate(request: Request):
 
 
 @app.get("/api/invoices/{sale_id}.pdf")
-async def invoice(request: Request, sale_id: str, tenant: str):
+async def invoice(request: Request, sale_id: str, tenant: str, language: str = "en"):
+    if language not in ("en", "ur"):
+        fail("Invalid language.")
     async with db.pool.acquire() as c:
         u = await security.identity(c, request)
         data = await service.get_receipt(c, u, tenant, sale_id)
-    pdf = await asyncio.to_thread(invoice_pdf, data["sale"], data["items"])
+    pdf = await asyncio.to_thread(
+        invoice_pdf, data["sale"], data["items"], language, data.get("tenders")
+    )
     return Response(
         pdf,
         media_type="application/pdf",
@@ -317,3 +321,39 @@ async def unexpected_error(request, exc):
 from .api.retail import router as retail_router
 
 app.include_router(retail_router)
+
+from .api.taxes import router as tax_router
+
+app.include_router(tax_router)
+
+from .api.counts import router as count_router
+
+app.include_router(count_router)
+
+from .api.reports import router as reports_router
+
+app.include_router(reports_router)
+
+from .api.payables import router as payables_router
+
+app.include_router(payables_router)
+
+from .api.imports import router as imports_router
+
+app.include_router(imports_router)
+
+from .api.roles import router as roles_router
+
+app.include_router(roles_router)
+
+from .api.audit import router as audit_router
+
+app.include_router(audit_router)
+
+from .api.supplier_returns import router as supplier_returns_router
+
+app.include_router(supplier_returns_router)
+
+from .api.procurement import router as procurement_router
+
+app.include_router(procurement_router)

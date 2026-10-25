@@ -1,6 +1,6 @@
 {
   "name": "stockdesk-ui",
-  "version": "1.2.0",
+  "version": "1.8.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "format": "prettier --write src",
-    "format:check": "prettier --check src"
+    "format:check": "prettier --check src",
+    "check:locales": "node scripts/check-locales.cjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

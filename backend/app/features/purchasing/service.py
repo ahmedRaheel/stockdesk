@@ -6,6 +6,7 @@ Purchase costs are retained on the PO; receiving does not silently revalue stock
 """
 
 import json
+from decimal import Decimal, ROUND_HALF_UP
 from ... import service
 from ...rules import fail
 
@@ -49,10 +50,27 @@ async def create_order(connection, user, tenant, payload):
         if existing["signature"] != fingerprint:
             fail("Request ID has already been used with different purchase data.", 409)
         return {"id": existing["id"]}
-    if not await connection.fetchval(
-        "SELECT 1 FROM suppliers WHERE tenant=$1 AND id=$2", tenant, payload["supplier"]
-    ):
+    supplier = await connection.fetchrow(
+        "SELECT * FROM suppliers WHERE tenant=$1 AND id=$2", tenant, payload["supplier"]
+    )
+    if not supplier:
         fail("Supplier not found.", 404)
+    policy = await connection.fetchrow(
+        "SELECT * FROM purchasing_policies WHERE tenant=$1", tenant
+    )
+    total = sum(
+        int(
+            (Decimal(str(l["quantity"])) * l["unit_cost"]).quantize(
+                Decimal(1), rounding=ROUND_HALF_UP
+            )
+        )
+        for l in payload["lines"]
+    )
+    if total > 100_000_000_000:
+        fail("Purchase order value exceeds the allowed limit.")
+    approval_required = bool(
+        policy and policy["enabled"] and total >= policy["threshold"]
+    )
     order_id = service.uid()
     await connection.execute(
         "INSERT INTO purchase_orders(id,tenant,supplier,request,signature,reference,actor) VALUES($1,$2,$3,$4,$5,$6,$7)",
@@ -63,6 +81,16 @@ async def create_order(connection, user, tenant, payload):
         fingerprint,
         payload["reference"],
         user["email"],
+    )
+    await connection.execute(
+        "UPDATE purchase_orders SET status=$1,approval_required=$2,approval_threshold=$3,order_total=$4,lead_days_snapshot=$5 WHERE tenant=$6 AND id=$7",
+        "pending_approval" if approval_required else "open",
+        approval_required,
+        policy["threshold"] if policy and policy["enabled"] else None,
+        total,
+        supplier["lead_days"],
+        tenant,
+        order_id,
     )
     for line in payload["lines"]:
         from ..reference import lookup
@@ -118,6 +146,7 @@ async def receive_order(connection, user, tenant, order_id, payload):
     if order["status"] not in ("open", "partial"):
         fail("Only open or partially received orders can receive stock.", 409)
     receipt_id = service.uid()
+    sources = []
     for line in payload["lines"]:
         from ..reference import lookup
 
@@ -146,9 +175,11 @@ async def receive_order(connection, user, tenant, order_id, payload):
             order_id,
             line["product"],
         )
+        movement_id = service.uid()
+        sources.append((movement_id, line["product"], line["quantity"]))
         await connection.execute(
             "INSERT INTO movements(id,tenant,product,quantity,type,notes,actor,lot,expires) VALUES($1,$2,$3,$4,'IN',$5,$6,$7,$8)",
-            service.uid(),
+            movement_id,
             tenant,
             line["product"],
             line["quantity"],
@@ -177,6 +208,22 @@ async def receive_order(connection, user, tenant, order_id, payload):
         fingerprint,
         user["email"],
     )
+    for movement_id, product, quantity in sources:
+        batch = await connection.fetchval(
+            "SELECT batch FROM stock_batch_allocations WHERE tenant=$1 AND movement=$2",
+            tenant,
+            movement_id,
+        )
+        await connection.execute(
+            "INSERT INTO purchase_receipt_sources(movement,tenant,purchase,receipt,product,batch,quantity) VALUES($1,$2,$3,$4,$5,$6,$7)",
+            movement_id,
+            tenant,
+            order_id,
+            receipt_id,
+            product,
+            batch,
+            quantity,
+        )
     await service.audit(
         connection,
         tenant,
@@ -196,8 +243,8 @@ async def cancel_order(connection, user, tenant, order_id):
     )
     if not order:
         fail("Purchase order not found.", 404)
-    if order["status"] == "received":
-        fail("A fully received order cannot be cancelled.", 409)
+    if order["status"] in ("received", "rejected"):
+        fail("Received or rejected orders cannot be cancelled.", 409)
     if order["status"] != "cancelled":
         await connection.execute(
             "UPDATE purchase_orders SET status='cancelled' WHERE tenant=$1 AND id=$2",
