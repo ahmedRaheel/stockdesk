@@ -188,3 +188,8 @@ Checkout responses (including idempotent retries) include `cash_received`, `cash
 
 - `GET /api/v1/tenants/{tenant}/payables/suppliers/{supplier}/statement` returns supplier, dated entries with signed amounts/running balances, and final net payable.
 - `GET /api/v1/tenants/{tenant}/payables/suppliers/{supplier}/statement.pdf?language=en|ur` downloads the same current posted ledger. Finance permission required; maximum 5,000 entries, otherwise 422. Missing/cross-tenant supplier is 404 after authorization.
+
+## 1.12 turnover and export endpoints
+
+- `GET /api/v1/tenants/{tenant}/inventory-turnover?days=30`: 1–90 complete days through yesterday, Asia/Karachi; cost permission; maximum 10,000 products. Fields include opening/closing stock, sold/returned/net units, average daily closing stock, period turnover and days per turn. Unavailable ratios are null.
+- `GET /api/v1/tenants/{tenant}/report-export/{name}.{format}`: names `products`, `categories`, `cashiers`, `hours`, `tax-summary`, `tax-invoices`, `stock-age`, `basket-analysis`, `what-if`, `turnover`; formats `xlsx` or `pdf`. Supports days and existing operational query parameters. Same cost permission; output is regenerated and no-store. PDF >500 rows and Excel >10,000 rows return 422. Money in exports is major currency units, unlike JSON/CSV minor units.

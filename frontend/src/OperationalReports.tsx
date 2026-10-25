@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ReportExports from "./ReportExports";
 import { api } from "./api";
 import { t as tr } from "./i18n";
 
@@ -79,6 +80,12 @@ export default function OperationalReports({
         >
           {tr("Export CSV")}
         </button>
+        <ReportExports
+          tenant={tenant}
+          name={name}
+          filters={query}
+          disabled={loading}
+        />
         {!rows.length ? (
           <p>{tr("No matching records.")}</p>
         ) : (

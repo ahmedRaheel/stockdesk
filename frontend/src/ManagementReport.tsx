@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import InventoryTurnover from "./InventoryTurnover";
+import ReportExports from "./ReportExports";
 import OperationalReports from "./OperationalReports";
 import { api } from "./api";
 import { t as tr } from "./i18n";
@@ -10,6 +12,7 @@ export default function ManagementReport({
   currency: string;
 }) {
   const [operational, setOperational] = useState(false);
+  const [turnover, setTurnover] = useState(false);
   const [days, setDays] = useState(30),
     [data, setData] = useState<any>(null),
     [error, setError] = useState("");
@@ -100,6 +103,15 @@ export default function ManagementReport({
       </table>
     </div>
   );
+  if (turnover)
+    return (
+      <>
+        <button className="secondary" onClick={() => setTurnover(false)}>
+          {tr("Sales and margin reports")}
+        </button>
+        <InventoryTurnover tenant={tenant} />
+      </>
+    );
   if (operational)
     return (
       <>
@@ -111,6 +123,9 @@ export default function ManagementReport({
     );
   return (
     <>
+      <button className="secondary" onClick={() => setTurnover(true)}>
+        {tr("Inventory turnover")}
+      </button>
       <button className="secondary" onClick={() => setOperational(true)}>
         {tr("Operational reports")}
       </button>
@@ -129,6 +144,12 @@ export default function ManagementReport({
         <button className="secondary" disabled={!data} onClick={download}>
           {tr("Export CSV")}
         </button>
+        <ReportExports
+          tenant={tenant}
+          name="products"
+          filters={{ days }}
+          disabled={!data}
+        />
       </div>
       <p>
         {tr(
@@ -183,6 +204,11 @@ export default function ManagementReport({
             </section>
             <section className="panel">
               <h2>{tr("By category")}</h2>
+              <ReportExports
+                tenant={tenant}
+                name="categories"
+                filters={{ days }}
+              />
               {table(data.categories, [
                 ["category", "Category"],
                 ["net_sales", "Net sales"],
@@ -192,6 +218,11 @@ export default function ManagementReport({
             </section>
             <section className="panel">
               <h2>{tr("By cashier")}</h2>
+              <ReportExports
+                tenant={tenant}
+                name="cashiers"
+                filters={{ days }}
+              />
               {table(data.cashiers, [
                 ["cashier", "Cashier"],
                 ["invoices", "Invoices"],
@@ -201,6 +232,7 @@ export default function ManagementReport({
             </section>
             <section className="panel">
               <h2>{tr("By hour")}</h2>
+              <ReportExports tenant={tenant} name="hours" filters={{ days }} />
               {table(data.hours, [
                 ["hour", "Hour"],
                 ["invoices", "Invoices"],

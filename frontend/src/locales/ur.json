@@ -908,5 +908,20 @@
   "Change to return:": "گاہک کو واپس کرنے کی رقم:",
   "Cash still required:": "مزید نقد رقم درکار:",
   "Exact cash": "بل کے برابر نقد رقم",
-  "Supplier statement PDF": "سپلائر کا کھاتہ PDF"
+  "Supplier statement PDF": "سپلائر کا کھاتہ PDF",
+  "Export Excel": "ایکسل برآمد کریں",
+  "Export PDF": "PDF برآمد کریں",
+  "Report download failed.": "رپورٹ ڈاؤن لوڈ نہیں ہو سکی۔",
+  "Inventory turnover": "اسٹاک کی گردش",
+  "Closing stock": "اختتامی اسٹاک",
+  "Sold units": "فروخت شدہ مقدار",
+  "Returned units": "واپس شدہ مقدار",
+  "Net sold units": "خالص فروخت شدہ مقدار",
+  "Average daily closing stock": "روزانہ اختتامی اسٹاک کی اوسط",
+  "Period turnover": "مدت میں اسٹاک کی گردش",
+  "Days per turn": "فی گردش دن",
+  "Turnover is net sold units divided by average daily closing stock, per SKU. Sales and returns follow movement dates. This is period quantity turnover, not annualized or cost-based turnover.": "ہر SKU کی خالص فروخت شدہ مقدار کو روزانہ اختتامی اسٹاک کی اوسط سے تقسیم کیا جاتا ہے۔ فروخت اور واپسی اسٹاک حرکت کی تاریخ کے مطابق ہیں۔ یہ منتخب مدت میں مقدار کی گردش ہے۔",
+  "A dash means no positive stock basis or no positive sales rate. Negative turnover means returns exceeded sales. Different units are never combined.": "ڈیش کا مطلب مثبت اوسط اسٹاک یا مثبت فروخت کی شرح موجود نہیں۔ منفی گردش کا مطلب واپسی فروخت سے زیادہ ہے۔ مختلف اکائیوں کو جمع نہیں کیا جاتا۔",
+  "PDF export exceeds 500 rows. Use Excel or a shorter period.": "PDF میں 500 سے زیادہ قطاریں ہیں۔ ایکسل یا مختصر مدت استعمال کریں۔",
+  "Excel export exceeds 10000 rows. Choose a shorter period.": "ایکسل میں 10000 سے زیادہ قطاریں ہیں۔ مختصر مدت منتخب کریں۔"
 }

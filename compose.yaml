@@ -23,8 +23,4 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
-networks:
-  default: {}
-  existing-postgres:
-    external: true
-    name: ${POSTGRES_NETWORK:-chatbot-network}
+

@@ -224,7 +224,74 @@ async def test_operational_api_tenant_permissions_and_sale_return():
             assert (
                 await c.get(base + "/operational-report?demand_pct=-101")
             ).status_code == 422
+            async with db.pool.acquire() as conn:
+                await conn.execute(
+                    "UPDATE products SET created=now()-interval '31 days' WHERE tenant=$1",
+                    tenant,
+                )
+                await conn.execute(
+                    "UPDATE movements SET created=now()-CASE WHEN type='SALE' THEN interval '1 day' ELSE interval '30 days' END WHERE tenant=$1",
+                    tenant,
+                )
+            turnover = (await c.get(base + "/inventory-turnover?days=7")).json()
+            line = turnover["items"][0]
+            assert line["opening"] == 10 and line["closing"] == 8 and line["sold"] == 2
+            assert (
+                str(line["turnover"]) == "0.2059" and float(line["days_per_turn"]) == 34
+            )
+            assert (await c.get(f"/api/v1/tenants/{other}/inventory-turnover")).json()[
+                "items"
+            ] == []
+            assert (await c.get(base + "/inventory-turnover?days=0")).status_code == 422
+            for name in [
+                "products",
+                "categories",
+                "cashiers",
+                "hours",
+                "tax-summary",
+                "tax-invoices",
+                "stock-age",
+                "basket-analysis",
+                "what-if",
+                "turnover",
+            ]:
+                for format in ["xlsx", "pdf"]:
+                    exported = await c.get(
+                        base + f"/report-export/{name}.{format}?days=7&demand_pct=20"
+                    )
+                    assert exported.status_code == 200, exported.text
+                    assert exported.content.startswith(
+                        b"PK" if format == "xlsx" else b"%PDF"
+                    )
+                    assert exported.headers["cache-control"] == "no-store"
+            assert (
+                await c.get(base + "/report-export/unknown.xlsx")
+            ).status_code == 422
+            assert (
+                await c.get(base + "/report-export/products.exe")
+            ).status_code == 422
             await post("return", tenant, id=sale["id"], reason="Return test")
+            # A return posted today must not rewrite yesterday's stock turnover.
+            after = (await c.get(base + "/inventory-turnover?days=7")).json()["items"][
+                0
+            ]
+            assert (
+                after["closing"] == 8 and after["returned"] == 0 and after["sold"] == 2
+            )
+            async with db.pool.acquire() as conn:
+                await conn.execute(
+                    "UPDATE movements SET created=now()-interval '1 day' WHERE tenant=$1 AND type='RETURN'",
+                    tenant,
+                )
+            after = (await c.get(base + "/inventory-turnover?days=7")).json()["items"][
+                0
+            ]
+            assert (
+                after["closing"] == 10
+                and after["returned"] == 2
+                and float(after["net_units"]) == 0
+            )
+
             r = (await c.get(base + "/operational-report")).json()
             assert not r["tax"]["invoices"]
             assert r["stock"]["summary"]["current_cost_value"] == 6000
@@ -268,6 +335,21 @@ async def test_operational_api_tenant_permissions_and_sale_return():
                 assert (
                     await cashier.get(base + "/operational-report")
                 ).status_code == 403
+                assert (
+                    await cashier.get(base + "/inventory-turnover")
+                ).status_code == 403
+                assert (
+                    await cashier.get(base + "/report-export/products.xlsx")
+                ).status_code == 403
+                assert (
+                    await cashier.get(base + "/report-export/turnover.pdf")
+                ).status_code == 403
+                assert (
+                    await cashier.get(
+                        f"/api/v1/tenants/{other}/report-export/products.xlsx"
+                    )
+                ).status_code in (403, 404)
+
                 assert (
                     await cashier.get(f"/api/v1/tenants/{other}/operational-report")
                 ).status_code in (403, 404)

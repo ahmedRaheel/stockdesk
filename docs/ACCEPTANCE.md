@@ -110,3 +110,11 @@ Large-store launch requires the remaining work in ARCHITECTURE.md and measured c
 - Split 500 external + 750.50 cash applied / 1,000 cash handed over: return 249.50. Khata uses cash paid now, not full invoice total. Exact cash returns zero; short cash blocks checkout.
 - Reopen receipt and retry the original checkout: same cash/change and no duplicate sale.
 - Supplier statement balances must match posted bills less payments/credits plus refunds; voided transactions excluded. Confirm English/Urdu rendering, tenant isolation and finance-only access.
+
+## 1.12 turnover and report export acceptance
+
+- Verify opening/closing balances against the movement ledger for the selected Karachi dates. Include a no-movement day, a new product, weighted quantity, zero stock and a return from an earlier sale.
+- Return posted today must not alter yesterday's turnover; a return inside the window reduces net sold units and changes stock only from its actual date.
+- Export product/category/cashier/hour, tax, stock, basket, scenario and turnover data to Excel/PDF; compare dates, applied scenario assumptions and values. Excel money is major currency units, and SKUs/formula-like names remain text.
+- Deny cashier/cross-tenant export requests. Refuse oversized exports without truncation. Confirm 100-row UI pagination does not limit exported records.
+- Report PDFs are landscape A3; confirm fit-to-paper on the actual printer before operational use. Downloaded values are regenerated from current data, not a frozen browser snapshot.

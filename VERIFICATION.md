@@ -1,4 +1,17 @@
-# Verification record — StockDesk 1.11
+# Verification record — StockDesk 1.12
+
+
+## Release 1.12 checks
+
+- Final full backend regression: **59 passed, 1 skipped** in 83.30 seconds under PGlite. Real PostgreSQL concurrency is the skipped test.
+
+- Focused report/turnover tests: **7 passed**. Coverage includes fractional daily-average stock, zero stock, net returns, invalid stock history, literal formula-like identifiers, leading zeros, numeric major-unit money, frozen headers/filter range and explicit export bounds.
+- API acceptance exercises all ten export datasets in both formats, turnover opening/closing values, return-date semantics, empty other-tenant data, invalid query/format/name, no-store responses, cost-permission denial and cross-tenant denial.
+- Chromium against actual React/FastAPI downloaded management and turnover Excel/PDF files and passed turnover navigation/Urdu/mobile checks, alongside cash, supplier statements, promotions, hold/resume and catalog-import regressions. No JavaScript page errors. The browser uses the existing test-only single-connection PGlite pool.
+- Downloaded workbook previews were rendered with artifact-tool and inspected; PDF pages and desktop/390px RTL UI were inspected. Numeric formatting and export-button styling were improved after the first visual pass. Product identifiers stay text; exported snapshots contain no formulas. No native Excel/physical A3 printer acceptance is claimed.
+- TypeScript/Vite production build and literal Urdu coverage passed. OpenAPI regenerated for 1.12; migrations 001–017 are unchanged. No new dependency.
+- Initial full run encountered one connection reset while starting the cash test against PGlite (58 passed, 1 skipped otherwise). No production code was changed to hide that failure; the fresh full run passed as recorded above.
+- Real PostgreSQL multiprocess concurrency/load, production Docker/nginx startup, external services and full checklist completion remain unverified/incomplete.
 
 
 ## Release 1.11 checks

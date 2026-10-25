@@ -3,7 +3,7 @@
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Version 1.11** makes cash received and change due explicit in POS and printed/downloaded receipts, including split payments and khata. It also adds English/Urdu supplier statement PDFs with running balances. All 1.10 promotions and Excel import features remain available. See [release instructions](docs/RELEASE-1.11.md) and [implementation status](docs/CHECKLIST.md). The full enterprise specification remains incomplete.
+**Version 1.12** adds inventory quantity turnover and Excel/PDF downloads across sales, margin, tax, stock, basket and scenario reports. Cash received/change receipts, supplier statements, promotions and Excel import remain available. See [release instructions](docs/RELEASE-1.12.md) and [implementation status](docs/CHECKLIST.md). The full enterprise specification remains incomplete.
 
 ## Upgrade your existing deployment
 
