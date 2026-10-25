@@ -1,3 +1,4 @@
+import { newRequestId } from "./requestId";
 import { useEffect, useRef, useState } from "react";
 import { api, send } from "./api";
 import { t as tr } from "./i18n";
@@ -87,7 +88,7 @@ export default function StockCounts({
         const body = { reference, products: selected },
           signature = JSON.stringify(body);
         if (pending.current?.signature !== signature)
-          pending.current = { signature, id: crypto.randomUUID() };
+          pending.current = { signature, id: newRequestId() };
         const r = await send<{ id: string }>(base, {
           ...body,
           request: pending.current.id,

@@ -1,5 +1,12 @@
-# Verification record — StockDesk 1.15
+# Verification record — StockDesk frontend 1.15.1
 
+
+## Frontend hotfix 1.15.1
+
+- Four request-ID tests pass, covering the native path, secure random fallback, 10,000 UUIDs, exact version/variant bits and unsupported-browser errors. TypeScript/Vite production build passes.
+- Browser checkout, receipt/change, held-bill resume, promotion selection, supplier statement and catalog import exercise the fallback with randomUUID explicitly unavailable. A separate ordinary HTTP-origin probe confirms the browser itself omits randomUUID and the fallback still generates valid UUID v4 IDs.
+- All 12 application call sites use the helper. The self-contained patch script was applied to a clean copy of the previous frontend and rerun to verify idempotence. Existing request retry semantics are preserved. No new dependency, backend behavior or migration.
+- The 66-pass/1-skip backend regression below belongs to 1.15; backend tests were not rerun for this frontend-only patch. No live EC2 deployment was accessed.
 
 ## Release 1.15 checks
 

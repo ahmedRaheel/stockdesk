@@ -1,3 +1,4 @@
+import { newRequestId } from "./requestId";
 import { t as tr } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { Plus, RefreshCw, Truck, X } from "lucide-react";
@@ -131,7 +132,7 @@ export default function Purchasing({
   function deduplicated(payload: object) {
     const signature = JSON.stringify(payload);
     if (request.current?.signature !== signature)
-      request.current = { signature, id: crypto.randomUUID() };
+      request.current = { signature, id: newRequestId() };
     return { ...payload, request: request.current.id };
   }
   async function submit(event: React.FormEvent<HTMLFormElement>) {

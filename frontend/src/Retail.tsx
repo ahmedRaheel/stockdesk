@@ -1,3 +1,4 @@
+import { newRequestId } from "./requestId";
 import { t as translate } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { Plus, RefreshCw, Download, X, ArrowLeft } from "lucide-react";
@@ -184,7 +185,7 @@ export default function Retail({
         };
         const signature = JSON.stringify(payload);
         if (pending.current?.signature !== signature)
-          pending.current = { signature, id: crypto.randomUUID() };
+          pending.current = { signature, id: newRequestId() };
         const response: any = await send(`${base}/recoveries`, {
           ...payload,
           request: pending.current.id,

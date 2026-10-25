@@ -1,3 +1,4 @@
+import { newRequestId } from "./requestId";
 import { t as tr } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { api, send } from "./api";
@@ -42,7 +43,7 @@ export default function Tills({
         };
         const sig = JSON.stringify(value);
         if (pending.current?.sig !== sig)
-          pending.current = { sig, id: crypto.randomUUID() };
+          pending.current = { sig, id: newRequestId() };
         await send(`${base}/${data.current.id}/cash-movements`, {
           ...value,
           request: pending.current.id,

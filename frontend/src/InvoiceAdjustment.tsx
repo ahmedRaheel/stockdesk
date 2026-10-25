@@ -1,3 +1,4 @@
+import { newRequestId } from "./requestId";
 import { useEffect, useRef, useState } from "react";
 import { api, send } from "./api";
 import { t as tr } from "./i18n";
@@ -102,7 +103,7 @@ export default function InvoiceAdjustment({
       };
       const signature = JSON.stringify(payload);
       if (pending.current?.signature !== signature)
-        pending.current = { signature, id: crypto.randomUUID() };
+        pending.current = { signature, id: newRequestId() };
       setResult(await send(base, { ...payload, request: pending.current.id }));
       onSaved();
     } catch (e: any) {

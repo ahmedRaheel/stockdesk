@@ -1,3 +1,4 @@
+import { newRequestId } from "./requestId";
 import { useRef, useState } from "react";
 import { send } from "./api";
 import { t as tr } from "./i18n";
@@ -96,7 +97,7 @@ export default function CatalogImport({
       const base = `/api/v1/tenants/${tenant}/catalog-imports`;
       if (commit) {
         if (!pending.current || pending.current.text !== mode + text)
-          pending.current = { text: mode + text, id: crypto.randomUUID() };
+          pending.current = { text: mode + text, id: newRequestId() };
         const r = await send<{ product_ids: string[] }>(base, {
           csv_text: text,
           mode,

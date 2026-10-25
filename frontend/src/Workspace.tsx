@@ -1,3 +1,4 @@
+import { newRequestId } from "./requestId";
 import InvoiceAdjustment from "./InvoiceAdjustment";
 import { t as tr } from "./i18n";
 import { useLanguage } from "./i18n";
@@ -196,7 +197,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     setBusy(true);
     try {
       await send("/api/v1/tenants/" + tenant + "/held-bills", {
-        id: crypto.randomUUID(),
+        id: newRequestId(),
         label: customer || "Held bill " + new Date().toLocaleTimeString(),
         items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
         customer_id: customerId || null,
@@ -415,7 +416,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
         };
         const signature = JSON.stringify(payload);
         if (pendingMove.current?.signature !== signature)
-          pendingMove.current = { signature, id: crypto.randomUUID() };
+          pendingMove.current = { signature, id: newRequestId() };
         result = await post(kind, {
           ...payload,
           request: pendingMove.current.id,
@@ -641,9 +642,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
       tendered: Math.round(Number(tendered || 0) * 100),
     };
     const signature = JSON.stringify(payload);
-    if (pending.current?.signature !== signature)
-      pending.current = { signature, id: crypto.randomUUID() };
     try {
+      if (pending.current?.signature !== signature)
+        pending.current = { signature, id: newRequestId() };
       const result = await post("checkout", {
         ...payload,
         request: pending.current.id,

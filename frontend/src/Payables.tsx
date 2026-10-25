@@ -1,3 +1,4 @@
+import { newRequestId } from "./requestId";
 import { useEffect, useRef, useState } from "react";
 import { api, send } from "./api";
 import { t as tr, useLanguage } from "./i18n";
@@ -147,7 +148,7 @@ export default function Payables({
     setNotice("");
     const signature = JSON.stringify({ path, payload });
     if (deduplicate && pending.current?.signature !== signature)
-      pending.current = { signature, id: crypto.randomUUID() };
+      pending.current = { signature, id: newRequestId() };
     try {
       const r = await send<{ id?: string }>(
         path,

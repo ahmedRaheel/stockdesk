@@ -1,3 +1,4 @@
+import { newRequestId } from "./requestId";
 import LookupSelect from "./LookupSelect";
 import { t as tr } from "./i18n";
 export type PaymentRow = {
@@ -70,7 +71,7 @@ export default function SplitPayments({
           onChange([
             ...rows,
             {
-              key: crypto.randomUUID(),
+              key: newRequestId(),
               method_id: "",
               amount: "",
               reference: "",
