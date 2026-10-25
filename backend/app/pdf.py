@@ -29,6 +29,7 @@ def invoice_pdf(sale, items, language="en", tenders=None):
     import re
 
     labels = {
+        "Promotion": "رعایتی پیشکش",
         "Split payment": "مختلف طریقوں سے ادائیگی",
         "cash": "نقد",
         "external": "بیرونی ادائیگی",
@@ -200,6 +201,22 @@ def invoice_pdf(sale, items, language="en", tenders=None):
         Spacer(1, 16),
         p(label("Thank you for your business.")),
     ]
+    import json
+
+    promotion = sale.get("promotion_snapshot") or {}
+    if isinstance(promotion, str):
+        promotion = json.loads(promotion)
+    if promotion.get("code"):
+        name = promotion.get("name_ur") if language == "ur" else promotion.get("name")
+        story.append(
+            p(
+                label("Promotion")
+                + ": "
+                + promotion["code"]
+                + " / "
+                + (name or promotion.get("name", ""))
+            )
+        )
     for part in tenders or []:
         name = part.get("method_name_ur") if language == "ur" else part["method_name"]
         story.append(

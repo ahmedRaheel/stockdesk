@@ -40,6 +40,7 @@ import AuditLog from "./AuditLog";
 import RoleManagement from "./RoleManagement";
 import CatalogImport from "./CatalogImport";
 import Payables from "./Payables";
+import Promotions, { PromotionPicker } from "./Promotions";
 import ManagementReport from "./ManagementReport";
 import StockCounts from "./StockCounts";
 import PosEntry from "./PosEntry";
@@ -51,6 +52,10 @@ import LookupSelect from "./LookupSelect";
 import CustomerSelect from "./CustomerSelect";
 import { send } from "./api";
 const titles: any = {
+  promotions: [
+    "Promotions and coupons",
+    "Scheduled discounts, BOGO offers and bundles.",
+  ],
   roles: ["Custom roles", "Business permissions and staff assignments."],
   imports: ["Catalog import", "Validate and import products from CSV."],
   payables: [
@@ -110,6 +115,7 @@ const titles: any = {
   ],
 };
 const icons: any = {
+  promotions: SlidersHorizontal,
   roles: ShieldCheck,
   imports: Download,
   payables: Receipt,
@@ -187,8 +193,10 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
         label: customer || "Held bill " + new Date().toLocaleTimeString(),
         items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
         customer_id: customerId || null,
+        promotion_code: promotionCode,
       });
       setCart([]);
+      setPromotionCode("");
       setHeldId("");
       await refreshHeld();
     } catch (e: any) {
@@ -206,6 +214,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
       return { ...p, quantity: Number(i.quantity) };
     });
     setCart(lines);
+    setPromotionCode(bill.payload.promotion_code || "");
     setHeldId(id);
     setCustomerId(bill.payload.customer_id || "");
     setCreditMode(false);
@@ -238,6 +247,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
   useEffect(() => {
     localStorage.setItem("stockdesk-language", language);
   }, [language]);
+  const [promotionCode, setPromotionCode] = useState("");
   const [discount, setDiscount] = useState("0"),
     [taxRate, setTaxRate] = useState("0");
   const [density, setDensity] = useState<"comfortable" | "compact">(() =>
@@ -309,6 +319,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
   async function switchTenant(id: string) {
     if (busy) return;
     setCart([]);
+    setPromotionCode("");
+    setDiscount("0");
     setCustomerId("");
     setSplit(false);
     setPaymentRows([]);
@@ -471,6 +483,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     return () => controller.abort();
   }, [tenant, data.tenant]);
   const quoteBody = JSON.stringify({
+    promotion_code: promotionCode,
     items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
     discount: Math.round(Number(discount || 0) * 100),
     tax_bps: Math.round(Number(taxRate || 0) * 100),
@@ -594,6 +607,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     setError("");
     const payload = {
       quote_token: quote.quote_token,
+      promotion_code: promotionCode,
       items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
       customer,
       held_bill_id: heldId || null,
@@ -639,6 +653,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
       setCreditMode(false);
       setPaidNow("0");
       setDiscount("0");
+      setPromotionCode("");
       setTaxRate("0");
       pending.current = null;
       setToast("Sale completed. Stock updated.");
@@ -738,6 +753,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     ...(can("stock") ? ["purchasing", "batches", "counts"] : []),
     ...(can("credit") ? ["khata"] : []),
     ...(can("settings") ? ["lookups", "taxes"] : []),
+    ...(can("promotions") ? ["promotions"] : []),
     ...(can("cost") ? ["reports"] : []),
     ...(can("finance") ? ["payables"] : []),
     ...(can("product") ? ["imports"] : []),
@@ -1303,6 +1319,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   canReturn={can("supplier_return")}
                 />
               )}
+              {view === "promotions" && can("promotions") && (
+                <Promotions key={tenant} tenant={tenant} currency={currency} />
+              )}
               {view === "reports" && can("cost") && (
                 <ManagementReport tenant={tenant} currency={currency} />
               )}
@@ -1566,6 +1585,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         disabled={busy}
                         onClick={() => {
                           setCart([]);
+                          setPromotionCode("");
+                          setDiscount("0");
                           setHeldId("");
                         }}
                       >
@@ -1688,6 +1709,26 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       <span>{tr("Subtotal")}</span>
                       <b>{money(subtotal)}</b>
                     </div>
+                    <PromotionPicker
+                      tenant={tenant}
+                      value={promotionCode}
+                      disabled={busy}
+                      onChange={(code) => {
+                        setPromotionCode(code);
+                        if (code) setDiscount("0");
+                      }}
+                    />
+                    {quoteReady && quote.promotion && (
+                      <div className="cart-math">
+                        <span>
+                          {language === "ur"
+                            ? quote.promotion.name_ur || quote.promotion.name
+                            : quote.promotion.name}{" "}
+                          · {quote.promotion.code}
+                        </span>
+                        <b>−{money(quote.discount)}</b>
+                      </div>
+                    )}
                     <div className="form-grid">
                       <label className="field">
                         <span>
@@ -1700,7 +1741,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                           step="0.01"
                           max={subtotal / 100}
                           value={discount}
-                          disabled={busy}
+                          disabled={busy || !!promotionCode}
                           onChange={(e) => setDiscount(e.target.value)}
                         />
                       </label>
@@ -2793,6 +2834,19 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               <span>{tr("Discount")}</span>
               <b>−{money(receipt.sale.discount)}</b>
             </div>
+            {(() => {
+              const p =
+                typeof receipt.sale.promotion_snapshot === "string"
+                  ? JSON.parse(receipt.sale.promotion_snapshot)
+                  : receipt.sale.promotion_snapshot;
+              return p?.code ? (
+                <p>
+                  {tr("Promotion")}: {p.code} ·{" "}
+                  {language === "ur" ? p.name_ur || p.name : p.name}
+                </p>
+              ) : null;
+            })()}
+
             <div className="cart-math">
               <span>{tr("Tax added")}</span>
               <b>

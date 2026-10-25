@@ -169,3 +169,34 @@ async def commit(tenant: str, payload: Commit, request: Request, user: User):
                 {"id": identifier, "count": len(ids)},
             )
     return {"id": identifier, "product_ids": ids}
+
+
+class ExcelUpload(Contract):
+    file_base64: str = Field(min_length=1, max_length=1_333_336)
+
+
+@router.post("/convert-xlsx")
+async def convert_excel(
+    tenant: str, payload: ExcelUpload, request: Request, user: User
+):
+    import asyncio
+    from ..features.xlsx_import import convert
+
+    security.csrf(request)
+    async with db.pool.acquire() as c:
+        await service.authorize(c, user, tenant, "product")
+    return await asyncio.to_thread(convert, payload.file_base64)
+
+
+@router.get("/template.xlsx")
+async def excel_template(tenant: str, user: User):
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+
+    async with db.pool.acquire() as c:
+        await service.authorize(c, user, tenant, "product")
+    return FileResponse(
+        Path(__file__).resolve().parents[1] / "templates" / "catalog-template.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename="catalog-template.xlsx",
+    )

@@ -14,6 +14,7 @@ router = APIRouter(
 )
 # Ownership, membership administration and role administration are not delegatable.
 PERMISSIONS = {
+    "promotions": "Manage promotions and coupon rules",
     "purchase_approve": "Approve another user’s purchase order",
     "supplier_return": "Return supplier goods and record credits",
     "read": "View catalog and stock",

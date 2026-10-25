@@ -1,4 +1,15 @@
-# Verification record — StockDesk 1.9
+# Verification record — StockDesk 1.10
+
+
+## Release 1.10 checks
+
+- Full backend regression: **56 passed, 1 skipped** in 77.76 seconds using PGlite's PostgreSQL wire adapter. The real PostgreSQL concurrency test remains skipped.
+- Promotion coverage includes exact discount allocation and mixed taxes, BOGO and repeated/weighted bundles, date/time and usage limits, optimistic edits, stale quotes, atomic failed checkout, idempotent retries, frozen invoice history, return usage policy, held codes, permissions and tenant isolation.
+- XLSX coverage includes text identifiers/leading zeros, invalid formulas/numeric barcodes, oversized ZIPs, macros/external links, extra rows/columns, spoofed dimensions, template download, conversion without writes, preview rollback, atomic commit/replay and permission denial.
+- Chromium against actual React/FastAPI passed promotion form creation (BOGO, percentage, bundle), POS quote, hold/resume, checkout, frozen receipt, Excel preview/commit and Urdu/mobile navigation without JavaScript page errors. Desktop and 390px RTL screenshots were inspected. Browser PGlite uses a test-only single-connection pool; production settings are unchanged.
+- Urdu promotional invoice PDF rendered and visually inspected. Excel template rendered and visually inspected, then parsed and imported through the API/browser workflows.
+- TypeScript/Vite production build and literal Urdu locale check passed. OpenAPI regenerated for 1.10. Original migrations 001–016 remain byte-identical to the supplied archive; migration 017 is additive.
+- Real PostgreSQL multiprocess concurrency/load, Docker/nginx startup, live deployment, external integrations and physical hardware remain unverified. These checks do not establish full checklist completion or production certification.
 
 ## Release 1.9 checks
 

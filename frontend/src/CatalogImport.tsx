@@ -44,15 +44,35 @@ export default function CatalogImport({
     setError("");
     setPreview(null);
     setNotice("");
-    if (file.size > 200000) {
-      setText("");
-      setError(tr("CSV file is too large. Maximum 200 KB."));
+    setText("");
+    const excel = file.name.toLowerCase().endsWith(".xlsx");
+    if (file.size > (excel ? 1000000 : 200000)) {
+      setError(
+        tr(
+          excel
+            ? "XLSX file is too large. Maximum 1 MB."
+            : "CSV file is too large. Maximum 200 KB.",
+        ),
+      );
       return;
     }
+    setBusy(true);
     try {
-      setText(await file.text());
-    } catch {
-      setError(tr("Could not read the CSV file."));
+      if (excel) {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        let binary = "";
+        for (let i = 0; i < bytes.length; i += 32768)
+          binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
+        const converted = await send<{ csv_text: string }>(
+          `/api/v1/tenants/${tenant}/catalog-imports/convert-xlsx`,
+          { file_base64: btoa(binary) },
+        );
+        setText(converted.csv_text);
+      } else setText(await file.text());
+    } catch (e) {
+      setError((e as Error).message || tr("Could not read the catalog file."));
+    } finally {
+      setBusy(false);
     }
   }
   async function run(commit = false) {
@@ -87,7 +107,7 @@ export default function CatalogImport({
       <h2>{tr("Import new products")}</h2>
       <p>
         {tr(
-          "Upload UTF-8 CSV, up to 200 rows. Existing products are never overwritten. All rows succeed together or no products are added.",
+          "Upload UTF-8 CSV or a single-sheet XLSX workbook, up to 200 rows. Existing products are never overwritten. All rows succeed together or no products are added.",
         )}
       </p>
       <p>
@@ -98,11 +118,22 @@ export default function CatalogImport({
       <button className="secondary" onClick={template}>
         {tr("Download CSV template")}
       </button>
+      <a
+        className="secondary"
+        href={`/api/v1/tenants/${tenant}/catalog-imports/template.xlsx`}
+      >
+        {tr("Download Excel template")}
+      </a>
+      <p>
+        {tr(
+          "Excel formulas, macros and external workbook links are rejected. Use text for SKU, category, unit and barcode cells. Replace the sample row before importing.",
+        )}
+      </p>
       <label className="field">
-        {tr("CSV file")}
+        {tr("CSV or Excel file")}
         <input
           type="file"
-          accept=".csv,text/csv"
+          accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           disabled={busy}
           onChange={(e) => load(e.target.files?.[0])}
         />

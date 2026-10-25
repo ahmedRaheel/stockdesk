@@ -39,6 +39,24 @@ def analyze(sales, items, products, days, end):
         snapshot = sale.get("tax_snapshot") or {}
         if isinstance(snapshot, str):
             snapshot = json.loads(snapshot)
+        saved_deductions = snapshot.get("lines") or snapshot.get("promotion", {}).get(
+            "line_discounts"
+        )
+        if saved_deductions and all("discount" in x for x in saved_deductions):
+            by_product = {x["product"]: int(x["discount"]) for x in saved_deductions}
+            if set(by_product) != {r["product"] for r in rows}:
+                fail(
+                    "Invoice discount snapshot is inconsistent; report was not generated.",
+                    409,
+                )
+            discounts = [by_product[r["product"]] for r in rows]
+            if sum(discounts) != int(sale["discount"]) or any(
+                d < 0 or d > a for d, a in zip(discounts, amounts)
+            ):
+                fail(
+                    "Invoice discount snapshot is inconsistent; report was not generated.",
+                    409,
+                )
         included_by_product = {
             x["product"]: int(x["tax"])
             for x in snapshot.get("lines", [])

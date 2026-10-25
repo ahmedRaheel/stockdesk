@@ -30,9 +30,13 @@ async def checkout(c, u, b, t=None):
         b.get("prescription_reference", ""), "Prescription reference", 150, True
     )
     held_id = b.get("held_bill_id")
+    promotion_code = clean(
+        b.get("promotion_code") or "", "Promotion code", 40, True
+    ).upper()
     signature = json.dumps(
         {
             "items": cart,
+            **({"promotion_code": promotion_code} if promotion_code else {}),
             "tenders": b.get("tenders"),
             "quote_token": b.get("quote_token"),
             "prescription_reference": prescription_reference,
@@ -109,13 +113,15 @@ async def checkout(c, u, b, t=None):
         )
     subtotal = sum(p["line_total"] for p in products)
     number(subtotal, "Subtotal")
-    tax_quote = await taxation.quote(c, tenant, products, discount, tax_bps)
-    if (
-        tax_quote["mode"] != "manual"
-        and b.get("quote_token") != tax_quote["quote_token"]
-    ):
+    tax_quote = await taxation.quote(
+        c, tenant, products, discount, tax_bps, promotion_code
+    )
+    if (tax_quote["mode"] != "manual" or promotion_code) and b.get(
+        "quote_token"
+    ) != tax_quote["quote_token"]:
         fail("Tax or prices changed. Refresh the quote and review the total.", 409)
     tax, total = tax_quote["tax"], tax_quote["total"]
+    discount = tax_quote["discount"]
     if tax_quote["mode"] != "manual":
         tax_bps = 0
     if total != expected:
@@ -227,6 +233,21 @@ async def checkout(c, u, b, t=None):
         tenant,
         sid,
     )
+    if tax_quote.get("promotion"):
+        promotion = tax_quote["promotion"]
+        await c.execute(
+            "UPDATE sales SET promotion_snapshot=$1 WHERE tenant=$2 AND id=$3",
+            json.dumps(promotion),
+            tenant,
+            sid,
+        )
+        await c.execute(
+            "INSERT INTO promotion_redemptions(tenant,promotion,sale,discount) VALUES($1,$2,$3,$4)",
+            tenant,
+            promotion["id"],
+            sid,
+            discount,
+        )
     if credit_amount:
         await credit.create_receivable(
             c, tenant, customer_id, sid, credit_amount, due, u["email"], inv

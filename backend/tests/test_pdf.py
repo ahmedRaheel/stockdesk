@@ -23,6 +23,12 @@ def test_invoice_and_barcode_pdf():
     lines = [dict(name="Keyboard & mouse", sku="KB-1", quantity=1, price=10000)]
     assert invoice_pdf(sale, lines).startswith(b"%PDF")
     assert invoice_pdf(sale, lines * 90).startswith(b"%PDF")
+    import json
+
+    sale["promotion_snapshot"] = json.dumps(
+        dict(code="TEA-10", name="Tea <offer>", name_ur="چائے کی پیشکش")
+    )
+    assert invoice_pdf(sale, lines, "ur").startswith(b"%PDF")
     assert barcode_pdf(
         {"name": "Keyboard", "barcode": "123456789012", "sku": "KB-1"}
     ).startswith(b"%PDF")

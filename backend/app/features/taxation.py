@@ -23,10 +23,20 @@ def allocate_discount(amounts, discount):
     return allocated
 
 
-def calculate(lines, discount, mode, manual_bps=0):
+def calculate(lines, discount, mode, manual_bps=0, line_discounts=None):
     amounts = [x["line_total"] for x in lines]
     subtotal = sum(amounts)
-    deductions = allocate_discount(amounts, discount)
+    deductions = (
+        allocate_discount(amounts, discount)
+        if line_discounts is None
+        else line_discounts
+    )
+    if (
+        len(deductions) != len(amounts)
+        or sum(deductions) != discount
+        or any(d < 0 or d > a for d, a in zip(deductions, amounts))
+    ):
+        fail("Invalid promotion line discount allocation.")
     if mode == "manual":
         tax, total = totals(subtotal, discount, manual_bps)
         return dict(
@@ -74,7 +84,14 @@ def calculate(lines, discount, mode, manual_bps=0):
     )
 
 
-async def quote(c, tenant, products, discount, manual_bps=0):
+async def quote(c, tenant, products, discount, manual_bps=0, promotion_code=""):
+    from .promotions import resolve
+
+    promotion = await resolve(c, tenant, promotion_code, products, discount)
+    deductions = None
+    if promotion:
+        discount = promotion["discount"]
+        deductions = [x["discount"] for x in promotion["line_discounts"]]
     business = await c.fetchrow(
         "SELECT tax_mode,default_tax_profile FROM tenants WHERE id=$1", tenant
     )
@@ -106,7 +123,9 @@ async def quote(c, tenant, products, discount, manual_bps=0):
                 inclusive=profile["inclusive"],
             )
         lines.append(item)
-    result = calculate(lines, discount, mode, manual_bps)
+    result = calculate(lines, discount, mode, manual_bps, deductions)
+    if promotion:
+        result["promotion"] = promotion
     result["quote_token"] = hashlib.sha256(
         json.dumps(
             {
@@ -139,5 +158,10 @@ async def preview(c, tenant, body):
             }
         )
     return await quote(
-        c, tenant, products, body.get("discount", 0), body.get("tax_bps", 0)
+        c,
+        tenant,
+        products,
+        body.get("discount", 0),
+        body.get("tax_bps", 0),
+        body.get("promotion_code", ""),
     )

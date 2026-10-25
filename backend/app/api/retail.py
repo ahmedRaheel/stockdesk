@@ -581,6 +581,7 @@ from .contracts import SaleLine
 
 
 class HoldBill(Contract):
+    promotion_code: str = Field(default="", max_length=40)
     id: Identifier
     label: str = Field(min_length=1, max_length=100)
     items: list[SaleLine] = Field(min_length=1, max_length=100)
@@ -633,7 +634,7 @@ async def hold_bill(tenant: str, payload: HoldBill, request: Request, user: User
             if prior:
                 if (
                     prior["actor"] != user["id"]
-                    or json.loads(prior["payload"]) != value
+                    or {"promotion_code": "", **json.loads(prior["payload"])} != value
                 ):
                     fail("Held bill identifier already used.", 409)
                 return {"id": payload.id}

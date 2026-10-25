@@ -3,7 +3,7 @@
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Version 1.9** adds tax registers, batch-age/current-cost valuation, basket analysis, sales/profit sensitivity simulations and shaped Urdu customer statement PDFs. Open **Management reports → Operational reports**. English/Urdu screens and CSV exports are included. See [release instructions](docs/RELEASE-1.9.md) and [implementation status](docs/CHECKLIST.md). The full enterprise specification remains incomplete.
+**Version 1.10** adds server-enforced coupons, percentage/fixed discounts, BOGO and multi-product bundle pricing, date/daily-time restrictions, redemption limits, frozen invoice promotion details, and Excel catalog import with preview/atomic commit. Open **Promotions and coupons** to configure offers, then select their codes in POS. See [release instructions](docs/RELEASE-1.10.md) and [implementation status](docs/CHECKLIST.md). The full enterprise specification remains incomplete.
 
 ## Upgrade your existing deployment
 

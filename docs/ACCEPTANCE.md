@@ -93,3 +93,13 @@ Large-store launch requires the remaining work in ARCHITECTURE.md and measured c
 - Create two shared-product baskets and one single-product basket on a completed reporting day. Check support/confidence/lift. Increase minimum shared baskets to exclude the pair. Export CSV.
 - Set demand to +20%, price to -10%, cost to +10%; verify the assumptions and independently calculated projected profit. Verify -100% demand yields zero sales/cost and no margin.
 - Confirm Cashier and cross-tenant requests are denied. Switch English/Urdu and inspect reports at mobile width. Download a multi-page Urdu customer statement with mixed Urdu/Latin references.
+
+## 1.10 promotion and Excel acceptance
+
+- Create fixed/percentage coupons, a buy-2/get-1 offer, and a two-product bundle with a weighted component. Verify leftover units, quantity requirements, caps, minimum spend and no-discount rejection.
+- Check daily start/end boundaries in Asia/Karachi, inclusive end dates, inactive rules and exhausted caps. Verify Cashier cannot edit and another tenant cannot select the component products.
+- Hold/resume a promotional bill. Change/disable the rule before checkout and require a refreshed/eligible quote. Confirm old receipt code/name/discount remain unchanged after editing the offer.
+- Complete the last permitted redemption from two clients against real PostgreSQL. Exactly one new sale may commit; repeat its unchanged request ID and confirm no second deduction/redemption. PGlite checks do not replace this concurrency acceptance.
+- Check product-specific discounts with mixed inclusive/exclusive taxes and compare product profit reports. Return an invoice and confirm usage remains consumed.
+- Download Excel template, replace the sample row, preserve barcode leading zeros as text, and preview/commit. Test one invalid row and confirm no products are added. Reject formulas, numeric barcodes, extra columns and oversized content. Confirm deployment proxy accepts valid uploads larger than its former 100 KB limit.
+- Inspect English/Urdu POS, promotion administration, receipt PDFs, Excel preview and mobile layout with realistic product names.

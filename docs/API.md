@@ -171,3 +171,13 @@ Purchase-order reads now include order_total, approval_required, approval_thresh
 `GET /api/v1/tenants/{tenant}/operational-report` requires `cost` permission. Query: `days` (1–90, default 30), `minimum_baskets` (2–10000, default 2), `horizon_days` (1–365, default 30), `demand_pct`, `price_pct`, `cost_pct` (integers -100–500, default 0). Returns `start`, `end`, `timezone`, `tax` (groups/invoices/summary), `stock` (as_of/batches/summary), `baskets`, and `scenario`. Money is integer minor units. The scope and accounting limitations are documented in RELEASE-1.9.md. All reads are tenant-bound and use a repeatable-read database snapshot.
 
 `GET /api/v1/tenants/{tenant}/customers/{customer}/statement.pdf` accepts optional `language=en|ur`. Existing customer-credit permissions and tenant isolation apply.
+
+## 1.10 promotions and Excel import
+
+- `GET /api/v1/tenants/{tenant}/promotions`: bounded `q`, `limit` (1–100), `offset`; `include_inactive=true` requires `promotions`. Active lookup requires either `sale` or `promotions`. Returns rules, components, version and usage count.
+- `POST .../promotions`: requires `promotions`; create an uppercase code and a rule (`fixed`, `percentage`, `bogo`, `bundle`). `value` is minor money except `percentage`, where it is basis points. `components` contain `product` and decimal `quantity`. All dates/times and bounds are in the generated OpenAPI contracts.
+- `PUT .../promotions/{id}`: same full payload plus current `version`. Code is immutable; stale versions return 409. Set `active=false` to disable.
+- `/sales/quote` and `/sales` now accept optional `promotion_code`. Promotional checkout requires the returned `quote_token` and manual `discount=0`. Send the original user input discount, not the computed promotional discount. The quote's `discount` and `promotion.line_discounts` are server-computed. Checkout freezes `promotion_snapshot` and records one redemption atomically.
+- `/held-bills` accepts optional `promotion_code`; it is retained without reservation.
+- `GET .../catalog-imports/template.xlsx`: authenticated `product` permission; returns the static Excel template.
+- `POST .../catalog-imports/convert-xlsx`: authenticated `product` permission and CSRF origin/bearer rules. Body `{ "file_base64": "..." }`, maximum 1 MB decoded. Returns `csv_text` and `count`; pass the CSV to the existing `/preview` and commit endpoints. Conversion performs no writes. See release notes for input shape and rejection rules.
