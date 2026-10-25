@@ -4,11 +4,10 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8080}
-      ALERT_WORKER_ENABLED: ${ALERT_WORKER_ENABLED:-true}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
-    networks: [default, existing-postgres]
+    networks: [default, appnet]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 10s
@@ -16,16 +15,18 @@ services:
       retries: 12
       start_period: 20s
     restart: unless-stopped
+
   frontend:
-    build: ./frontend
-    ports: ["8080:80"]
+    image: stockdesk-frontend
+    pull_policy: never
+    ports: ["80:80"]
     networks: [default]
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
+
 networks:
   default: {}
-  existing-postgres:
+  appnet:
     external: true
-    name: ${POSTGRES_NETWORK:-chatbot-network}
