@@ -26,3 +26,35 @@ def test_invoice_and_barcode_pdf():
     assert barcode_pdf(
         {"name": "Keyboard", "barcode": "123456789012", "sku": "KB-1"}
     ).startswith(b"%PDF")
+
+
+def test_urdu_statement_and_multipage_rows():
+    from app.pdf import customer_statement_pdf
+
+    data = dict(
+        customer=dict(name="راھیل احمد <sample>"),
+        balance=15000,
+        entries=[
+            dict(
+                created="2026-10-25",
+                kind="sale",
+                reference="INV-0001",
+                amount=20000,
+                balance=20000,
+            ),
+            dict(
+                created="2026-10-25",
+                kind="recovery",
+                reference="وصولی & PKR",
+                amount=-5000,
+                balance=15000,
+            ),
+        ],
+    )
+    for language in ["en", "ur"]:
+        assert customer_statement_pdf(
+            data, dict(name="نمونہ دکان", currency="PKR"), language
+        ).startswith(b"%PDF")
+    data["entries"] *= 50
+    pdf = customer_statement_pdf(data, dict(name="نمونہ دکان", currency="PKR"), "ur")
+    assert pdf.startswith(b"%PDF") and len(pdf) > 10000

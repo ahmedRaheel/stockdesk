@@ -247,8 +247,8 @@ def barcode_pdf(product):
     return buf.getvalue()
 
 
-def customer_statement_pdf(data, business):
-    """Account statement with opening-to-current running balance. English PDF labels."""
+def customer_statement_pdf(data, business, language="en"):
+    """Bilingual account statement with shaped Urdu and a running balance."""
     from io import BytesIO
     from xml.sax.saxutils import escape
     from reportlab.platypus import (
@@ -266,29 +266,79 @@ def customer_statement_pdf(data, business):
     styles = getSampleStyleSheet()
     for style in styles.byName.values():
         style.fontName = "StockDesk"
-    text = lambda value: Paragraph(escape(str(value)), styles["BodyText"])
+    import re
+    from arabic_reshaper import reshape
+    from bidi.algorithm import get_display
+
+    labels = {
+        "Customer statement": "گاہک کا کھاتہ",
+        "Outstanding": "بقایا رقم",
+        "Date": "تاریخ",
+        "Entry / reference": "اندراج / حوالہ",
+        "Debit": "واجب الادا",
+        "Credit": "وصول شدہ",
+        "Balance": "بقایا",
+        "sale": "فروخت",
+        "recovery": "وصولی",
+        "markup": "اضافی رقم",
+        "payment": "ادائیگی",
+        "return": "واپسی",
+        "opening": "ابتدائی بقایا",
+        "adjustment": "درستگی",
+        "writeoff": "معاف شدہ رقم",
+    }
+    label = lambda value: labels.get(value, value) if language == "ur" else value
+    for style in styles.byName.values():
+        style.leading = 17
+        if language == "ur":
+            style.alignment = 2
+
+    def text(value):
+        value = str(value)
+        if re.search("[\u0600-\u06ff]", value):
+            shaped = get_display(reshape(value))
+            chunks = re.split("([\u0600-\u06ff\ufb50-\ufdff\ufe70-\ufeff]+)", shaped)
+            value = "".join(
+                (
+                    '<font name="StockDeskUrdu">' + escape(x) + "</font>"
+                    if re.search("[\u0600-\u06ff\ufb50-\ufdff\ufe70-\ufeff]", x)
+                    else escape(x)
+                )
+                for x in chunks
+            )
+        else:
+            value = escape(value)
+        return Paragraph(value, styles["BodyText"])
+
     money = lambda value: f"{business['currency']} {value/100:,.2f}"
     flow = [
         text(business["name"]),
         Spacer(1, 12),
-        text("Customer statement / " + data["customer"]["name"]),
-        text("Outstanding: " + money(data["balance"])),
+        text(label("Customer statement") + " / " + data["customer"]["name"]),
+        text(label("Outstanding") + ": " + money(data["balance"])),
         Spacer(1, 12),
     ]
     table = [
-        [text(x) for x in ["Date", "Entry / reference", "Debit", "Credit", "Balance"]]
+        [
+            text(label(x))
+            for x in ["Date", "Entry / reference", "Debit", "Credit", "Balance"]
+        ]
     ]
     for row in data["entries"]:
         table.append(
             [
                 text(str(row["created"])[:10]),
-                text(row["kind"] + " / " + row["reference"]),
+                text(label(row["kind"]) + " / " + row["reference"]),
                 text(money(row["amount"]) if row["amount"] > 0 else ""),
                 text(money(-row["amount"]) if row["amount"] < 0 else ""),
                 text(money(row["balance"])),
             ]
         )
-    widget = Table(table, colWidths=[64, 170, 85, 85, 85], repeatRows=1)
+    widths = [83, 142, 92, 92, 92]
+    if language == "ur":
+        table = [list(reversed(row)) for row in table]
+        widths.reverse()
+    widget = Table(table, colWidths=widths, repeatRows=1)
     widget.setStyle(
         TableStyle(
             [

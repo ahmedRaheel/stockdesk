@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StockDesk Inventory & POS",
-    "version": "1.8.0"
+    "version": "1.9.0"
   },
   "paths": {
     "/api/health": {
@@ -2190,6 +2190,20 @@
               "type": "string",
               "title": "Customer"
             }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "en",
+                "ur"
+              ],
+              "type": "string",
+              "default": "en",
+              "title": "Language"
+            }
           }
         ],
         "responses": {
@@ -3563,6 +3577,126 @@
               "minimum": 1,
               "default": 30,
               "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/operational-report": {
+      "get": {
+        "tags": [
+          "Management reports"
+        ],
+        "summary": "Operational Report",
+        "operationId": "operational_report_api_v1_tenants__tenant__operational_report_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 90,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "minimum_baskets",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10000,
+              "minimum": 2,
+              "default": 2,
+              "title": "Minimum Baskets"
+            }
+          },
+          {
+            "name": "horizon_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Horizon Days"
+            }
+          },
+          {
+            "name": "demand_pct",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": -100,
+              "default": 0,
+              "title": "Demand Pct"
+            }
+          },
+          {
+            "name": "price_pct",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": -100,
+              "default": 0,
+              "title": "Price Pct"
+            }
+          },
+          {
+            "name": "cost_pct",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": -100,
+              "default": 0,
+              "title": "Cost Pct"
             }
           }
         ],

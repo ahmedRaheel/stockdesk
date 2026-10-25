@@ -1,4 +1,17 @@
-# Verification record — StockDesk 1.8
+# Verification record — StockDesk 1.9
+
+## Release 1.9 checks
+
+- Full backend regression run: **47 passed, 1 skipped** using PGlite's PostgreSQL wire adapter. The real PostgreSQL concurrency test remains skipped.
+- After adding the final Urdu statement test and language/tenant API assertions, the focused operational-report and PDF suites passed **7 tests**. This includes four pure analytics tests, one database API flow, and two PDF tests; these overlap the full run and are not seven additional unique tests.
+- Analytics tests exercise frozen mixed inclusive/exclusive taxes, manual legacy taxes, corrupt-snapshot rejection, fractional half-up stock values, expiry boundaries, deduplicated baskets and exact denominators, minimum pair counts, zero-sales/zero-demand scenarios and independent demand/price/cost assumptions.
+- Actual API flow checks report totals against a historical sale, current stock valuation before/after a whole return, empty second-tenant results, Cashier/cross-tenant denial, query bounds, Urdu statement delivery, invalid-language rejection and cross-tenant customer access denial.
+- Chromium against actual FastAPI/React: tax register invoices, stock and basket navigation, CSV download, demand scenario recalculation, English/Urdu and 390px RTL mobile passed with no JavaScript page errors. Desktop/mobile screenshots inspected. Browser-only PGlite harness uses a single-connection pool; production pool configuration is unchanged.
+- Urdu customer statement rendered to PNG and visually inspected. A wrapped date found in the first rendering was fixed by widening the date column. Multi-page statement generation is tested; no physical printing is claimed.
+- TypeScript/Vite production build and literal Urdu label check passed. OpenAPI regenerated for 1.9. Original migrations 001–016 were byte-compared against the supplied ZIP and remain identical; no new migration is needed.
+- The first database attempt could not reach a server in a separate execution network. The successful run starts database and tests together in one harness. This is a test-environment limitation, not a production database validation.
+- Live deployment, real PostgreSQL concurrency/load, provider integrations and physical hardware remain unverified. This release does not establish full checklist completion or production certification.
+
 
 ## Release 1.8 checks
 

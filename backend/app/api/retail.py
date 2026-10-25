@@ -515,7 +515,9 @@ async def get_lookup(tenant: str, identifier: str, user: User):
 
 
 @router.get("/customers/{customer}/statement.pdf")
-async def statement_pdf(tenant: str, customer: str, user: User):
+async def statement_pdf(
+    tenant: str, customer: str, user: User, language: Literal["en", "ur"] = "en"
+):
     from fastapi.responses import Response
     from ..pdf import customer_statement_pdf
     import asyncio
@@ -526,7 +528,7 @@ async def statement_pdf(tenant: str, customer: str, user: User):
             business = dict(
                 await c.fetchrow("SELECT * FROM tenants WHERE id=$1", tenant)
             )
-    content = await asyncio.to_thread(customer_statement_pdf, data, business)
+    content = await asyncio.to_thread(customer_statement_pdf, data, business, language)
     return Response(
         content,
         media_type="application/pdf",

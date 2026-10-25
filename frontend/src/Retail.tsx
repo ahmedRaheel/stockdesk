@@ -376,7 +376,7 @@ export default function Retail({
               </div>
               <a
                 className="secondary"
-                href={`${base}/customers/${statement.customer.id}/statement.pdf`}
+                href={`${base}/customers/${statement.customer.id}/statement.pdf?language=${language}`}
                 target="_blank"
                 rel="noreferrer"
               >

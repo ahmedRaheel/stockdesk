@@ -165,3 +165,9 @@ Prefix `/api/v1/tenants/{tenant}`. Money is integer minor units; quantity suppor
 - `GET /suppliers` additionally accepts literal case-insensitive `q` search across name/contact.
 
 Purchase-order reads now include order_total, approval_required, approval_threshold, lead_days_snapshot and decision fields. Legacy orders keep their status; pending/rejected orders cannot receive. Exact schemas are in openapi.json.
+
+## 1.9 operational reports
+
+`GET /api/v1/tenants/{tenant}/operational-report` requires `cost` permission. Query: `days` (1–90, default 30), `minimum_baskets` (2–10000, default 2), `horizon_days` (1–365, default 30), `demand_pct`, `price_pct`, `cost_pct` (integers -100–500, default 0). Returns `start`, `end`, `timezone`, `tax` (groups/invoices/summary), `stock` (as_of/batches/summary), `baskets`, and `scenario`. Money is integer minor units. The scope and accounting limitations are documented in RELEASE-1.9.md. All reads are tenant-bound and use a repeatable-read database snapshot.
+
+`GET /api/v1/tenants/{tenant}/customers/{customer}/statement.pdf` accepts optional `language=en|ur`. Existing customer-credit permissions and tenant isolation apply.

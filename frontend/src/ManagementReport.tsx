@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import OperationalReports from "./OperationalReports";
 import { api } from "./api";
 import { t as tr } from "./i18n";
 export default function ManagementReport({
@@ -8,6 +9,7 @@ export default function ManagementReport({
   tenant: string;
   currency: string;
 }) {
+  const [operational, setOperational] = useState(false);
   const [days, setDays] = useState(30),
     [data, setData] = useState<any>(null),
     [error, setError] = useState("");
@@ -98,8 +100,20 @@ export default function ManagementReport({
       </table>
     </div>
   );
+  if (operational)
+    return (
+      <>
+        <button className="secondary" onClick={() => setOperational(false)}>
+          {tr("Sales and margin reports")}
+        </button>
+        <OperationalReports tenant={tenant} currency={currency} />
+      </>
+    );
   return (
     <>
+      <button className="secondary" onClick={() => setOperational(true)}>
+        {tr("Operational reports")}
+      </button>
       <div className="toolbar">
         <label className="field">
           <span>{tr("Complete days")}</span>

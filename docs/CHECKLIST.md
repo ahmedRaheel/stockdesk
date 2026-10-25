@@ -1,4 +1,4 @@
-# Consolidated implementation checklist — 1.8
+# Consolidated implementation checklist — 1.9
 
 “Implemented” describes the bounded behavior below, not every requested variant. Code is delivered; production deployment and physical/provider acceptance are separate.
 
@@ -16,13 +16,13 @@
 | Supplier finance (1.7) | Cumulative PO/received/billed quantity and exact cost matching; invoice register; partial payments; ageing; audited voids; goods-return credit notes and recorded supplier refunds | Price-only/cross-bill credit notes and credit reversals, advances, payable approvals, bank reconciliation, general ledger, supplier statement PDF |
 | Khata and installments | Customer ledger, credit limit approval, partial credit, recoveries, due dates, schedules and statements | Guarantor/CNIC/photo workflow, predictive trust scores, automated reminders, markup/late-fee policy, recovery agent tracking |
 | Cashier operations | Till opening, cash in/out, counted closing and discrepancy notes | Hardware cash drawer, full fiscal X/Z reports, PIN/biometric switching |
-| Analytics | Sales dashboard/rankings, basic profit breakdowns, descriptive ABC/XYZ, CSV reports | Builder/scheduling, full tax reports, stock aging/turnover valuation, consolidated financials |
-| Forecasting | Baseline demand/reorder, stockout/replenishment planning using available history and outstanding POs | Weather/festival models, optimization, probabilistic credit/cashflow, churn, supplier delay, shrinkage, basket recommendations, staffing, what-if |
+| Analytics | Sales dashboard/rankings, basic profit breakdowns, descriptive ABC/XYZ, CSV reports; frozen tax register; current batch age and current-catalog-cost valuation | Builder/scheduling, statutory tax/return-period reports, receipt-layer age and FIFO/LIFO valuation, inventory turnover, Excel/PDF report exports, consolidated financials |
+| Forecasting | Baseline demand/reorder, stockout/replenishment planning using available history and outstanding POs; descriptive basket support/confidence/lift; user-controlled sales/profit what-if calculations | Weather/festival models, optimization, probabilistic credit/cashflow, churn, supplier delay, shrinkage, personalized basket recommendations, staffing, predictive elasticity/stock-constrained simulation |
 | Alerts | Existing on-screen low-stock/expiry/forecast exceptions | Configurable rule engine, push/email/SMS/WhatsApp/Urdu voice, quiet hours, escalation, delivery/retry jobs |
 | CRM | Customer records, purchase/credit workflows, reference segments | Loyalty points, wallet/gift liabilities, memberships, campaigns, feedback |
 | Access and tenancy | Tenant-bound API/data references, built-in and custom tenant roles, immediate revocation, permission dependencies, searchable/page-exportable audits of implemented writes; independent credit/count/PO approvals | Store/region-scoped roles, regions/franchise hierarchy, multi-store scope, support consent/impersonation, portals, SSO/MFA |
 | SaaS operations | Platform business management and suspension, headless endpoints, bootstrap/admin controls | Plans/subscriptions/metering, native apps, white-labeling, backup orchestration and tested restore, uptime evidence |
-| Languages | English/Urdu UI and RTL, bundled fonts, shaped Urdu invoice PDFs | Full dynamic error/CSV/chart translation, Urdu statement PDF shaping, automatic Roman Urdu transliteration |
+| Languages | English/Urdu UI and RTL, bundled fonts, shaped Urdu invoice and customer statement PDFs | Full dynamic error/CSV/chart translation, automatic Roman Urdu transliteration |
 | Integrations | REST API, token/session controls; keyboard-reader support | Accounting/marketplaces/delivery, payment rails, notifications, webhooks, e-invoicing, printers/scales/RFID SDKs |
 
 Tax/legal certification, GDPR/PCI-DSS compliance, 99.9% uptime, high-load scalability, real PostgreSQL multiprocess concurrency and physical hardware operation have not been certified by this package. The modules in the last column are implementation work, not switches waiting only for credentials.

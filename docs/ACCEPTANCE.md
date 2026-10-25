@@ -85,3 +85,11 @@ Large-store launch requires the remaining work in ARCHITECTURE.md and measured c
 - Add two quotes for one product. Change comparison quantity across a minimum and check eligible filtering and price ordering. Verify expired/inactive offers are excluded when filtering and stale updates fail.
 - Verify first receipt contributes one performance sample, not one per line, and unreceived orders have no elapsed-delivery value.
 - Check Urdu/RTL and mobile layouts. Confirm real PostgreSQL concurrency and deployed Docker health separately before production use.
+
+## 1.9 operational analytics acceptance
+
+- Open Management reports → Operational reports. Compare the tax register against inclusive/exclusive, manual and discounted original receipts. Check that a returned invoice is excluded, and that this is unsuitable as a return-period statutory ledger.
+- Compare positive batch quantities to inventory. Verify current cost × quantity rounding and expiry today / expired yesterday. Replenish a batch and confirm its displayed age remains its first creation age.
+- Create two shared-product baskets and one single-product basket on a completed reporting day. Check support/confidence/lift. Increase minimum shared baskets to exclude the pair. Export CSV.
+- Set demand to +20%, price to -10%, cost to +10%; verify the assumptions and independently calculated projected profit. Verify -100% demand yields zero sales/cost and no margin.
+- Confirm Cashier and cross-tenant requests are denied. Switch English/Urdu and inspect reports at mobile width. Download a multi-page Urdu customer statement with mixed Urdu/Latin references.
