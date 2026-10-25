@@ -7,7 +7,7 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
-    networks: [default, existing-postgres]
+    networks: [defaul]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 10s
@@ -23,4 +23,6 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
+networks:
+  default: {}
 
