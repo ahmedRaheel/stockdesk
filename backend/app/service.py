@@ -98,6 +98,20 @@ async def get_receipt(c, u, tenant, sale_id):
             sale_id,
         )
     )
+    original = sale["original_snapshot"] or {}
+    if isinstance(original, str):
+        original = json.loads(original)
+    saved_promotion = (original.get("sale") or sale).get("promotion_snapshot") or {}
+    if isinstance(saved_promotion, str):
+        saved_promotion = json.loads(saved_promotion)
+    pair = (
+        [saved_promotion["buy_product"], saved_promotion["reward_product"]]
+        if saved_promotion.get("kind") == "cross_bogo"
+        else []
+    )
+    result["sale"]["return_pair_products"] = (
+        pair if any(i["product"] in pair for i in result["items"]) else []
+    )
     result["sale"].pop("original_snapshot", None)
     result["sale"]["adjustments"] = [
         json.loads(r["result"]) if isinstance(r["result"], str) else r["result"]

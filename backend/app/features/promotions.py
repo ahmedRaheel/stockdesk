@@ -40,6 +40,7 @@ def evaluate(rule, components, products, now, used=0):
     weights = [p["line_total"] for p in products]
     by_id = {p["id"]: p for p in products}
     kind = rule["kind"]
+    reward_details = {}
     if kind == "fixed":
         discount = min(rule["value"], subtotal)
     elif kind == "percentage":
@@ -58,6 +59,33 @@ def evaluate(rule, components, products, now, used=0):
             line_amount(p["price"], Decimal(groups * rule["free_quantity"])) if p else 0
         )
         weights = [p["line_total"] if p["id"] == c["product"] else 0 for p in products]
+    elif kind == "cross_bogo":
+        reward_id = rule["reward_product"]
+        buy_id = next(c["product"] for c in components if c["product"] != reward_id)
+        buy, reward = by_id.get(buy_id), by_id.get(reward_id)
+        for item in (buy, reward):
+            if (
+                item
+                and Decimal(item["quantity"])
+                != Decimal(item["quantity"]).to_integral_value()
+            ):
+                fail("Cross-product BOGO requires whole product quantities.")
+        groups = int(Decimal(buy["quantity"]) // rule["buy_quantity"]) if buy else 0
+        free = (
+            min(int(Decimal(reward["quantity"])), groups * rule["free_quantity"])
+            if reward
+            else 0
+        )
+        discount = line_amount(reward["price"], Decimal(free)) if reward else 0
+        weights = [p["line_total"] if p["id"] == reward_id else 0 for p in products]
+        reward_details = dict(
+            buy_product=buy_id,
+            reward_product=reward_id,
+            buy_quantity=rule["buy_quantity"],
+            free_quantity=rule["free_quantity"],
+            reward_units=free,
+            return_policy="paired_cross_bogo",
+        )
     else:  # Bundle: all components must be present in the cart; no implicit stock lines.
         groups = min(
             (
@@ -85,6 +113,7 @@ def evaluate(rule, components, products, now, used=0):
     discount = min(discount, sum(weights))
     deductions = allocate_discount(weights, discount)
     return dict(
+        **reward_details,
         id=rule["id"],
         code=rule["code"],
         name=rule["name"],

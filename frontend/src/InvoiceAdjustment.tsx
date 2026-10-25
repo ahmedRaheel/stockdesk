@@ -190,6 +190,30 @@ export default function InvoiceAdjustment({
                   "Select only the quantities returned. Expired, damaged and opened items are written off. Only verified unopened incorrect items may be restocked. Replacement items use current prices and taxes.",
                 )}
               </p>
+              {receipt.sale.return_pair_products?.length > 0 && (
+                <div className="hint">
+                  <p>
+                    {tr(
+                      "Return all remaining qualifying and reward product quantities together for this cross-product offer.",
+                    )}
+                  </p>
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      setQuote(undefined);
+                      setLines(
+                        lines.map((l) =>
+                          receipt.sale.return_pair_products.includes(l.product)
+                            ? { ...l, returnQty: String(l.quantity) }
+                            : l,
+                        ),
+                      );
+                    }}
+                  >
+                    {tr("Select all promotional items")}
+                  </button>
+                </div>
+              )}
               <div className="table-scroll">
                 <table>
                   <thead>

@@ -1,4 +1,13 @@
-# Verification record — StockDesk frontend 1.15.1
+# Verification record — StockDesk 1.16
+
+## Release 1.16 checks
+
+- Full backend regression: **68 passed, 1 skipped** in 103.37 seconds under PGlite. The skipped test requires real PostgreSQL multiprocess concurrency. Final cross-product suite: **2 passed** in 6.61 seconds after the inactive-component disable/reactivate safeguard.
+- Coverage includes role/order independence, whole-unit validation, discount caps, mixed inclusive/exclusive tax, tenant boundaries, checkout replay, frozen original promotion after live edits, unrelated returns, partial-pair rejection, full-pair refunds, restored stock and unchanged redemption count.
+- Chromium against React/FastAPI passed promotion creation/edit, POS quote/checkout, receipt/PDF download, rejected partial-pair return, full-pair cash refund and Urdu/mobile checks with crypto.randomUUID unavailable. No JavaScript page errors. Mobile screenshot and rendered PDF reviewed.
+- TypeScript/Vite production build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.16. Migrations 001–020 remain unchanged; migration 021 is new. No dependencies added.
+- Real PostgreSQL multiprocess/load, live EC2/Docker deployment and hardware/provider acceptance remain unverified. This completes the bounded cross-product BOGO checklist item; broader enterprise gaps remain in docs/CHECKLIST.md.
+
 
 
 ## Frontend hotfix 1.15.1

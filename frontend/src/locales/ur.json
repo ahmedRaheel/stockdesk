@@ -1032,5 +1032,11 @@
   "Saturday": "ہفتہ",
   "Sunday": "اتوار",
   "If end time is earlier than start time, the offer continues after midnight. Weekdays and effective dates refer to the start of that window.": "اگر اختتامی وقت آغاز سے پہلے ہو تو پیشکش آدھی رات کے بعد جاری رہتی ہے۔ ہفتے کے دن اور مؤثر تاریخیں اس دورانیے کے آغاز کے مطابق ہیں۔",
-  "Create or update products from CSV and Excel.": "CSV اور ایکسل سے مصنوعات بنائیں یا تبدیل کریں۔"
+  "Create or update products from CSV and Excel.": "CSV اور ایکسل سے مصنوعات بنائیں یا تبدیل کریں۔",
+  "Buy one product, get another free": "ایک مصنوعات خریدیں، دوسری مفت پائیں",
+  "Qualifying product (buy)": "خریداری کی شرط والی مصنوعات",
+  "Reward product (free)": "انعامی مصنوعات (مفت)",
+  "Only reward units already in the cart are discounted. Extra reward units remain paid. Qualifying and reward products must be distinct whole-unit products.": "صرف کارٹ میں موجود انعامی اشیاء پر رعایت ہوگی۔ اضافی انعامی اشیاء کی قیمت ادا کرنا ہوگی۔ خریداری اور انعامی مصنوعات مختلف اور مکمل اکائی والی ہوں۔",
+  "Return all remaining qualifying and reward product quantities together for this cross-product offer.": "اس مختلف مصنوعات کی پیشکش میں خریدی گئی اور انعامی مصنوعات کی تمام باقی مقدار ایک ساتھ واپس کریں۔",
+  "Select all promotional items": "پیشکش کی تمام اشیاء منتخب کریں"
 }

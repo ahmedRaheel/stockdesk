@@ -47,6 +47,7 @@ def invoice_pdf(sale, items, language="en", tenders=None):
         "Cash received": "وصول شدہ نقد رقم",
         "Change returned": "گاہک کو واپس کی گئی رقم",
         "Promotion": "رعایتی پیشکش",
+        "Return all remaining qualifying and reward product quantities together for this cross-product offer.": "اس مختلف مصنوعات کی پیشکش میں خریدی گئی اور انعامی مصنوعات کی تمام باقی مقدار ایک ساتھ واپس کریں۔",
         "Split payment": "مختلف طریقوں سے ادائیگی",
         "cash": "نقد",
         "external": "بیرونی ادائیگی",
@@ -326,6 +327,14 @@ def invoice_pdf(sale, items, language="en", tenders=None):
                 + promotion["code"]
                 + " / "
                 + (name or promotion.get("name", ""))
+            )
+        )
+    if promotion.get("kind") == "cross_bogo" or sale.get("return_pair_products"):
+        story.append(
+            p(
+                label(
+                    "Return all remaining qualifying and reward product quantities together for this cross-product offer."
+                )
             )
         )
     for part in tenders or []:

@@ -25,7 +25,8 @@ class Promotion(Contract):
     code: str = Field(min_length=1, max_length=40, pattern=r"^[A-Z0-9_-]+$")
     name: str = Field(min_length=1, max_length=150)
     name_ur: str = Field(default="", max_length=150)
-    kind: Literal["fixed", "percentage", "bogo", "bundle"]
+    kind: Literal["fixed", "percentage", "bogo", "bundle", "cross_bogo"]
+    reward_product: Identifier | None = None
     value: Money = 0
     minimum_subtotal: Money = 0
     maximum_discount: int | None = Field(
@@ -72,6 +73,18 @@ class Promotion(Contract):
             raise ValueError(
                 "BOGO requires one product, component quantity 1 and value 0."
             )
+        if self.kind == "cross_bogo":
+            if (
+                len(self.components) != 2
+                or any(c.quantity != 1 for c in self.components)
+                or self.value != 0
+                or self.reward_product not in {c.product for c in self.components}
+            ):
+                raise ValueError(
+                    "Cross-product BOGO requires two distinct products, component quantity 1, a selected reward product and value 0."
+                )
+        elif self.reward_product is not None:
+            raise ValueError("Reward product applies only to cross-product BOGO.")
         if self.kind == "bundle" and len(self.components) < 2:
             raise ValueError("A bundle requires at least two distinct products.")
         return self
@@ -160,12 +173,12 @@ async def save(tenant, payload, request, user, identifier=None):
                     tenant,
                     item.product,
                 )
-                if not p or not p["active"]:
+                if not p or (payload.active and not p["active"]):
                     fail("Choose active component products from this business.")
                 if (
                     not p["fractional"]
                     and item.quantity != item.quantity.to_integral_value()
-                ) or (payload.kind == "bogo" and p["fractional"]):
+                ) or (payload.kind in {"bogo", "cross_bogo"} and p["fractional"]):
                     fail(
                         "BOGO requires a whole-unit product; component quantities must respect product units."
                     )

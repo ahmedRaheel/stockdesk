@@ -2904,6 +2904,13 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               ) : null;
             })()}
 
+            {receipt.sale.return_pair_products?.length > 0 && (
+              <p className="hint">
+                {tr(
+                  "Return all remaining qualifying and reward product quantities together for this cross-product offer.",
+                )}
+              </p>
+            )}
             <div className="cart-math">
               <span>{tr("Tax added")}</span>
               <b>

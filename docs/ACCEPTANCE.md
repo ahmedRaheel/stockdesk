@@ -136,3 +136,8 @@ Exercise an expired/damaged/opened return (no sellable stock increase), an inspe
 ## 1.15 acceptance
 
 Export a filtered editable workbook; retain leading-zero barcodes and literal text. Re-upload in update mode, review old/new values and apply. Check whole-file rollback, duplicate/missing SKU rejection, unit/opening-stock guards, stale preview protection, stock/metadata preservation, retry deduplication, role/tenant boundaries and 200-row export limits. Configure Sunday 22:00–02:00; verify Sunday 22:00 and Monday 01:59 qualify while Monday 02:00 and Sunday 01:00 do not. Verify effective end dates anchor to the start day. Check migrated promotions still select all days.
+
+
+## 1.16 cross-product BOGO
+
+Create buy-2-Tea/get-1-Milk, then edit and verify product roles persist. Add two Tea and two Milk to POS: only one Milk is discounted. Complete cash payment and verify change and receipt/PDF policy. Reject a partial promotional-product return; select all promotional items and complete the net cash refund. Return unrelated lines independently, edit the live promotion, and verify original policy and credits remain unchanged. Repeat with native randomUUID unavailable; check Urdu/mobile rendering.

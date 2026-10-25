@@ -118,6 +118,19 @@ async def prepare(c, tenant, sale_id, body):
         {i["id"] for i in current}
     ):
         fail("Choose each available invoice item only once.")
+    promotion = obj(old.get("promotion_snapshot")) or frozen.get("promotion", {})
+    if promotion.get("kind") == "cross_bogo":
+        pair = {promotion["buy_product"], promotion["reward_product"]}
+        pair_items = [i for i in current if i["product"] in pair]
+        if any(i["id"] in requests for i in pair_items) and any(
+            i["id"] not in requests
+            or requests[i["id"]].quantity != Decimal(str(i["quantity"]))
+            for i in pair_items
+        ):
+            fail(
+                "Return all remaining qualifying and reward product quantities together for this cross-product offer.",
+                409,
+            )
     before = {"sale": service.rows([sale])[0], "items": current}
     before["sale"].pop("original_snapshot", None)
     remaining_items, tax_lines, returns = [], [], []
@@ -528,6 +541,13 @@ async def original_receipt(tenant: str, sale_id: str, user: User):
             fail("No earlier invoice revision exists.", 404)
         result = obj(saved)
         result["sale"].pop("original_snapshot", None)
+        promo = obj(result["sale"].get("promotion_snapshot")) or {}
+        result["sale"]["return_pair_products"] = (
+            [promo["buy_product"], promo["reward_product"]]
+            if promo.get("kind") == "cross_bogo"
+            else []
+        )
+
         result["tenders"] = service.rows(
             await c.fetch(
                 "SELECT method_name,method_name_ur,is_cash,amount,reference FROM sale_tenders WHERE tenant=$1 AND sale=$2 ORDER BY id",

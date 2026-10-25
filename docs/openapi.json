@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StockDesk Inventory & POS",
-    "version": "1.15.0"
+    "version": "1.16.0"
   },
   "paths": {
     "/api/health": {
@@ -8194,9 +8194,23 @@
               "fixed",
               "percentage",
               "bogo",
-              "bundle"
+              "bundle",
+              "cross_bogo"
             ],
             "title": "Kind"
+          },
+          "reward_product": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reward Product"
           },
           "value": {
             "type": "integer",
@@ -9457,9 +9471,23 @@
               "fixed",
               "percentage",
               "bogo",
-              "bundle"
+              "bundle",
+              "cross_bogo"
             ],
             "title": "Kind"
+          },
+          "reward_product": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reward Product"
           },
           "value": {
             "type": "integer",

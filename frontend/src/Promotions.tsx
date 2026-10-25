@@ -43,14 +43,22 @@ export default function Promotions({
       c.abort();
     };
   }, [base, q, page, revision]);
+  const isBogo = kind === "bogo" || kind === "cross_bogo";
   function edit(row: any) {
     setSelected(row);
     setKind(row?.kind || "percentage");
     setParts(
-      (row?.components || []).map((p: any) => ({
-        ...p,
-        quantity: String(p.quantity),
-      })),
+      [...(row?.components || [])]
+        .sort((a: any, b: any) =>
+          row?.kind === "cross_bogo"
+            ? Number(a.product === row.reward_product) -
+              Number(b.product === row.reward_product)
+            : 0,
+        )
+        .map((p: any) => ({
+          ...p,
+          quantity: String(p.quantity),
+        })),
     );
     setError("");
     setNotice("");
@@ -60,7 +68,7 @@ export default function Promotions({
     setParts(
       value === "bogo"
         ? [{ product: "", quantity: "1", name: "" }]
-        : value === "bundle"
+        : value === "bundle" || value === "cross_bogo"
           ? [
               { product: "", quantity: "1", name: "" },
               { product: "", quantity: "1", name: "" },
@@ -87,13 +95,14 @@ export default function Promotions({
       name: text("name"),
       name_ur: text("name_ur"),
       kind,
-      value: kind === "bogo" ? 0 : amount("value"),
+      reward_product: kind === "cross_bogo" ? parts[1]?.product || null : null,
+      value: isBogo ? 0 : amount("value"),
       minimum_subtotal: amount("minimum_subtotal"),
       maximum_discount: text("maximum_discount")
         ? amount("maximum_discount")
         : null,
-      buy_quantity: kind === "bogo" ? Number(text("buy_quantity")) : 1,
-      free_quantity: kind === "bogo" ? Number(text("free_quantity")) : 1,
+      buy_quantity: isBogo ? Number(text("buy_quantity")) : 1,
+      free_quantity: isBogo ? Number(text("free_quantity")) : 1,
       weekdays: f.getAll("weekdays").map(Number),
       starts_on: text("starts_on") || null,
       ends_on: text("ends_on") || null,
@@ -103,7 +112,7 @@ export default function Promotions({
       active: f.has("active"),
       components: parts.map((p) => ({
         product: p.product,
-        quantity: kind === "bogo" ? "1" : p.quantity,
+        quantity: isBogo ? "1" : p.quantity,
       })),
       ...(selected ? { version: selected.version } : {}),
     };
@@ -161,7 +170,7 @@ export default function Promotions({
               {field("Promotion code", "code", "text", selected?.code, {
                 required: true,
                 maxLength: 40,
-                pattern: "[A-Za-z0-9_-]+",
+                pattern: "[A-Za-z0-9_\\-]+",
                 readOnly: !!selected,
               })}
               {field("Promotion name", "name", "text", selected?.name, {
@@ -181,10 +190,13 @@ export default function Promotions({
                   <option value="percentage">{tr("Percentage coupon")}</option>
                   <option value="fixed">{tr("Fixed coupon")}</option>
                   <option value="bogo">{tr("Buy X get Y free")}</option>
+                  <option value="cross_bogo">
+                    {tr("Buy one product, get another free")}
+                  </option>
                   <option value="bundle">{tr("Bundle price")}</option>
                 </select>
               </label>
-              {kind !== "bogo" &&
+              {!isBogo &&
                 field(
                   kind === "percentage"
                     ? "Percentage (%)"
@@ -201,7 +213,7 @@ export default function Promotions({
                     step: 0.01,
                   },
                 )}
-              {kind === "bogo" && (
+              {isBogo && (
                 <>
                   {field(
                     "Buy quantity",
@@ -310,9 +322,16 @@ export default function Promotions({
                 "Dates and daily times use Asia/Karachi. End date is inclusive; end time is exclusive. End time 00:00 means the end of that day. Leave both times empty for all day.",
               )}
             </p>
-            {(kind === "bogo" || kind === "bundle") && (
+            {(isBogo || kind === "bundle") && (
               <>
                 <h3>{tr("Promotion products")}</h3>
+                {kind === "cross_bogo" && (
+                  <p className="hint">
+                    {tr(
+                      "Only reward units already in the cart are discounted. Extra reward units remain paid. Qualifying and reward products must be distinct whole-unit products.",
+                    )}
+                  </p>
+                )}
                 <p>
                   {tr(
                     "Add all required products, including free units, to the cart. BOGO accepts whole-unit products. Bundle quantities follow the product unit.",
@@ -320,6 +339,15 @@ export default function Promotions({
                 </p>
                 {parts.map((part, i) => (
                   <div className="form-grid" key={i}>
+                    {kind === "cross_bogo" && (
+                      <h4 style={{ gridColumn: "1 / -1" }}>
+                        {tr(
+                          i === 0
+                            ? "Qualifying product (buy)"
+                            : "Reward product (free)",
+                        )}
+                      </h4>
+                    )}
                     <PurchaseLookup
                       tenant={tenant}
                       kind="products"
@@ -468,6 +496,7 @@ export default function Promotions({
                               percentage: "Percentage coupon",
                               fixed: "Fixed coupon",
                               bogo: "Buy X get Y free",
+                              cross_bogo: "Buy one product, get another free",
                               bundle: "Bundle price",
                             } as any
                           )[p.kind],
