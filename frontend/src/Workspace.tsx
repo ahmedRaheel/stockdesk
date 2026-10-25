@@ -1,3 +1,4 @@
+import InvoiceAdjustment from "./InvoiceAdjustment";
 import { t as tr } from "./i18n";
 import { useLanguage } from "./i18n";
 ("use client");
@@ -51,7 +52,7 @@ import Tills from "./Tills";
 import BatchAlerts from "./BatchAlerts";
 import LookupSelect from "./LookupSelect";
 import CustomerSelect from "./CustomerSelect";
-import { send } from "./api";
+import { api, send } from "./api";
 const titles: any = {
   alerts: [
     "Inventory alerts",
@@ -2059,10 +2060,17 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                     s.status === "completed" && (
                                       <button
                                         className="mini"
-                                        onClick={() => open("return", s)}
+                                        onClick={() =>
+                                          open(
+                                            s.credit_amount
+                                              ? "return"
+                                              : "adjust",
+                                            s,
+                                          )
+                                        }
                                       >
                                         {" "}
-                                        {tr("Return")}{" "}
+                                        {tr("Return / exchange")}{" "}
                                       </button>
                                     )}
                                 </div>
@@ -2380,7 +2388,22 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
           </footer>
         </main>
       </div>
-      {modal && (
+      {modal?.kind === "adjust" && (
+        <InvoiceAdjustment
+          tenant={tenant}
+          sale={modal.item}
+          money={money}
+          onClose={() => setModal(null)}
+          onSaved={() => {
+            void load();
+          }}
+          showReceipt={(id) => {
+            setModal(null);
+            void showReceipt(id);
+          }}
+        />
+      )}
+      {modal && modal.kind !== "adjust" && (
         <div className="modal-overlay">
           <section
             className="modal"
@@ -2906,13 +2929,99 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               <br /> {tr("Served by")} {receipt.sale.actor}
             </p>
             <div className="cart-math">
-              <span>{tr("Paid now / وصول")}</span>
+              <span>
+                {tr(
+                  receipt.sale.revision
+                    ? "Retained payment"
+                    : "Paid now / وصول",
+                )}
+              </span>
               <b>{money(receipt.sale.paid_now ?? receipt.sale.total)}</b>
             </div>
             <div className="cart-math">
               <span>{tr("Khata / ادھار")}</span>
               <b>{money(receipt.sale.credit_amount || 0)}</b>
             </div>
+            {receipt.sale.revision > 0 && (
+              <>
+                <p className="hint">
+                  {tr(
+                    "Revised invoice: payment details below are the original collection. Adjustments and refunds are listed separately.",
+                  )}
+                </p>
+                <p>
+                  {tr("Revision")}: {receipt.sale.revision}{" "}
+                  <button
+                    className="mini no-print"
+                    onClick={async () => {
+                      try {
+                        const original: any = await api(
+                          `/api/v1/tenants/${tenant}/sales/${receipt.sale.id}/adjustments/original`,
+                        );
+                        setReceipt({ ...original, original: true });
+                      } catch (e: any) {
+                        setToast(e.message);
+                      }
+                    }}
+                  >
+                    {tr("Original receipt")}
+                  </button>
+                </p>
+                {receipt.sale.adjustments?.map((a: any) => (
+                  <div
+                    className="panel"
+                    key={a.id}
+                    style={{ padding: 12, marginBottom: 8 }}
+                  >
+                    <b>
+                      {tr("Return credit")}: {money(a.credit)}
+                    </b>
+                    <p>
+                      {tr(
+                        a.net > 0
+                          ? "Collected from customer"
+                          : a.net < 0
+                            ? "Refunded to customer"
+                            : "No payment difference",
+                      )}
+                      : {money(Math.abs(a.net))}
+                    </p>
+                    {a.returns?.map((r: any) => (
+                      <p key={r.item}>
+                        {r.name} · {r.quantity} ·{" "}
+                        {tr(
+                          (
+                            {
+                              expired: "Expired item",
+                              damaged: "Damaged item",
+                              incorrect: "Incorrect item",
+                              opened: "Opened item",
+                            } as Record<string, string>
+                          )[r.reason],
+                        )}
+                      </p>
+                    ))}
+                    {a.cash_received > 0 && (
+                      <p>
+                        {tr("Cash received")}: {money(a.cash_received)} ·{" "}
+                        {tr("Change returned")}: {money(a.change)}
+                      </p>
+                    )}
+                    {a.reference && <p>{a.reference}</p>}
+                    <small>
+                      {a.created ? date(a.created) : ""} · {a.actor}
+                    </small>
+                    <small>
+                      {a.id} · {tr(a.settlement)}
+                      {a.replacement_invoice
+                        ? " · " + a.replacement_invoice
+                        : ""}
+                    </small>
+                  </div>
+                ))}
+              </>
+            )}
+            {receipt.sale.revision > 0 && <h3>{tr("Original collection")}</h3>}
             {receipt.sale.cash_amount > 0 && (
               <>
                 <div className="cart-math">
@@ -2951,7 +3060,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   ".pdf?tenant=" +
                   encodeURIComponent(tenant) +
                   "&language=" +
-                  language
+                  language +
+                  (receipt.original ? "&original=true" : "")
                 }
               >
                 <Download size={16} /> {tr("PDF")}{" "}

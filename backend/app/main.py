@@ -48,7 +48,7 @@ async def lifespan(app):
 
 app = FastAPI(
     title="StockDesk Inventory & POS",
-    version="1.13.0",
+    version="1.14.0",
     lifespan=lifespan,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
@@ -216,12 +216,22 @@ async def mutate(request: Request):
 
 
 @app.get("/api/invoices/{sale_id}.pdf")
-async def invoice(request: Request, sale_id: str, tenant: str, language: str = "en"):
+async def invoice(
+    request: Request,
+    sale_id: str,
+    tenant: str,
+    language: str = "en",
+    original: bool = False,
+):
     if language not in ("en", "ur"):
         fail("Invalid language.")
     async with db.pool.acquire() as c:
         u = await security.identity(c, request)
         data = await service.get_receipt(c, u, tenant, sale_id)
+    if original:
+        from .api.exchanges import original_receipt
+
+        data = await original_receipt(tenant, sale_id, u)
     pdf = await asyncio.to_thread(
         invoice_pdf, data["sale"], data["items"], language, data.get("tenders")
     )
@@ -375,3 +385,7 @@ app.include_router(promotions_router)
 from .api.alerts import router as alerts_router
 
 app.include_router(alerts_router)
+
+from .api.exchanges import router as exchanges_router
+
+app.include_router(exchanges_router)

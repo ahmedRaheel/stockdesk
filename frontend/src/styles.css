@@ -2754,3 +2754,23 @@ html[dir="rtl"] body {
   cursor: pointer;
   color: var(--accent, #285ba0);
 }
+
+.invoice-adjustment h3 {
+  margin-block: 18px 10px;
+}
+.invoice-adjustment .cart-math input,
+.invoice-adjustment td input:not([type="checkbox"]),
+.invoice-adjustment td select {
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 9px 10px;
+  color: #334155;
+  background: white;
+  font: inherit;
+}
+.invoice-adjustment .cart-math input {
+  width: 120px;
+}
+.invoice-adjustment > .secondary {
+  margin-inline-end: 8px;
+}

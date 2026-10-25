@@ -206,3 +206,8 @@ All routes below require `alerts` permission and tenant membership (or platform-
 - `POST .../alert-center/{id}/acknowledge`: note, 1–500 characters. First acknowledgement is retained on retry; resolved events return 409.
 
 The existing `/inventory-alerts` batch-summary API is unchanged.
+
+
+## Invoice adjustments (1.14)
+
+See [release contract and accounting behavior](RELEASE-1.14.md). Preview/commit/history/original endpoints live under `/api/v1/tenants/{tenant}/sales/{sale_id}/adjustments`. Use a fresh revision and quote token, and retain the request ID for retries. Monetary amounts are integer minor units. Cash settlement requires an open till. Partial khata invoices are not supported.

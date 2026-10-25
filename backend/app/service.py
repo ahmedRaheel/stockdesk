@@ -98,6 +98,15 @@ async def get_receipt(c, u, tenant, sale_id):
             sale_id,
         )
     )
+    result["sale"].pop("original_snapshot", None)
+    result["sale"]["adjustments"] = [
+        json.loads(r["result"]) if isinstance(r["result"], str) else r["result"]
+        for r in await c.fetch(
+            "SELECT result FROM sale_adjustments WHERE tenant=$1 AND sale=$2 ORDER BY revision",
+            tenant,
+            sale_id,
+        )
+    ]
     cash = sale["cash_amount"]
     result["sale"]["cash_received"] = sale["tendered"] if cash else 0
     result["sale"]["change"] = max(0, sale["tendered"] - cash) if cash else 0
@@ -148,6 +157,8 @@ async def snapshot(c, u, tenant):
                 tenant,
             )
         )
+        for sale in out["sales"]:
+            sale.pop("original_snapshot", None)
         out["stats"] = dict(
             await c.fetchrow(
                 "SELECT COUNT(*) AS orders,COALESCE(SUM(total),0)::bigint AS revenue,COALESCE(SUM(total) FILTER(WHERE (created AT TIME ZONE 'UTC')::date=(now() AT TIME ZONE 'UTC')::date),0)::bigint AS today FROM sales WHERE tenant=$1 AND status='completed'",

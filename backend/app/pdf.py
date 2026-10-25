@@ -2,6 +2,7 @@
 
 from io import BytesIO
 from decimal import Decimal
+from datetime import datetime
 from pathlib import Path
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -29,6 +30,20 @@ def invoice_pdf(sale, items, language="en", tenders=None):
     import re
 
     labels = {
+        "Original collection": "اصل وصولی",
+        "Invoice revision": "رسید کی ترمیم",
+        "Retained payment": "باقی اشیاء کی ادا شدہ رقم",
+        "Return credit": "واپسی کی قیمت",
+        "Collected from customer": "گاہک سے وصول شدہ",
+        "Refunded to customer": "گاہک کو واپس کردہ",
+        "No payment difference": "رقم میں کوئی فرق نہیں",
+        "Replacement invoice": "متبادل کی رسید",
+        "Payment details are the original collection. Adjustments are listed separately.": "ادائیگی کی تفصیل اصل وصولی کی ہے۔ تبدیلیاں الگ درج ہیں۔",
+        "Returned items and settlement recorded in adjustment history.": "واپس شدہ اشیاء اور ادائیگی تبدیلی کی تاریخ میں درج ہیں۔",
+        "expired": "میعاد ختم",
+        "damaged": "خراب",
+        "incorrect": "غلط",
+        "opened": "کھلی ہوئی",
         "Cash received": "وصول شدہ نقد رقم",
         "Change returned": "گاہک کو واپس کی گئی رقم",
         "Promotion": "رعایتی پیشکش",
@@ -128,7 +143,15 @@ def invoice_pdf(sale, items, language="en", tenders=None):
         ),
         Spacer(1, 20),
         p(label("INVOICE") + " " + sale["invoice_number"], "Heading1"),
-        p(label("Date") + ": " + sale["created"].strftime("%Y-%m-%d %H:%M UTC")),
+        p(
+            label("Date")
+            + ": "
+            + (
+                datetime.fromisoformat(sale["created"])
+                if isinstance(sale["created"], str)
+                else sale["created"]
+            ).strftime("%Y-%m-%d %H:%M UTC")
+        ),
         p(label("Customer") + ": " + label(sale["customer"])),
         p(label("Status") + ": " + label(sale["status"].upper())),
         Spacer(1, 18),
@@ -154,7 +177,11 @@ def invoice_pdf(sale, items, language="en", tenders=None):
                     + label(i.get("unit_name", ""))
                 ),
                 money(i["price"]),
-                money(i.get("line_total", i["quantity"] * i["price"])),
+                money(
+                    i["line_total"]
+                    if "line_total" in i
+                    else Decimal(str(i["quantity"])) * i["price"]
+                ),
             ]
         )
     table = Table(rows, colWidths=[195, 80, 110, 110], repeatRows=1, hAlign="LEFT")
@@ -179,7 +206,10 @@ def invoice_pdf(sale, items, language="en", tenders=None):
         ("Tax added", sale["tax"] - sale.get("tax_included", 0)),
         ("Tax included in prices", sale.get("tax_included", 0)),
         ("TOTAL", sale["total"]),
-        ("Paid now", sale.get("paid_now", sale["total"])),
+        (
+            "Retained payment" if sale.get("revision") else "Paid now",
+            sale.get("paid_now", sale["total"]),
+        ),
         ("Khata credit", sale.get("credit_amount", 0)),
     ]:
         story.append(
@@ -188,6 +218,65 @@ def invoice_pdf(sale, items, language="en", tenders=None):
                 "Heading3" if caption == "TOTAL" else "Normal",
             )
         )
+    if sale.get("revision"):
+        story.append(
+            p(label("Invoice revision") + ": " + str(sale["revision"]), "Heading3")
+        )
+        story.append(
+            p(
+                label(
+                    "Payment details are the original collection. Adjustments are listed separately."
+                )
+            )
+        )
+        for adjustment in sale.get("adjustments", []):
+            for returned in adjustment["returns"]:
+                story.append(
+                    p(
+                        returned["name"]
+                        + " / "
+                        + str(returned["quantity"])
+                        + " / "
+                        + label(returned["reason"])
+                    )
+                )
+            story.append(p(label("Return credit") + ": " + money(adjustment["credit"])))
+            caption = (
+                "Collected from customer"
+                if adjustment["net"] > 0
+                else (
+                    "Refunded to customer"
+                    if adjustment["net"] < 0
+                    else "No payment difference"
+                )
+            )
+            story.append(p(label(caption) + ": " + money(abs(adjustment["net"]))))
+            story.append(p(adjustment["id"] + " / " + adjustment["settlement"]))
+            if adjustment.get("cash_received"):
+                story.append(
+                    p(
+                        label("Cash received")
+                        + ": "
+                        + money(adjustment["cash_received"])
+                    )
+                )
+                story.append(
+                    p(label("Change returned") + ": " + money(adjustment["change"]))
+                )
+            if adjustment.get("reference"):
+                story.append(p(adjustment["reference"]))
+            story.append(p(adjustment.get("created", "") + " / " + adjustment["actor"]))
+
+            if adjustment.get("replacement_invoice"):
+                story.append(
+                    p(
+                        label("Replacement invoice")
+                        + ": "
+                        + adjustment["replacement_invoice"]
+                    )
+                )
+    if sale.get("revision"):
+        story.append(p(label("Original collection"), "Heading3"))
     cash = sale.get(
         "cash_amount",
         (
@@ -248,7 +337,9 @@ def invoice_pdf(sale, items, language="en", tenders=None):
         story.append(
             p(
                 label(
-                    "RETURNED — stock restored. Refund payment must be completed separately."
+                    "Returned items and settlement recorded in adjustment history."
+                    if sale.get("revision")
+                    else "RETURNED — stock restored. Refund payment must be completed separately."
                 )
             )
         )

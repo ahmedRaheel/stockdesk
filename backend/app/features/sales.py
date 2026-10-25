@@ -59,6 +59,13 @@ async def checkout(c, u, b, t=None):
         "SELECT * FROM sales WHERE tenant=$1 AND request=$2", tenant, request
     )
     if prior:
+        original = prior.get("original_snapshot")
+        if original:
+            prior = (
+                json.loads(original)["sale"]
+                if isinstance(original, str)
+                else original["sale"]
+            )
         if prior["signature"] != signature:
             fail("Submission ID already used for different data.")
         return {
@@ -353,6 +360,8 @@ async def return_sale(c, u, b, t=None):
     )
     if not sale:
         fail("Sale not found.", 404)
+    if sale["revision"]:
+        fail("Use item adjustments for an invoice that has already been revised.", 409)
     if sale["status"] == "returned":
         return {"ok": True}
     reason_id = b.get("reason_id") or None

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StockDesk Inventory & POS",
-    "version": "1.13.0"
+    "version": "1.14.0"
   },
   "paths": {
     "/api/health": {
@@ -178,6 +178,16 @@
               "type": "string",
               "default": "en",
               "title": "Language"
+            }
+          },
+          {
+            "name": "original",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Original"
             }
           }
         ],
@@ -4556,7 +4566,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Preview"
+                "$ref": "#/components/schemas/app__api__imports__Preview"
               }
             }
           }
@@ -4614,7 +4624,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Commit"
+                "$ref": "#/components/schemas/app__api__imports__Commit"
               }
             }
           }
@@ -6512,6 +6522,252 @@
           }
         }
       }
+    },
+    "/api/v1/tenants/{tenant}/sales/{sale_id}/adjustments/preview": {
+      "post": {
+        "tags": [
+          "Invoice adjustments"
+        ],
+        "summary": "Preview",
+        "operationId": "preview_api_v1_tenants__tenant__sales__sale_id__adjustments_preview_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "sale_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sale Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__api__exchanges__Preview"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/sales/{sale_id}/adjustments": {
+      "get": {
+        "tags": [
+          "Invoice adjustments"
+        ],
+        "summary": "History",
+        "operationId": "history_api_v1_tenants__tenant__sales__sale_id__adjustments_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "sale_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sale Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Invoice adjustments"
+        ],
+        "summary": "Commit",
+        "operationId": "commit_api_v1_tenants__tenant__sales__sale_id__adjustments_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "sale_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sale Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__api__exchanges__Commit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/sales/{sale_id}/adjustments/original": {
+      "get": {
+        "tags": [
+          "Invoice adjustments"
+        ],
+        "summary": "Original Receipt",
+        "operationId": "original_receipt_api_v1_tenants__tenant__sales__sale_id__adjustments_original_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "sale_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sale Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6932,29 +7188,6 @@
           "counted_cash"
         ],
         "title": "CloseTill"
-      },
-      "Commit": {
-        "properties": {
-          "csv_text": {
-            "type": "string",
-            "maxLength": 200000,
-            "minLength": 1,
-            "title": "Csv Text"
-          },
-          "request": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Request"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "csv_text",
-          "request"
-        ],
-        "title": "Commit"
       },
       "Component": {
         "properties": {
@@ -7522,22 +7755,6 @@
           "version"
         ],
         "title": "Policy"
-      },
-      "Preview": {
-        "properties": {
-          "csv_text": {
-            "type": "string",
-            "maxLength": 200000,
-            "minLength": 1,
-            "title": "Csv Text"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "csv_text"
-        ],
-        "title": "Preview"
       },
       "ProductCreate": {
         "properties": {
@@ -8429,6 +8646,52 @@
         ],
         "title": "ReturnSale"
       },
+      "ReturnedLine": {
+        "properties": {
+          "item": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Item"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "expired",
+              "damaged",
+              "incorrect",
+              "opened"
+            ],
+            "title": "Reason"
+          },
+          "restock": {
+            "type": "boolean",
+            "title": "Restock",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "item",
+          "quantity",
+          "reason"
+        ],
+        "title": "ReturnedLine"
+      },
       "Rule": {
         "properties": {
           "name": {
@@ -8836,6 +9099,173 @@
           "counted"
         ],
         "title": "Line"
+      },
+      "app__api__exchanges__Commit": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "returns": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnedLine"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Returns"
+          },
+          "replacements": {
+            "items": {
+              "$ref": "#/components/schemas/SaleLine"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Replacements"
+          },
+          "tax_bps": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Tax Bps",
+            "default": 0
+          },
+          "prescription_reference": {
+            "type": "string",
+            "maxLength": 150,
+            "title": "Prescription Reference",
+            "default": ""
+          },
+          "request": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Request"
+          },
+          "quote_token": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Quote Token"
+          },
+          "settlement": {
+            "type": "string",
+            "enum": [
+              "cash",
+              "external"
+            ],
+            "title": "Settlement",
+            "default": "cash"
+          },
+          "tendered": {
+            "type": "integer",
+            "maximum": 100000000000.0,
+            "minimum": 0.0,
+            "title": "Tendered",
+            "default": 0
+          },
+          "reference": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Reference",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "returns",
+          "request",
+          "quote_token"
+        ],
+        "title": "Commit"
+      },
+      "app__api__exchanges__Preview": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "returns": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnedLine"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Returns"
+          },
+          "replacements": {
+            "items": {
+              "$ref": "#/components/schemas/SaleLine"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Replacements"
+          },
+          "tax_bps": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Tax Bps",
+            "default": 0
+          },
+          "prescription_reference": {
+            "type": "string",
+            "maxLength": 150,
+            "title": "Prescription Reference",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "returns"
+        ],
+        "title": "Preview"
+      },
+      "app__api__imports__Commit": {
+        "properties": {
+          "csv_text": {
+            "type": "string",
+            "maxLength": 200000,
+            "minLength": 1,
+            "title": "Csv Text"
+          },
+          "request": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Request"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "csv_text",
+          "request"
+        ],
+        "title": "Commit"
+      },
+      "app__api__imports__Preview": {
+        "properties": {
+          "csv_text": {
+            "type": "string",
+            "maxLength": 200000,
+            "minLength": 1,
+            "title": "Csv Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "csv_text"
+        ],
+        "title": "Preview"
       },
       "app__api__payables__Line": {
         "properties": {

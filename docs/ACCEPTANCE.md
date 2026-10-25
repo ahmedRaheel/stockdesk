@@ -126,3 +126,8 @@ Large-store launch requires the remaining work in ARCHITECTURE.md and measured c
 - Test expiry today, already expired, boundary day and one day outside the window; ignore zero-stock and undated batches. Check weighted thresholds and per-product scope.
 - Edit/disable a rule: existing episodes close with rule_changed. Reject stale versions, cross-tenant products/events and Cashier writes. Confirm audit entries.
 - Under real PostgreSQL and two application workers, race evaluation with stock changes and acknowledge/disable actions; assert one live episode per rule/entity. Test graceful shutdown and inspect errors/stale evaluation timestamps. This production acceptance is not established by single-process PGlite checks.
+
+
+## 1.14 invoice adjustment acceptance
+
+Exercise an expired/damaged/opened return (no sellable stock increase), an inspected incorrect-item restock, partial/repeated returns, a more expensive exchange with extra cash/change, a cheaper exchange/refund, and an equal-value exchange. Check original/revised/replacement receipts, PDF, net till movements, failed replacement rollback, stale revision and duplicate request protection. Verify current historical reports revise retained sales values, while movement dates remain current. Reject insufficient till cash, short tender, unsafe/expired restock, excessive quantity, missing external reference and unauthorized/cross-tenant requests. Partial khata, gateways and statutory credit-note acceptance remain out of scope.

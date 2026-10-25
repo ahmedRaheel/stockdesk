@@ -1,5 +1,13 @@
-# Verification record — StockDesk 1.13
+# Verification record — StockDesk 1.14
 
+
+## Release 1.14 checks
+
+- Full backend regression: **63 passed, 1 skipped** in 95.43 seconds using PGlite's PostgreSQL wire adapter. The skipped test requires real PostgreSQL multiprocess concurrency. Final focused adjustment/PDF regression: **4 passed** in 7.47 seconds after the batch-restocking safeguard and receipt fixes.
+- Adjustment coverage: original-price tax/discount credit, repeated partial/final returns without rounding loss, original checkout replay, request-id conflict/retry, stale revision, expired/damaged/opened non-sellable stock, incorrect-item restocking, expired-batch and ambiguous multi-batch restock rejection, excessive quantity, inclusive tax, failed replacement atomic rollback, no-open-till rejection, equal-value exchange, net till collection/refund, over-tender/change, external references, original/revised PDF, cost redaction, cashier denial, tenant isolation and CSRF.
+- Chromium against actual React/FastAPI exercises exchange preview, extra cash/change, revised receipt/PDF, original receipt/PDF link, pure cash refund and Urdu/mobile. The test-only PGlite pool is single-connection; production settings remain unchanged. Screenshot and revised PDF render reviewed. The original-PDF snapshot timestamp/string fallback was fixed after an explicit original-download regression test. Initial browser assertions were corrected for currency formatting, cash-input accessible name and asynchronous original-receipt loading.
+- TypeScript/Vite production build and literal Urdu coverage pass. OpenAPI regenerated for 1.14. Migrations 001–018 remain byte-identical to the preceding package; migration 019 is new. No dependency added.
+- This is current-invoice revision accounting with preserved snapshots, not a statutory credit-note ledger. Partial khata, payment provider settlement, original-tender refund routing, independent refund approvals, real PostgreSQL multiprocess/load, production Docker and hardware acceptance remain outstanding. See CHECKLIST.md and RELEASE-1.14.md.
 
 ## Release 1.13 checks
 
