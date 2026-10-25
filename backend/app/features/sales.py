@@ -65,6 +65,15 @@ async def checkout(c, u, b, t=None):
             "id": prior["id"],
             "total": prior["total"],
             "invoice_number": prior["invoice_number"],
+            "cash_received": prior["tendered"] if prior["cash_amount"] else 0,
+            "cash_amount": prior["cash_amount"],
+            "change": (
+                max(0, prior["tendered"] - prior["cash_amount"])
+                if prior["cash_amount"]
+                else 0
+            ),
+            "paid_now": prior["paid_now"],
+            "credit_amount": prior["credit_amount"],
         }
     if held_id:
         held = await c.fetchrow(
@@ -327,6 +336,8 @@ async def checkout(c, u, b, t=None):
         "id": sid,
         "total": total,
         "invoice_number": inv,
+        "cash_received": tendered if cash_amount else 0,
+        "cash_amount": cash_amount,
         "change": tendered - cash_amount if cash_amount else 0,
         "credit_amount": credit_amount,
         "paid_now": paid_now,

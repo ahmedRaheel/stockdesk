@@ -1,11 +1,11 @@
-# Consolidated implementation checklist — 1.10
+# Consolidated implementation checklist — 1.11
 
 “Implemented” describes the bounded behavior below, not every requested variant. Code is delivered; production deployment and physical/provider acceptance are separate.
 
 | Area | Implemented in this package | Still missing from requested scope |
 |---|---|---|
 | POS entry | Keyboard-mode barcode/SKU reader, manual catalog/code entry, weighted quantities, F2/F4/F8, hold/resume | Camera QR decoding, hardware SDKs, scale/drawer control |
-| Sales and payments | Cash/external payment recording, split tenders, khata balances, invoice/receipt PDF | Payment gateway charging/settlement, FX conversion, partial returns/exchanges and refund allocation |
+| Sales and payments | Cash/external payment recording, split tenders, khata balances, cash received/change displayed and printed, invoice/receipt PDF | Payment gateway charging/settlement, FX conversion, partial returns/exchanges and refund allocation |
 | Returns | Whole-sale return with stock restoration and explicit refund handling | Partial product returns, exchanges, credit-note accounting |
 | Discounts and promotions | Fixed manual invoice discount; explicit-code fixed/percentage coupons, same-product BOGO, multi-product bundle pricing, date/daily happy-hour restrictions, minimum spend, discount caps and global redemption limits | Automatic offer selection, stacking, per-customer limits, cross-product BOGO, weekday/overnight campaigns, independent discount/void approvals |
 | Tax | Tenant-configured profiles, inclusive/exclusive, effective dates, product override, frozen invoice tax | Compound/geographic/withholding tax, statutory filing/FBR/e-invoicing |
@@ -13,7 +13,7 @@
 | Catalog | SKU/barcode, unit lookup, weighted units, categories, aliases, atomic CSV/XLSX new-product import with preview and template | Variants, serials, pack conversion, legacy XLS, update imports, recipes/BOM |
 | Inventory | Ledger, FEFO batches, expiry, dated receiving, reasoned adjustments, approved batch counts | Multi-location, transfers, FIFO/LIFO valuation layers, landed cost, warehouse workflows |
 | Procurement | Suppliers, POs, partial receiving, cancellation of remainder, receipt-bound billed-goods supplier returns (new receipts from 1.7), owner-configured independent PO approval, current supplier quotes/eligible price comparison, observed first-delivery metrics | Multi-stage/budget approval, historical/unbilled returns, RMA/replacement workflows, tiered price lists/pack or landed-cost comparison, portal, EDI/auto-send |
-| Supplier finance (1.7) | Cumulative PO/received/billed quantity and exact cost matching; invoice register; partial payments; ageing; audited voids; goods-return credit notes and recorded supplier refunds | Price-only/cross-bill credit notes and credit reversals, advances, payable approvals, bank reconciliation, general ledger, supplier statement PDF |
+| Supplier finance (1.7) | Cumulative PO/received/billed quantity and exact cost matching; invoice register; partial payments; ageing; audited voids; goods-return credit notes and recorded supplier refunds; English/Urdu current posted supplier statement PDFs | Price-only/cross-bill credit notes and credit reversals, advances, payable approvals, bank reconciliation, general ledger |
 | Khata and installments | Customer ledger, credit limit approval, partial credit, recoveries, due dates, schedules and statements | Guarantor/CNIC/photo workflow, predictive trust scores, automated reminders, markup/late-fee policy, recovery agent tracking |
 | Cashier operations | Till opening, cash in/out, counted closing and discrepancy notes | Hardware cash drawer, full fiscal X/Z reports, PIN/biometric switching |
 | Analytics | Sales dashboard/rankings, basic profit breakdowns, descriptive ABC/XYZ, CSV reports; frozen tax register; current batch age and current-catalog-cost valuation | Builder/scheduling, statutory tax/return-period reports, receipt-layer age and FIFO/LIFO valuation, inventory turnover, Excel/PDF report exports, consolidated financials |

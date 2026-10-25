@@ -436,3 +436,82 @@ async def void_payment(
                 {"id": payment_id, "bill": identifier, "reason": payload.reason},
             )
     return {"ok": True}
+
+
+async def supplier_statement(c, tenant, supplier):
+    person = await c.fetchrow(
+        "SELECT id,name FROM suppliers WHERE tenant=$1 AND id=$2", tenant, supplier
+    )
+    if not person:
+        fail("Supplier not found.", 404)
+    entries = await c.fetch(
+        """WITH events AS (
+        SELECT b.id,b.created,b.invoice_date AS date,'bill' AS kind,b.invoice_number AS reference,b.total AS amount
+        FROM supplier_bills b WHERE b.tenant=$1 AND b.supplier=$2 AND b.status='posted'
+        UNION ALL
+        SELECT p.id,p.created,p.paid_on,'payment',p.reference,-p.amount
+        FROM supplier_payments p JOIN supplier_bills b ON b.tenant=p.tenant AND b.id=p.bill
+        WHERE b.tenant=$1 AND b.supplier=$2 AND b.status='posted' AND p.status='posted'
+        UNION ALL
+        SELECT r.id,r.created,r.returned_on,'supplier credit',r.credit_number,-r.total
+        FROM supplier_returns r JOIN supplier_bills b ON b.tenant=r.tenant AND b.id=r.bill
+        WHERE b.tenant=$1 AND b.supplier=$2 AND b.status='posted'
+        UNION ALL
+        SELECT r.id,r.created,r.received_on,'supplier refund',r.reference,r.amount
+        FROM supplier_refunds r JOIN supplier_bills b ON b.tenant=r.tenant AND b.id=r.bill
+        WHERE b.tenant=$1 AND b.supplier=$2 AND b.status='posted' AND r.status='posted'
+    ) SELECT * FROM events ORDER BY date,created,kind,id LIMIT 5001""",
+        tenant,
+        supplier,
+    )
+    if len(entries) > 5000:
+        fail("Supplier statement exceeds 5000 entries.", 422)
+    balance = 0
+    result = []
+    for row in entries:
+        balance += row["amount"]
+        result.append(
+            dict(
+                created=row["date"],
+                kind=row["kind"],
+                reference=row["reference"],
+                amount=row["amount"],
+                balance=balance,
+            )
+        )
+    return dict(supplier=dict(person), entries=result, balance=balance)
+
+
+@router.get("/suppliers/{supplier}/statement")
+async def statement(tenant: str, supplier: str, user: User):
+    async with db.pool.acquire() as c:
+        async with c.transaction(isolation="repeatable_read", readonly=True):
+            await auth(c, user, tenant)
+            return await supplier_statement(c, tenant, supplier)
+
+
+@router.get("/suppliers/{supplier}/statement.pdf")
+async def statement_pdf(
+    tenant: str,
+    supplier: str,
+    user: User,
+    language: str = Query("en", pattern="^(en|ur)$"),
+):
+    import asyncio
+    from fastapi.responses import Response
+    from ..pdf import customer_statement_pdf
+
+    async with db.pool.acquire() as c:
+        async with c.transaction(isolation="repeatable_read", readonly=True):
+            business, _ = await service.authorize(c, user, tenant, "finance")
+            data = await supplier_statement(c, tenant, supplier)
+    content = await asyncio.to_thread(
+        customer_statement_pdf, data, dict(business), language
+    )
+    return Response(
+        content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'attachment; filename="supplier-statement.pdf"'
+        },
+    )

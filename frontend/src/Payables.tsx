@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, send } from "./api";
-import { t as tr } from "./i18n";
+import { t as tr, useLanguage } from "./i18n";
 import SupplierReturns, { Credit, Refund } from "./SupplierReturns";
 import LookupSelect from "./LookupSelect";
 type OrderLine = {
@@ -18,6 +18,7 @@ type Order = {
   lines: OrderLine[];
 };
 type Bill = {
+  supplier: string;
   id: string;
   invoice_number: string;
   supplier_name: string;
@@ -72,6 +73,7 @@ export default function Payables({
   currency: string;
   canReturn: boolean;
 }) {
+  const [language] = useLanguage();
   const base = `/api/v1/tenants/${tenant}/payables`;
   const [data, setData] = useState<Listing | null>(null),
     [detail, setDetail] = useState<Detail | null>(null),
@@ -588,7 +590,17 @@ export default function Payables({
                         {b.invoice_number}
                       </button>
                     </td>
-                    <td>{b.supplier_name}</td>
+                    <td>
+                      {b.supplier_name}
+                      <br />
+                      <a
+                        href={`${base}/suppliers/${b.supplier}/statement.pdf?language=${language}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {tr("Supplier statement PDF")}
+                      </a>
+                    </td>
                     <td>{b.due_date}</td>
                     <td>{money(b.total)}</td>
                     <td>

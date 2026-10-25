@@ -98,6 +98,9 @@ async def get_receipt(c, u, tenant, sale_id):
             sale_id,
         )
     )
+    cash = sale["cash_amount"]
+    result["sale"]["cash_received"] = sale["tendered"] if cash else 0
+    result["sale"]["change"] = max(0, sale["tendered"] - cash) if cash else 0
     if "cost" not in grants(receipt_role):
         for item in result["items"]:
             item.pop("cost", None)

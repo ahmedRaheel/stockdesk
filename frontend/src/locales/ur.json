@@ -902,5 +902,11 @@
   "CSV or Excel file": "CSV یا ایکسل فائل",
   "Could not read the catalog file.": "کیٹلاگ فائل پڑھی نہیں جا سکی۔",
   "XLSX file is too large. Maximum 1 MB.": "XLSX فائل بہت بڑی ہے۔ زیادہ سے زیادہ ۱ میگابائٹ۔",
-  "Excel formulas, macros and external workbook links are rejected. Use text for SKU, category, unit and barcode cells. Replace the sample row before importing.": "ایکسل فارمولے، میکرو اور دوسری ورک بک کے روابط قبول نہیں ہیں۔ SKU، قسم، اکائی اور بارکوڈ خانے متن رکھیں۔ درآمد سے پہلے نمونے کی قطار تبدیل کریں۔"
+  "Excel formulas, macros and external workbook links are rejected. Use text for SKU, category, unit and barcode cells. Replace the sample row before importing.": "ایکسل فارمولے، میکرو اور دوسری ورک بک کے روابط قبول نہیں ہیں۔ SKU، قسم، اکائی اور بارکوڈ خانے متن رکھیں۔ درآمد سے پہلے نمونے کی قطار تبدیل کریں۔",
+  "Cash received": "وصول شدہ نقد رقم",
+  "Change returned": "گاہک کو واپس کی گئی رقم",
+  "Change to return:": "گاہک کو واپس کرنے کی رقم:",
+  "Cash still required:": "مزید نقد رقم درکار:",
+  "Exact cash": "بل کے برابر نقد رقم",
+  "Supplier statement PDF": "سپلائر کا کھاتہ PDF"
 }

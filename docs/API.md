@@ -181,3 +181,10 @@ Purchase-order reads now include order_total, approval_required, approval_thresh
 - `/held-bills` accepts optional `promotion_code`; it is retained without reservation.
 - `GET .../catalog-imports/template.xlsx`: authenticated `product` permission; returns the static Excel template.
 - `POST .../catalog-imports/convert-xlsx`: authenticated `product` permission and CSRF origin/bearer rules. Body `{ "file_base64": "..." }`, maximum 1 MB decoded. Returns `csv_text` and `count`; pass the CSV to the existing `/preview` and commit endpoints. Conversion performs no writes. See release notes for input shape and rejection rules.
+
+## 1.11 cash and supplier statement additions
+
+Checkout responses (including idempotent retries) include `cash_received`, `cash_amount`, `change`, `paid_now` and `credit_amount` in minor currency units. Receipt `sale` includes derived `cash_received` and `change` from saved cash/tender values.
+
+- `GET /api/v1/tenants/{tenant}/payables/suppliers/{supplier}/statement` returns supplier, dated entries with signed amounts/running balances, and final net payable.
+- `GET /api/v1/tenants/{tenant}/payables/suppliers/{supplier}/statement.pdf?language=en|ur` downloads the same current posted ledger. Finance permission required; maximum 5,000 entries, otherwise 422. Missing/cross-tenant supplier is 404 after authorization.

@@ -219,6 +219,14 @@ async def test_supplier_returns_credits_refunds_and_replay():
             assert (await c.get(base + "/payables")).json()["summary"][
                 "supplier_credit"
             ] == 122
+            pre = (
+                await c.get(base + f"/payables/suppliers/{supplier}/statement")
+            ).json()
+            assert pre["balance"] == -122
+            assert any(
+                x["kind"] == "supplier refund" and x["amount"] == 100
+                for x in pre["entries"]
+            )
             assert (
                 await c.post(
                     path + f"/refunds/{refund_id}/void",
@@ -233,6 +241,32 @@ async def test_supplier_returns_credits_refunds_and_replay():
             assert (await c.get(base + "/payables")).json()["summary"][
                 "supplier_credit"
             ] == 222
+            statement_url = base + f"/payables/suppliers/{supplier}/statement"
+            other = (
+                await c.post(
+                    "/api/workspace",
+                    json=dict(
+                        action="tenant", name="Other supplier tenant", currency="PKR"
+                    ),
+                )
+            ).json()["id"]
+            assert (
+                await c.get(
+                    f"/api/v1/tenants/{other}/payables/suppliers/{supplier}/statement"
+                )
+            ).status_code == 404
+            statement = (await c.get(statement_url)).json()
+            assert statement["balance"] == -222
+            assert sum(x["amount"] for x in statement["entries"]) == -222
+            assert not any(x["kind"] == "supplier refund" for x in statement["entries"])
+            for language in ["en", "ur"]:
+                pdf = await c.get(statement_url + ".pdf", params={"language": language})
+                assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
+            assert (await c.get(statement_url + ".pdf?language=bad")).status_code == 422
+            assert (
+                await c.get(base + "/payables/suppliers/missing/statement")
+            ).status_code == 404
+
             assert (
                 await c.post(
                     path + "/void", json={"reason": "Cannot remove stock credit"}
@@ -351,6 +385,8 @@ async def test_supplier_returns_credits_refunds_and_replay():
                 await staff.post(
                     "/api/auth/login", json={"email": email, "password": pwd}
                 )
+                assert (await staff.get(statement_url)).status_code == 403
+                assert (await staff.get(statement_url + ".pdf")).status_code == 403
                 assert (await staff.get(path + "/return-options")).status_code == 403
                 assert (
                     await staff.post(path + "/returns", json=credit)

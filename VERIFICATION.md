@@ -1,4 +1,14 @@
-# Verification record — StockDesk 1.10
+# Verification record — StockDesk 1.11
+
+
+## Release 1.11 checks
+
+- Full backend suite: **57 passed, 1 skipped** in 83.58 seconds under PGlite's PostgreSQL wire adapter. Real PostgreSQL multiprocess concurrency remains skipped.
+- New cash acceptance test verifies over-tender, exact payment, one-cent shortfall rejection, split cash/external payment, khata cash change, saved receipt fields, English/Urdu invoice generation, stable idempotent response, net cash totals and failed-checkout rollback. Credit-enabled customer state is seeded explicitly for the khata case; approval behavior remains covered by the existing retail suite.
+- Supplier statement assertions verify posted refund inclusion, voided refund exclusion, exact final balance, English/Urdu PDF responses, invalid language, missing/cross-tenant supplier denial and finance-permission denial.
+- Chromium actual React/FastAPI flow passed excess cash entry and live change, saved receipt change, supplier statement link/download, plus the promotion/hold/resume/Excel regression workflow with no JavaScript page errors. Cash receipt and English/Urdu invoice/statement PDF renders were visually inspected. A missing receipt row layout class found in visual review was corrected before the final browser run.
+- TypeScript/Vite production build and literal Urdu coverage passed. OpenAPI regenerated for 1.11. Existing migrations through 017 are preserved; no new migration/dependency.
+- Browser database harness uses a test-only single-connection pool. Production Docker/nginx startup, real PostgreSQL load/concurrency, physical receipt printing and live deployment remain unverified. Full checklist completion is not claimed.
 
 
 ## Release 1.10 checks

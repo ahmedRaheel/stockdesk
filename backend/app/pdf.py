@@ -29,6 +29,8 @@ def invoice_pdf(sale, items, language="en", tenders=None):
     import re
 
     labels = {
+        "Cash received": "وصول شدہ نقد رقم",
+        "Change returned": "گاہک کو واپس کی گئی رقم",
         "Promotion": "رعایتی پیشکش",
         "Split payment": "مختلف طریقوں سے ادائیگی",
         "cash": "نقد",
@@ -186,6 +188,26 @@ def invoice_pdf(sale, items, language="en", tenders=None):
                 "Heading3" if caption == "TOTAL" else "Normal",
             )
         )
+    cash = sale.get(
+        "cash_amount",
+        (
+            sum(t["amount"] for t in (tenders or []) if t["is_cash"])
+            if tenders
+            else (
+                sale.get("paid_now", sale["total"]) if sale["payment"] == "cash" else 0
+            )
+        ),
+    )
+    if cash and "tendered" in sale:
+        story += [
+            p(label("Cash received") + ": " + money(sale["tendered"])),
+            p(
+                label("Change returned")
+                + ": "
+                + money(max(0, sale["tendered"] - cash)),
+                "Heading3",
+            ),
+        ]
     story += [
         Spacer(1, 16),
         p(
@@ -288,6 +310,14 @@ def customer_statement_pdf(data, business, language="en"):
     from bidi.algorithm import get_display
 
     labels = {
+        "Supplier statement": "سپلائر کا کھاتہ",
+        "Net payable": "خالص واجب الادا رقم",
+        "Increase payable": "واجب الادا رقم میں اضافہ",
+        "Decrease payable": "واجب الادا رقم میں کمی",
+        "bill": "بل",
+        "supplier credit": "سپلائر کریڈٹ",
+        "supplier refund": "سپلائر سے واپس وصولی",
+        "Current posted entries only; negative balance is supplier credit.": "صرف موجودہ منظور شدہ اندراجات؛ منفی بقایا سپلائر سے قابل وصول رقم ہے۔",
         "Customer statement": "گاہک کا کھاتہ",
         "Outstanding": "بقایا رقم",
         "Date": "تاریخ",
@@ -331,14 +361,43 @@ def customer_statement_pdf(data, business, language="en"):
     flow = [
         text(business["name"]),
         Spacer(1, 12),
-        text(label("Customer statement") + " / " + data["customer"]["name"]),
-        text(label("Outstanding") + ": " + money(data["balance"])),
+        text(
+            label("Supplier statement" if "supplier" in data else "Customer statement")
+            + " / "
+            + data.get("supplier", data.get("customer"))["name"]
+        ),
+        text(
+            label("Net payable" if "supplier" in data else "Outstanding")
+            + ": "
+            + money(data["balance"])
+        ),
+        *(
+            [
+                text(
+                    label(
+                        "Current posted entries only; negative balance is supplier credit."
+                    )
+                )
+            ]
+            if "supplier" in data
+            else []
+        ),
         Spacer(1, 12),
     ]
     table = [
         [
             text(label(x))
-            for x in ["Date", "Entry / reference", "Debit", "Credit", "Balance"]
+            for x in (
+                [
+                    "Date",
+                    "Entry / reference",
+                    "Increase payable",
+                    "Decrease payable",
+                    "Balance",
+                ]
+                if "supplier" in data
+                else ["Date", "Entry / reference", "Debit", "Credit", "Balance"]
+            )
         ]
     ]
     for row in data["entries"]:

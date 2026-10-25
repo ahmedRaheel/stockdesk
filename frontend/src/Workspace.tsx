@@ -1911,9 +1911,12 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                           disabled={busy}
                           onChange={(e) => setTendered(e.target.value)}
                         />
-                        <small>
-                          {" "}
-                          {tr("Change:")}{" "}
+                        <strong
+                          role="status"
+                          aria-live="polite"
+                          className="cash-change"
+                        >
+                          {tr("Change to return:")}{" "}
                           {money(
                             Math.max(
                               0,
@@ -1921,7 +1924,26 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                 cashCollected,
                             ),
                           )}
-                        </small>
+                        </strong>
+                        {Math.round(Number(tendered || 0) * 100) <
+                          cashCollected && (
+                          <small>
+                            {tr("Cash still required:")}{" "}
+                            {money(
+                              cashCollected -
+                                Math.round(Number(tendered || 0) * 100),
+                            )}
+                          </small>
+                        )}
+                        <button
+                          type="button"
+                          disabled={busy || !quoteReady}
+                          onClick={() =>
+                            setTendered((cashCollected / 100).toFixed(2))
+                          }
+                        >
+                          {tr("Exact cash")}
+                        </button>
                       </label>
                     ) : (
                       <p className="hint">
@@ -2881,6 +2903,18 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               <span>{tr("Khata / ادھار")}</span>
               <b>{money(receipt.sale.credit_amount || 0)}</b>
             </div>
+            {receipt.sale.cash_amount > 0 && (
+              <>
+                <div className="cart-math">
+                  <span>{tr("Cash received")}</span>
+                  <b>{money(receipt.sale.cash_received)}</b>
+                </div>
+                <div className="receipt-total">
+                  <span>{tr("Change returned")}</span>
+                  <strong>{money(receipt.sale.change)}</strong>
+                </div>
+              </>
+            )}
             {receipt.tenders?.map((r: any, i: number) => (
               <div className="cart-math" key={i}>
                 <span>

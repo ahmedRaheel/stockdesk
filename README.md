@@ -3,7 +3,7 @@
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Version 1.10** adds server-enforced coupons, percentage/fixed discounts, BOGO and multi-product bundle pricing, date/daily-time restrictions, redemption limits, frozen invoice promotion details, and Excel catalog import with preview/atomic commit. Open **Promotions and coupons** to configure offers, then select their codes in POS. See [release instructions](docs/RELEASE-1.10.md) and [implementation status](docs/CHECKLIST.md). The full enterprise specification remains incomplete.
+**Version 1.11** makes cash received and change due explicit in POS and printed/downloaded receipts, including split payments and khata. It also adds English/Urdu supplier statement PDFs with running balances. All 1.10 promotions and Excel import features remain available. See [release instructions](docs/RELEASE-1.11.md) and [implementation status](docs/CHECKLIST.md). The full enterprise specification remains incomplete.
 
 ## Upgrade your existing deployment
 

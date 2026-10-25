@@ -103,3 +103,10 @@ Large-store launch requires the remaining work in ARCHITECTURE.md and measured c
 - Check product-specific discounts with mixed inclusive/exclusive taxes and compare product profit reports. Return an invoice and confirm usage remains consumed.
 - Download Excel template, replace the sample row, preserve barcode leading zeros as text, and preview/commit. Test one invalid row and confirm no products are added. Reject formulas, numeric barcodes, extra columns and oversized content. Confirm deployment proxy accepts valid uploads larger than its former 100 KB limit.
 - Inspect English/Urdu POS, promotion administration, receipt PDFs, Excel preview and mobile layout with realistic product names.
+
+## 1.11 cash and supplier statement acceptance
+
+- Bill 1,250.50 / cash 2,000.00: POS, receipt and PDF must show change 749.50; till increases only 1,250.50.
+- Split 500 external + 750.50 cash applied / 1,000 cash handed over: return 249.50. Khata uses cash paid now, not full invoice total. Exact cash returns zero; short cash blocks checkout.
+- Reopen receipt and retry the original checkout: same cash/change and no duplicate sale.
+- Supplier statement balances must match posted bills less payments/credits plus refunds; voided transactions excluded. Confirm English/Urdu rendering, tenant isolation and finance-only access.
