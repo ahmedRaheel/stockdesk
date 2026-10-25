@@ -3,7 +3,7 @@
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Version 1.12** adds inventory quantity turnover and Excel/PDF downloads across sales, margin, tax, stock, basket and scenario reports. Cash received/change receipts, supplier statements, promotions and Excel import remain available. See [release instructions](docs/RELEASE-1.12.md) and [implementation status](docs/CHECKLIST.md). The full enterprise specification remains incomplete.
+**Version 1.13** adds configurable inventory alert rules, a persistent inbox, acknowledgement/resolution history and an optional background evaluator. Cash change receipts, supplier statements, report exports, turnover, promotions and Excel import remain available. See [release instructions](docs/RELEASE-1.13.md) and [implementation status](docs/CHECKLIST.md). The full enterprise specification remains incomplete.
 
 ## Upgrade your existing deployment
 

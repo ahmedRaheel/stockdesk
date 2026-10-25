@@ -42,6 +42,7 @@ import CatalogImport from "./CatalogImport";
 import Payables from "./Payables";
 import Promotions, { PromotionPicker } from "./Promotions";
 import ManagementReport from "./ManagementReport";
+import InventoryAlerts from "./InventoryAlerts";
 import StockCounts from "./StockCounts";
 import PosEntry from "./PosEntry";
 import SplitPayments, { PaymentRow } from "./SplitPayments";
@@ -52,6 +53,10 @@ import LookupSelect from "./LookupSelect";
 import CustomerSelect from "./CustomerSelect";
 import { send } from "./api";
 const titles: any = {
+  alerts: [
+    "Inventory alerts",
+    "Rules, acknowledgements and resolution history.",
+  ],
   promotions: [
     "Promotions and coupons",
     "Scheduled discounts, BOGO offers and bundles.",
@@ -115,6 +120,7 @@ const titles: any = {
   ],
 };
 const icons: any = {
+  alerts: SlidersHorizontal,
   promotions: SlidersHorizontal,
   roles: ShieldCheck,
   imports: Download,
@@ -753,6 +759,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     ...(can("stock") ? ["purchasing", "batches", "counts"] : []),
     ...(can("credit") ? ["khata"] : []),
     ...(can("settings") ? ["lookups", "taxes"] : []),
+    ...(can("alerts") ? ["alerts"] : []),
     ...(can("promotions") ? ["promotions"] : []),
     ...(can("cost") ? ["reports"] : []),
     ...(can("finance") ? ["payables"] : []),
@@ -1318,6 +1325,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   currency={currency}
                   canReturn={can("supplier_return")}
                 />
+              )}
+              {view === "alerts" && can("alerts") && (
+                <InventoryAlerts key={tenant} tenant={tenant} />
               )}
               {view === "promotions" && can("promotions") && (
                 <Promotions key={tenant} tenant={tenant} currency={currency} />

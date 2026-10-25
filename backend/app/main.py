@@ -32,13 +32,23 @@ async def lifespan(app):
                 "Platform Administrator",
                 hashed,
             )
-    yield
-    await db.close()
+    from .features.alerts import run_worker
+    from contextlib import suppress
+
+    worker = asyncio.create_task(run_worker()) if config.ALERT_WORKER_ENABLED else None
+    try:
+        yield
+    finally:
+        if worker:
+            worker.cancel()
+            with suppress(asyncio.CancelledError):
+                await worker
+        await db.close()
 
 
 app = FastAPI(
     title="StockDesk Inventory & POS",
-    version="1.12.0",
+    version="1.13.0",
     lifespan=lifespan,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
@@ -361,3 +371,7 @@ app.include_router(procurement_router)
 from .api.promotions import router as promotions_router
 
 app.include_router(promotions_router)
+
+from .api.alerts import router as alerts_router
+
+app.include_router(alerts_router)

@@ -1,4 +1,14 @@
-# Verification record — StockDesk 1.12
+# Verification record — StockDesk 1.13
+
+
+## Release 1.13 checks
+
+- Full backend regression: **61 passed, 1 skipped** in 89.70 seconds using PGlite's PostgreSQL wire adapter. The skipped test requires real PostgreSQL multiprocess concurrency.
+- New contract/API coverage includes invalid thresholds and expiry windows, tenant-bound product references, duplicate rule names, low-stock default reorder thresholds, repeated evaluation without duplicate events, acknowledgement/retry preservation, condition clearance and recurrence, disabling rules, optimistic edit conflicts, expiry boundary inclusion, worker due checks, suspended-tenant skipping, inactive-product resolution, tenant isolation, Cashier denial and CSRF rejection.
+- Browser against actual React/FastAPI with ALERT_WORKER_ENABLED=true created a rule and waited for an automatically generated event without manual evaluation, then acknowledged it, replenished stock, evaluated resolution and inspected Urdu/mobile UI. The extended flow also exercises reports/downloads, cash change, supplier statements, promotions, held bills and Excel import. The test-only PGlite browser pool remains single-connection; production pool settings are unchanged.
+- The initial API test identified a route collision with the existing batch alert summary. New endpoints were moved to `/alert-center`, preserving the original `/inventory-alerts` API. An initial browser run stopped at an ambiguous Refresh selector; the test was scoped to the alert-center button. Raw enum labels found during visual review were replaced with readable English/Urdu labels.
+- TypeScript/Vite build and literal Urdu coverage passed for the implementation. OpenAPI regenerated for 1.13. Migrations 001–017 are byte-identical to 1.12; migration 018 is additive. No new dependency.
+- Real PostgreSQL multi-process alert contention, high-load evaluation, production Docker startup, external messaging/delivery and full checklist completion are not claimed. The worker's locking/deduplication mechanisms are implemented; production acceptance remains necessary.
 
 
 ## Release 1.12 checks

@@ -193,3 +193,16 @@ Checkout responses (including idempotent retries) include `cash_received`, `cash
 
 - `GET /api/v1/tenants/{tenant}/inventory-turnover?days=30`: 1–90 complete days through yesterday, Asia/Karachi; cost permission; maximum 10,000 products. Fields include opening/closing stock, sold/returned/net units, average daily closing stock, period turnover and days per turn. Unavailable ratios are null.
 - `GET /api/v1/tenants/{tenant}/report-export/{name}.{format}`: names `products`, `categories`, `cashiers`, `hours`, `tax-summary`, `tax-invoices`, `stock-age`, `basket-analysis`, `what-if`, `turnover`; formats `xlsx` or `pdf`. Supports days and existing operational query parameters. Same cost permission; output is regenerated and no-store. PDF >500 rows and Excel >10,000 rows return 422. Money in exports is major currency units, unlike JSON/CSV minor units.
+
+## 1.13 inventory alert center
+
+All routes below require `alerts` permission and tenant membership (or platform-admin access). Writes require same-origin CSRF and tenant serialization.
+
+- `GET /api/v1/tenants/{tenant}/alert-center/rules`: rules and `worker_enabled`.
+- `POST .../rules`: name, kind (`low_stock`, `stock_out`, `expiry`), optional product/threshold, expiry_days (0–365), severity (`info`, `warning`, `critical`), active. 201.
+- `PUT .../rules/{id}`: same fields plus version; 409 on stale version. Resolves current episodes for the edited rule.
+- `POST .../evaluate`: evaluate active rules now; returns evaluated/opened/resolved counts.
+- `GET .../alert-center?status=open|acknowledged|resolved|all&limit=50&offset=0`: paginated inbox and total; maximum page size 100.
+- `POST .../alert-center/{id}/acknowledge`: note, 1–500 characters. First acknowledgement is retained on retry; resolved events return 409.
+
+The existing `/inventory-alerts` batch-summary API is unchanged.

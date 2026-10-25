@@ -118,3 +118,11 @@ Large-store launch requires the remaining work in ARCHITECTURE.md and measured c
 - Export product/category/cashier/hour, tax, stock, basket, scenario and turnover data to Excel/PDF; compare dates, applied scenario assumptions and values. Excel money is major currency units, and SKUs/formula-like names remain text.
 - Deny cashier/cross-tenant export requests. Refuse oversized exports without truncation. Confirm 100-row UI pagination does not limit exported records.
 - Report PDFs are landscape A3; confirm fit-to-paper on the actual printer before operational use. Downloaded values are regenerated from current data, not a frozen browser snapshot.
+
+## 1.13 alert-center acceptance
+
+- With ALERT_WORKER_ENABLED=true, create a low-stock rule and wait for automatic evaluation. Repeat evaluation without duplicate live events. Verify the existing batch alert dashboard still works.
+- Acknowledge with a note; replenishment must resolve the same episode. Reduce stock again and confirm a new unacknowledged episode appears.
+- Test expiry today, already expired, boundary day and one day outside the window; ignore zero-stock and undated batches. Check weighted thresholds and per-product scope.
+- Edit/disable a rule: existing episodes close with rule_changed. Reject stale versions, cross-tenant products/events and Cashier writes. Confirm audit entries.
+- Under real PostgreSQL and two application workers, race evaluation with stock changes and acknowledge/disable actions; assert one live episode per rule/entity. Test graceful shutdown and inspect errors/stale evaluation timestamps. This production acceptance is not established by single-process PGlite checks.

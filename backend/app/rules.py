@@ -6,6 +6,7 @@ from fastapi import HTTPException
 
 ROLES = {
     "Owner": {
+        "alerts",
         "promotions",
         "roles",
         "audit",
@@ -26,6 +27,7 @@ ROLES = {
         "settings",
     },
     "Manager": {
+        "alerts",
         "promotions",
         "count_approve",
         "purchase_approve",
@@ -42,7 +44,7 @@ ROLES = {
         "return",
     },
     "Cashier": {"credit", "read", "sale"},
-    "Stock Manager": {"cost", "forecast", "read", "product", "stock"},
+    "Stock Manager": {"alerts", "cost", "forecast", "read", "product", "stock"},
 }
 
 
@@ -92,8 +94,8 @@ def email(v):
 
 
 def password(v):
-    if not isinstance(v, str) or not 6 <= len(v) <= 128:
-        fail("Password must contain 6–128 characters.")
+    if not isinstance(v, str) or not 12 <= len(v) <= 128:
+        fail("Password must contain 12–128 characters.")
     return v
 
 
