@@ -179,3 +179,9 @@ Configure all-day quiet hours and verify a low-stock match does not open an aler
 ## 1.23 combined promotions
 
 Enable stacking on two offers, enter both codes in POS, verify sequential discounts and tax, tender cash and inspect per-offer receipt/PDF. Confirm non-stackable/duplicate/unknown codes fail, caps apply independently, retries create one sale, held bills preserve codes, and paired-item returns retain original discounted credit.
+
+## 1.24 POS controls
+
+Enroll a cashier PIN using their password; switch from an authenticated operator and verify their business list, permissions and till identity. Try incorrect PIN, wrong origin, another business, role elevation, PIN rotation and owner revocation. Active bills must be held/cleared before UI switching.
+
+On a supported secure-origin browser, scan one product code, verify the camera stops, then explicitly add the item once. Verify denied/unsupported camera fallback. Open a till, sell, read X, close, read/export Z; return a prior invoice in a new till and verify the original Z remains identical. Treat physical camera and production PostgreSQL verification as separate acceptance steps.

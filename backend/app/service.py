@@ -24,6 +24,7 @@ def public_user(u):
         "email": u["email"],
         "displayName": u["name"],
         "admin": u["is_admin"],
+        "pinSession": bool(u.get("tenant_scope")),
     }
 
 
@@ -39,6 +40,8 @@ async def audit(c, tenant, u, action, detail):
 
 
 async def authorize(c, u, tenant, permission="read", lock=False):
+    if u.get("tenant_scope") and u["tenant_scope"] != tenant:
+        fail("Cashier session is restricted to its business.", 403)
     t = await c.fetchrow(
         "SELECT * FROM tenants WHERE id=$1" + (" FOR UPDATE" if lock else ""), tenant
     )
@@ -46,6 +49,15 @@ async def authorize(c, u, tenant, permission="read", lock=False):
         fail("Business not found.", 404)
     if t["status"] != "active":
         fail("This business is suspended.", 403)
+    if u.get("tenant_scope"):
+        valid = await c.fetchval(
+            "SELECT 1 FROM members m JOIN cashier_pins p ON p.tenant=m.tenant AND p.user_id=m.user_id JOIN users u ON u.id=m.user_id WHERE m.tenant=$1 AND m.user_id=$2 AND m.active AND m.role='Cashier' AND m.custom_role_id IS NULL AND p.revision=$3 AND u.active AND NOT u.is_admin",
+            tenant,
+            u["id"],
+            u["pin_revision"],
+        )
+        if not valid:
+            fail("Cashier session revoked. Sign in again.", 401)
     role = "Owner"
     if not u["is_admin"]:
         member = await c.fetchrow(
@@ -139,6 +151,8 @@ async def snapshot(c, u, tenant):
             u["id"],
         )
     )
+    if u.get("tenant_scope"):
+        tenants = [t for t in tenants if t["id"] == u["tenant_scope"]]
     out = {
         "user": public_user(u),
         "tenants": tenants,

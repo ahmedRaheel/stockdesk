@@ -863,6 +863,9 @@ async def close_till(
                 payload.note,
                 identifier,
             )
+            from ..features.till_reports import freeze
+
+            await freeze(c, tenant, result)
             await service.audit(
                 c,
                 tenant,

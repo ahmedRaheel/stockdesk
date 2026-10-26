@@ -19,6 +19,13 @@ function App() {
       .catch(() => setError("The server could not be reached."))
       .finally(() => setLoading(false));
   }, []);
+  useEffect(() => {
+    const changed = (event: StorageEvent) => {
+      if (event.key === "stockdesk-session-change") window.location.reload();
+    };
+    window.addEventListener("storage", changed);
+    return () => window.removeEventListener("storage", changed);
+  }, []);
   async function login(e: any) {
     e.preventDefault();
     setBusy(true);

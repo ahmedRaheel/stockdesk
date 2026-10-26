@@ -1,4 +1,14 @@
-# Verification record — StockDesk 1.23
+# Verification record — StockDesk 1.24
+
+## Release 1.24 checks
+
+- Full backend suite: **83 passed, 1 skipped** in 160.21 seconds under PGlite. The skipped test requires production-style PostgreSQL multiprocess concurrency. Initial POS-focused tests: 2 passed in 14.63 seconds. After aligning the switched-user response and cookie lifetime, the PIN integration test passed again in 8.94 seconds.
+- PIN coverage: password setup, malformed PIN, wrong password/origin, excluded admin identity, hash-free roster, bad PIN, cookie rotation and old-session removal, business-list filtering and cross-business access denial, inability to use privileged catalog writes, inability to reset PIN through a PIN session, revision rotation, membership elevation, owner revocation, persistent failure throttles and credential-free audit records. Database triggers revoke enrollment/session on membership and account authority changes.
+- Report coverage: X totals, Z before-close denial, atomic close numbering, exact digest verification, repeated close, closed-X denial, partial refund in a later till, retry deduplication, unchanged earlier Z, legacy full-return versus actual cash movement, second Z sequence, immutable database evidence and tenant isolation. Existing exchange/payment/tax/approval regressions pass with the new return journal hooks.
+- Chromium passed real PIN enrollment/switch, scoped UI session, active-cart switch blocking, checkout, X display, close and Z display, exact persisted report amounts, Urdu/mobile and the HTTP UUID fallback. Camera media and decoder were simulated to test code entry, one-result behavior and track cleanup; unsupported-browser fallback was checked. Physical camera decoding is not verified. No JavaScript page errors. An initial selector exposed an ambiguous cashier select label; an explicit accessible name was added. Keyboard focus/escape handling and modal shortcut suppression were added. Mobile horizontal overflow was fixed and checked on the final run.
+- TypeScript/Vite build, literal Urdu-label coverage and four request-ID tests pass. OpenAPI regenerated for 1.24. All prior source files retained and migrations 001–029 byte-identical to 1.23. New migrations 030–031 add PIN scope/revocation and operational report evidence. No dependency or Docker/external PostgreSQL configuration change.
+- These checks do not establish physical camera support, live EC2 deployment, production concurrency/load or tax-authority fiscal certification. Unsupported-browser camera decoding, full fiscal requirements and other requested enterprise modules remain open in the checklist.
+
 
 ## Release 1.23 checks
 

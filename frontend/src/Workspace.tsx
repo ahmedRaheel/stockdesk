@@ -1,3 +1,4 @@
+import CashierSwitch from "./CashierSwitch";
 import CatalogTools from "./CatalogTools";
 import TransactionApprovals from "./TransactionApprovals";
 import { newRequestId } from "./requestId";
@@ -607,6 +608,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     const listener = (e: KeyboardEvent) => {
       if (
         view !== "pos" ||
+        document.querySelector('[role="dialog"]') ||
         modal ||
         receipt ||
         e.altKey ||
@@ -1028,6 +1030,15 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
             >
               <RefreshCw size={17} className={loading ? "spin" : ""} />
             </button>
+            {tenant && can("sale") && (
+              <CashierSwitch
+                tenant={tenant}
+                userId={data.user?.userId}
+                pinSession={!!data.user?.pinSession}
+                blocked={busy || loading || cart.length > 0 || !!receipt}
+                canManage={can("team")}
+              />
+            )}
             <span className="role-chip">
               {data.user?.admin ? tr("Super Admin") : data.role || "Account"}
             </span>

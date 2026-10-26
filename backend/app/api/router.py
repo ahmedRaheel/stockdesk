@@ -102,7 +102,13 @@ async def tenants(user: User):
                 user["id"],
             )
         )
-    return {"items": service.rows(result)}
+    return {
+        "items": [
+            dict(t)
+            for t in result
+            if not user.get("tenant_scope") or t["id"] == user["tenant_scope"]
+        ]
+    }
 
 
 @router.get("/tenants/{tenant}/products", tags=["Catalog"])
@@ -123,7 +129,8 @@ async def products(
                 "SELECT COUNT(*)" + source + clause, tenant, q
             )
             items = await connection.fetch(
-                "SELECT p.*,COALESCE(v.label,'') AS variant_label" + source
+                "SELECT p.*,COALESCE(v.label,'') AS variant_label"
+                + source
                 + clause
                 + " ORDER BY p.name,p.id LIMIT $3 OFFSET $4",
                 tenant,

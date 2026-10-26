@@ -620,6 +620,11 @@ async def commit(tenant: str, sale_id: str, body: Commit, request: Request, user
                 json.dumps(result),
                 user["email"],
             )
+            from ..features.till_reports import record_return
+
+            await record_return(
+                c, tenant, sale_id, user, aid, quote["credit"], sale["tax"] - tax["tax"]
+            )
             await service.audit(c, tenant, user, "Invoice adjusted", result)
             return result
 

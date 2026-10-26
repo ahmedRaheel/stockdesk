@@ -1,6 +1,8 @@
-# Remaining completion roadmap after 1.23
+# Remaining completion roadmap after 1.24
 
 The requested full enterprise scope is not complete. The checklist's missing column is authoritative. The following is dependency order, not a promise that these modules exist or a calendar estimate.
+
+Version 1.24 adds supported-browser camera entry, tenant-restricted cashier PIN sessions, and operational X/Z evidence. Tax-authority fiscal requirements, unsupported-browser decoding and the remaining areas below are not completed by those additions.
 
 1. **Transaction controls:** original-tender refund allocation and adjustment reversal. Version 1.23 adds explicit-code promotion stacking. Version 1.21 delivers independent manual-discount/return approvals, partial khata adjustments and batch-specific returns. Acceptance must cover retries, concurrent approvals, rounding, tax and stock/ledger invariants.
 2. **Catalog and inventory foundations:** serials, locations, transfer lifecycle, warehouse permissions and receipt-layer costing/landed costs. Version 1.22 delivers SKU variant families, explicit pack/unpack and stocked-output BOM assembly. Existing tenant-wide stock requires a migration and reconciliation plan before store-level operations.

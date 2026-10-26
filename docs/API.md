@@ -253,3 +253,9 @@ See [RELEASE-1.22.md](RELEASE-1.22.md) for family/variant CRUD, pack/BOM recipes
 ## 1.23 combined promotions
 
 Promotion create/update accepts `stackable` (boolean, default false). Sales quote, checkout and held bills accept up to 240 characters in `promotion_code`, containing up to five comma-separated codes. Single-code snapshots are unchanged; a stack snapshot has `kind: stack`, `offers`, `application_policy` and aggregate `line_discounts`. Each offer has its own frozen applied discount.
+
+## 1.24 POS controls
+
+`GET /api/v1/tenants/{tenant}/cashiers` lists eligible cashiers and enrollment flags. `PUT /cashiers/pin` takes password and a 6–12 digit PIN; `DELETE /cashiers/{user_id}/pin` revokes enrollment. `POST /cashiers/switch` takes user_id and PIN and replaces a browser session. Public user responses add pinSession; tenant_scope and PIN revision are internal session fields.
+
+`GET /api/v1/tenants/{tenant}/tills/{id}/reports/X` reads an open till; `/Z` returns frozen report/digest. Cashiers access their own reports; sale plus finance permission is required for another operator's report. Existing close endpoints atomically freeze Z evidence after migration 031. Report JSON is operational, and returns before migration 031 are not reconstructed.

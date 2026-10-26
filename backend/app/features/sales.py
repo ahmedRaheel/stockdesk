@@ -419,6 +419,11 @@ async def return_sale(c, u, b, t=None):
     await c.execute(
         "UPDATE sales SET status='returned' WHERE tenant=$1 AND id=$2", tenant, sid
     )
+    from .till_reports import record_return
+
+    await record_return(
+        c, tenant, sid, u, "legacy-return-" + sid, sale["total"], sale["tax"]
+    )
     await audit(
         c,
         tenant,
