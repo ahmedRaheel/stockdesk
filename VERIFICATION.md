@@ -1,4 +1,32 @@
-# Verification record — StockDesk 1.23
+# Verification record — StockDesk 1.26
+
+## Release 1.26 checks
+
+- Chromium against React/FastAPI: actual XLS file upload, preview and creation; second XLS upload, changed-field preview and update; Urdu/mobile rendering; no browser JavaScript errors. Native randomUUID disabled to exercise the HTTP fallback.
+
+- Full backend regression suite: **101 passed, 1 skipped** in 172.59 seconds on the PostgreSQL-compatible PGlite harness. The skipped real PostgreSQL multiprocess test still requires production-like PostgreSQL execution.
+
+- XLS/XLSX-focused suite: **20 passed**. Covers raw BIFF8 and OLE compound files, text identifiers and Unicode, numeric values, formula/external-link/encryption/macro rejection, row/column/file bounds, invalid encoding and headers, HTTP permission and CSRF boundaries, atomic create/update, retry replay and stock preservation.
+- TypeScript/Vite production build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.26. Added pinned xlrd 2.0.1; no migrations or Docker/external PostgreSQL configuration changes.
+
+## Release 1.25 checks
+
+- Full backend suite: **84 passed, 1 skipped** in 168.31 seconds under PGlite. The skipped test requires real PostgreSQL multiprocess concurrency. Focused refund-provenance integration passed in 7.03 seconds; exchange/stacking/till regressions passed 5/5 in 18.87 seconds.
+- New coverage: cash/bank split refunds, exact cumulative source caps across successive returns and replacement returns, required/duplicate/foreign references, failed-commit revision rollback, retry deduplication, carried tender credit versus fresh till cash, English/Urdu PDF generation, invoice-specific khata recoveries, recovery-after-preview invalidation, frozen recovery method names, manual fallback for older ambiguous history and rejection of original-method mode when additional collection is due. An initial regression caught a reused batch/payment allocation variable; it was separated before all tests passed.
+- Chromium passed original-payment selection, proportional preview, required bank reference, exact recorded cash/bank amounts, revised receipt/PDF and Urdu/mobile with native randomUUID disabled. No JavaScript page errors. Desktop preview/receipt reviewed; original payment references now identify sources, input accessible names are source-specific, and the checkbox width was corrected. PDF text confirms separate original collection and refund evidence.
+- TypeScript/Vite build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.25. All previously delivered source files retained; migrations 001–031 byte-identical to 1.24, with new migration 032. No dependencies or Docker/external PostgreSQL settings changed.
+- External refunds are recorded after confirmation outside StockDesk; providers are not contacted. Old untraceable adjustment/payment histories remain manual. No live EC2, production concurrency/load or statutory financial certification is claimed. Currency conversion, statutory credit notes, reversals and the other enterprise modules remain open in CHECKLIST.md.
+
+
+## Release 1.24 checks
+
+- Full backend suite: **83 passed, 1 skipped** in 160.21 seconds under PGlite. The skipped test requires production-style PostgreSQL multiprocess concurrency. Initial POS-focused tests: 2 passed in 14.63 seconds. After aligning the switched-user response and cookie lifetime, the PIN integration test passed again in 8.94 seconds.
+- PIN coverage: password setup, malformed PIN, wrong password/origin, excluded admin identity, hash-free roster, bad PIN, cookie rotation and old-session removal, business-list filtering and cross-business access denial, inability to use privileged catalog writes, inability to reset PIN through a PIN session, revision rotation, membership elevation, owner revocation, persistent failure throttles and credential-free audit records. Database triggers revoke enrollment/session on membership and account authority changes.
+- Report coverage: X totals, Z before-close denial, atomic close numbering, exact digest verification, repeated close, closed-X denial, partial refund in a later till, retry deduplication, unchanged earlier Z, legacy full-return versus actual cash movement, second Z sequence, immutable database evidence and tenant isolation. Existing exchange/payment/tax/approval regressions pass with the new return journal hooks.
+- Chromium passed real PIN enrollment/switch, scoped UI session, active-cart switch blocking, checkout, X display, close and Z display, exact persisted report amounts, Urdu/mobile and the HTTP UUID fallback. Camera media and decoder were simulated to test code entry, one-result behavior and track cleanup; unsupported-browser fallback was checked. Physical camera decoding is not verified. No JavaScript page errors. An initial selector exposed an ambiguous cashier select label; an explicit accessible name was added. Keyboard focus/escape handling and modal shortcut suppression were added. Mobile horizontal overflow was fixed and checked on the final run.
+- TypeScript/Vite build, literal Urdu-label coverage and four request-ID tests pass. OpenAPI regenerated for 1.24. All prior source files retained and migrations 001–029 byte-identical to 1.23. New migrations 030–031 add PIN scope/revocation and operational report evidence. No dependency or Docker/external PostgreSQL configuration change.
+- These checks do not establish physical camera support, live EC2 deployment, production concurrency/load or tax-authority fiscal certification. Unsupported-browser camera decoding, full fiscal requirements and other requested enterprise modules remain open in the checklist.
+
 
 ## Release 1.23 checks
 

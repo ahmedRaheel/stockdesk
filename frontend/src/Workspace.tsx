@@ -1,3 +1,4 @@
+import CashierSwitch from "./CashierSwitch";
 import CatalogTools from "./CatalogTools";
 import TransactionApprovals from "./TransactionApprovals";
 import { newRequestId } from "./requestId";
@@ -607,6 +608,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     const listener = (e: KeyboardEvent) => {
       if (
         view !== "pos" ||
+        document.querySelector('[role="dialog"]') ||
         modal ||
         receipt ||
         e.altKey ||
@@ -1028,6 +1030,15 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
             >
               <RefreshCw size={17} className={loading ? "spin" : ""} />
             </button>
+            {tenant && can("sale") && (
+              <CashierSwitch
+                tenant={tenant}
+                userId={data.user?.userId}
+                pinSession={!!data.user?.pinSession}
+                blocked={busy || loading || cart.length > 0 || !!receipt}
+                canManage={can("team")}
+              />
+            )}
             <span className="role-chip">
               {data.user?.admin ? tr("Super Admin") : data.role || "Account"}
             </span>
@@ -3160,6 +3171,14 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         {tr("Change returned")}: {money(a.change)}
                       </p>
                     )}
+                    {a.refunds?.map((r: any) => (
+                      <p key={r.source}>
+                        {language === "ur" && r.name_ur ? r.name_ur : r.name}:{" "}
+                        {money(r.amount)}{" "}
+                        {r.settlement_reference &&
+                          ` · ${r.settlement_reference}`}
+                      </p>
+                    ))}
                     {a.reference && <p>{a.reference}</p>}
                     <small>
                       {a.created ? date(a.created) : ""} · {a.actor}
@@ -3190,6 +3209,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
             {receipt.tenders?.map((r: any, i: number) => (
               <div className="cart-math" key={i}>
                 <span>
+                  {r.carried_credit && `${tr("Return credit")} · `}
                   {language === "ur" && r.method_name_ur
                     ? r.method_name_ur
                     : tr(r.method_name)}

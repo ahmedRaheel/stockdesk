@@ -3,7 +3,7 @@
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Release 1.23** adds opt-in combining of up to five promotional offers, with deterministic pricing, individual redemption limits and frozen return allocations. See [release notes](docs/RELEASE-1.23.md), the [remaining checklist](docs/CHECKLIST.md), and [completion roadmap](docs/COMPLETION-ROADMAP.md). The full enterprise scope is not complete.
+**Release 1.26** adds legacy Excel 97–2003 XLS catalog import through the existing atomic preview/create/update workflow. See [release notes](docs/RELEASE-1.26.md), the [remaining checklist](docs/CHECKLIST.md), and [completion roadmap](docs/COMPLETION-ROADMAP.md). The requested enterprise scope is not complete.
 
 ## Upgrade your existing deployment
 

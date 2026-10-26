@@ -1,3 +1,4 @@
+import TillReport from "./TillReport";
 import { newRequestId } from "./requestId";
 import { t as tr } from "./i18n";
 import { useEffect, useRef, useState } from "react";
@@ -14,6 +15,15 @@ export default function Tills({
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const pending = useRef<any>(null);
+  const [report, setReport] = useState<any>(null);
+  async function showReport(id: string, kind: string) {
+    try {
+      setReport(await api(`${base}/${id}/reports/${kind}`));
+      setError("");
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
   const money = (n: number) =>
     `${currency === "PKR" ? "Rs." : currency} ${(n / 100).toFixed(2)}`;
   async function load() {
@@ -25,6 +35,7 @@ export default function Tills({
     }
   }
   useEffect(() => {
+    setReport(null);
     load();
   }, [tenant]);
   async function submit(e: React.FormEvent<HTMLFormElement>, action: string) {
@@ -65,7 +76,7 @@ export default function Tills({
   const amount = (label: string) => (
     <label className="field">
       <span>
-        {label} ({currency})
+        {tr(label)} ({currency})
       </span>
       <input name="amount" type="number" min="0" step="0.01" required />
     </label>
@@ -77,6 +88,7 @@ export default function Tills({
           {error}
         </p>
       )}
+      {report && <TillReport data={report} onClose={() => setReport(null)} />}
       <div className="actions">
         <button className="secondary" onClick={load}>
           {" "}
@@ -95,6 +107,12 @@ export default function Tills({
         <>
           {data.current ? (
             <>
+              <button
+                className="secondary"
+                onClick={() => showReport(data.current.id, "X")}
+              >
+                {tr("View X report")}
+              </button>
               <div className="kpis">
                 {Object.entries(data.totals).map(([k, v]) => (
                   <div className="kpi" key={k}>
@@ -133,7 +151,7 @@ export default function Tills({
                     <p>
                       {" "}
                       {tr(
-                        "Returns do not move cash automatically. Record an actual cash refund as cash out before closing.",
+                        "Item adjustments record cash refunds automatically. For legacy full returns, record the actual refund as cash out once.",
                       )}{" "}
                     </p>
                     <button className="primary">{tr("Close session")}</button>
@@ -174,13 +192,14 @@ export default function Tills({
                     <th>{tr("Counted")}</th>
                     <th>{tr("Variance")}</th>
                     <th>{tr("Notes")}</th>
+                    <th>{tr("Report")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.sessions.map((s: any) => (
                     <tr key={s.id}>
                       <td>{new Date(s.opened).toLocaleString()}</td>
-                      <td>{s.status}</td>
+                      <td>{tr(s.status)}</td>
                       <td>
                         {s.expected_cash === null
                           ? "—"
@@ -191,6 +210,16 @@ export default function Tills({
                       </td>
                       <td>{s.variance === null ? "—" : money(s.variance)}</td>
                       <td>{s.closing_note}</td>
+                      <td>
+                        {s.status === "closed" && (
+                          <button
+                            className="secondary"
+                            onClick={() => showReport(s.id, "Z")}
+                          >
+                            {tr("View Z report")}
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

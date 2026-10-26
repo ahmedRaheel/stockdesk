@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StockDesk Inventory & POS",
-    "version": "1.23.0"
+    "version": "1.26.0"
   },
   "paths": {
     "/api/health": {
@@ -4850,6 +4850,64 @@
         }
       }
     },
+    "/api/v1/tenants/{tenant}/catalog-imports/convert-xls": {
+      "post": {
+        "tags": [
+          "Catalog imports"
+        ],
+        "summary": "Convert Legacy Excel",
+        "operationId": "convert_legacy_excel_api_v1_tenants__tenant__catalog_imports_convert_xls_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExcelUpload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tenants/{tenant}/catalog-imports/template.xlsx": {
       "get": {
         "tags": [
@@ -8456,6 +8514,293 @@
           }
         }
       }
+    },
+    "/api/v1/tenants/{tenant}/cashiers": {
+      "get": {
+        "tags": [
+          "Cashier switching"
+        ],
+        "summary": "Roster",
+        "operationId": "roster_api_v1_tenants__tenant__cashiers_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/cashiers/pin": {
+      "put": {
+        "tags": [
+          "Cashier switching"
+        ],
+        "summary": "Setup",
+        "operationId": "setup_api_v1_tenants__tenant__cashiers_pin_put",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PinSetup"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/cashiers/{user_id}/pin": {
+      "delete": {
+        "tags": [
+          "Cashier switching"
+        ],
+        "summary": "Revoke",
+        "operationId": "revoke_api_v1_tenants__tenant__cashiers__user_id__pin_delete",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/cashiers/switch": {
+      "post": {
+        "tags": [
+          "Cashier switching"
+        ],
+        "summary": "Switch",
+        "operationId": "switch_api_v1_tenants__tenant__cashiers_switch_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PinSwitch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/tills/{identifier}/reports/{kind}": {
+      "get": {
+        "tags": [
+          "Till reports"
+        ],
+        "summary": "Report",
+        "operationId": "report_api_v1_tenants__tenant__tills__identifier__reports__kind__get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -9596,6 +9941,50 @@
         ],
         "title": "Payment"
       },
+      "PinSetup": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 12,
+            "title": "Password"
+          },
+          "pin": {
+            "type": "string",
+            "pattern": "^[0-9]{6,12}$",
+            "title": "Pin"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "password",
+          "pin"
+        ],
+        "title": "PinSetup"
+      },
+      "PinSwitch": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "User Id"
+          },
+          "pin": {
+            "type": "string",
+            "pattern": "^[0-9]{6,12}$",
+            "title": "Pin"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user_id",
+          "pin"
+        ],
+        "title": "PinSwitch"
+      },
       "Plan": {
         "properties": {
           "receivable": {
@@ -10618,6 +11007,29 @@
         ],
         "title": "Refund"
       },
+      "RefundReference": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Source"
+          },
+          "reference": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reference"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "reference"
+        ],
+        "title": "RefundReference"
+      },
       "Resolve": {
         "properties": {
           "version": {
@@ -11427,6 +11839,11 @@
       },
       "app__api__exchanges__Commit": {
         "properties": {
+          "original_methods": {
+            "type": "boolean",
+            "title": "Original Methods",
+            "default": false
+          },
           "revision": {
             "type": "integer",
             "minimum": 0.0,
@@ -11491,10 +11908,19 @@
             "type": "string",
             "enum": [
               "cash",
-              "external"
+              "external",
+              "original"
             ],
             "title": "Settlement",
             "default": "cash"
+          },
+          "refund_references": {
+            "items": {
+              "$ref": "#/components/schemas/RefundReference"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Refund References"
           },
           "tendered": {
             "type": "integer",
@@ -11522,6 +11948,11 @@
       },
       "app__api__exchanges__Preview": {
         "properties": {
+          "original_methods": {
+            "type": "boolean",
+            "title": "Original Methods",
+            "default": false
+          },
           "revision": {
             "type": "integer",
             "minimum": 0.0,

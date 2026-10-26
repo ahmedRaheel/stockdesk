@@ -33,6 +33,8 @@ export default function InvoiceAdjustment({
     [reference, setReference] = useState(""),
     [rate, setRate] = useState("0"),
     [prescription, setPrescription] = useState("");
+  const [originalMethods, setOriginalMethods] = useState(false);
+  const [refundRefs, setRefundRefs] = useState<Record<string, string>>({});
   const pending = useRef<{ signature: string; id: string } | undefined>(
     undefined,
   );
@@ -74,6 +76,7 @@ export default function InvoiceAdjustment({
     );
   }
   const body = () => ({
+    original_methods: originalMethods,
     revision: receipt.sale.revision,
     returns: lines
       .filter((l) => Number(l.returnQty) > 0)
@@ -113,6 +116,14 @@ export default function InvoiceAdjustment({
         ...body(),
         quote_token: quote.quote_token,
         settlement,
+        refund_references: originalMethods
+          ? (quote.payment_allocation?.refunds || [])
+              .filter((p: any) => !p.is_cash)
+              .map((p: any) => ({
+                source: p.source,
+                reference: refundRefs[p.source] || "",
+              }))
+          : [],
         tendered: Math.round(Number(received || 0) * 100),
         reference,
       };
@@ -199,6 +210,17 @@ export default function InvoiceAdjustment({
               )}
               : {money(Math.abs(result.net))}
             </h3>
+            {result.refunds?.length > 0 && (
+              <section>
+                <h3>{tr("Refund allocation")}</h3>
+                {result.refunds.map((p: any) => (
+                  <p key={p.source}>
+                    {p.name}: {money(p.amount)}{" "}
+                    {p.settlement_reference && ` · ${p.settlement_reference}`}
+                  </p>
+                ))}
+              </section>
+            )}
             {result.change > 0 && (
               <h3>
                 {tr("Change returned")}: {money(result.change)}
@@ -457,6 +479,28 @@ export default function InvoiceAdjustment({
                   </label>
                 </>
               )}
+              <label className="field">
+                <span>
+                  <input
+                    type="checkbox"
+                    style={{ width: "auto", marginInlineEnd: 8 }}
+                    checked={originalMethods}
+                    onChange={(e) => {
+                      setOriginalMethods(e.target.checked);
+                      setSettlement(e.target.checked ? "original" : "cash");
+                      setReceived("");
+                      setRefundRefs({});
+                      setQuote(undefined);
+                    }}
+                  />{" "}
+                  {tr("Refund to original payment methods")}
+                </span>
+              </label>
+              <p className="hint">
+                {tr(
+                  "Original-method refunds are allocated proportionally across remaining recorded payments. Replacement credit keeps its payment provenance. Additional collections use cash or external settlement.",
+                )}
+              </p>
               <button
                 className="primary"
                 disabled={busy || !lines.some((l) => Number(l.returnQty) > 0)}
@@ -514,18 +558,63 @@ export default function InvoiceAdjustment({
                   <label className="field">
                     {tr("Settlement method")}
                     <select
+                      aria-label={tr("Settlement method")}
+                      disabled={originalMethods}
                       value={settlement}
                       onChange={(e) => {
                         setSettlement(e.target.value);
                         setReceived("");
                       }}
                     >
+                      {originalMethods && (
+                        <option value="original">
+                          {tr("Original payment methods")}
+                        </option>
+                      )}
                       <option value="cash">{tr("Cash")}</option>
                       <option value="external">
                         {tr("Collected externally")}
                       </option>
                     </select>
                   </label>
+                  {originalMethods && (
+                    <section>
+                      <h3>{tr("Refund allocation")}</h3>
+                      {quote.payment_allocation?.refunds?.map((p: any) => (
+                        <div key={p.source}>
+                          <p>
+                            {p.name}: <b>{money(p.amount)}</b>
+                          </p>
+                          <p className="hint">
+                            {tr("Original payment reference")}:{" "}
+                            {p.origin?.reference || p.reference || p.source}
+                          </p>
+                          {!p.is_cash && (
+                            <label className="field">
+                              <span>
+                                {tr("External refund reference")} · {p.name}
+                              </span>
+                              <input
+                                aria-label={`${tr("External refund reference")} ${p.name} ${p.source}`}
+                                value={refundRefs[p.source] || ""}
+                                maxLength={500}
+                                onChange={(e) =>
+                                  setRefundRefs({
+                                    ...refundRefs,
+                                    [p.source]: e.target.value,
+                                  })
+                                }
+                              />
+                            </label>
+                          )}
+                        </div>
+                      ))}
+                      <p>
+                        {tr("Cash refund from till")}:{" "}
+                        {money(quote.payment_allocation.cash_refund)}
+                      </p>
+                    </section>
+                  )}
                   {settlement === "cash" && quote.net > 0 && (
                     <label className="field">
                       {tr("Cash received")}
@@ -580,6 +669,11 @@ export default function InvoiceAdjustment({
                     className="primary"
                     disabled={
                       busy ||
+                      (originalMethods &&
+                        quote.payment_allocation.refunds.some(
+                          (p: any) =>
+                            !p.is_cash && !refundRefs[p.source]?.trim(),
+                        )) ||
                       (settlement === "cash" &&
                         quote.net > 0 &&
                         Math.round(Number(received) * 100) < quote.net) ||

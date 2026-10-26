@@ -142,7 +142,7 @@ async def recover(c, u, tenant, b):
     pid = uid()
     remaining = b["amount"]
     await c.execute(
-        "INSERT INTO customer_payments(id,tenant,customer,request,signature,amount,method,reference,actor) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+        "INSERT INTO customer_payments(id,tenant,customer,request,signature,amount,method,reference,actor,method_name,method_name_ur,is_cash) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",
         pid,
         tenant,
         b["customer"],
@@ -152,6 +152,9 @@ async def recover(c, u, tenant, b):
         b["method"],
         b["reference"],
         u["email"],
+        method["name"],
+        method["name_ur"],
+        method["code"] == "cash",
     )
     documents = await c.fetch(
         "SELECT * FROM receivables WHERE tenant=$1 AND customer=$2 AND status='open' ORDER BY due_date,created,id FOR UPDATE",
@@ -189,7 +192,10 @@ async def recover(c, u, tenant, b):
             document["id"],
         )
         for installment in installments:
-            applied = min(remainder, installment["amount"] - installment["paid"] - installment["credited"])
+            applied = min(
+                remainder,
+                installment["amount"] - installment["paid"] - installment["credited"],
+            )
             await c.execute(
                 "UPDATE installment_schedule SET paid=paid+$1 WHERE id=$2",
                 applied,
@@ -346,19 +352,44 @@ async def apply_return_credit(c, user, tenant, sale, adjustment, quote):
     reduction = quote["debt_credit"] + quote["debt_waiver"]
     if not reduction:
         return
-    document = await c.fetchrow("SELECT * FROM receivables WHERE tenant=$1 AND sale=$2 FOR UPDATE", tenant, sale)
-    for kind, amount in (("return", quote["debt_credit"]), ("waiver", quote["debt_waiver"])):
-        await ledger(c, tenant, document["customer"], document["id"], kind, -amount, "Adjustment " + adjustment, user["email"])
+    document = await c.fetchrow(
+        "SELECT * FROM receivables WHERE tenant=$1 AND sale=$2 FOR UPDATE", tenant, sale
+    )
+    for kind, amount in (
+        ("return", quote["debt_credit"]),
+        ("waiver", quote["debt_waiver"]),
+    ):
+        await ledger(
+            c,
+            tenant,
+            document["customer"],
+            document["id"],
+            kind,
+            -amount,
+            "Adjustment " + adjustment,
+            user["email"],
+        )
     schedules = await c.fetch(
         "SELECT s.* FROM installment_schedule s JOIN installment_plans p ON p.tenant=s.tenant AND p.id=s.plan WHERE p.tenant=$1 AND p.receivable=$2 ORDER BY s.sequence DESC FOR UPDATE OF s",
-        tenant, document["id"])
+        tenant,
+        document["id"],
+    )
     remaining = reduction
     for row in schedules:
-        take = min(remaining, row["amount"]-row["paid"]-row["credited"])
+        take = min(remaining, row["amount"] - row["paid"] - row["credited"])
         if take:
-            await c.execute("UPDATE installment_schedule SET credited=credited+$1 WHERE tenant=$2 AND id=$3", take, tenant, row["id"])
+            await c.execute(
+                "UPDATE installment_schedule SET credited=credited+$1 WHERE tenant=$2 AND id=$3",
+                take,
+                tenant,
+                row["id"],
+            )
             remaining -= take
     if schedules and remaining:
         fail("Installment reconciliation failed. No adjustment was posted.", 409)
     if quote["outstanding_after"] == 0:
-        await c.execute("UPDATE receivables SET status='settled' WHERE tenant=$1 AND id=$2", tenant, document["id"])
+        await c.execute(
+            "UPDATE receivables SET status='settled' WHERE tenant=$1 AND id=$2",
+            tenant,
+            document["id"],
+        )

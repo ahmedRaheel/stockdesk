@@ -59,12 +59,17 @@ export default function CatalogImport({
     setPreview(null);
     setNotice(null);
     setText("");
-    const excel = file.name.toLowerCase().endsWith(".xlsx");
+    const suffix = file.name.toLowerCase().split(".").pop();
+    const excel = suffix === "xlsx" || suffix === "xls";
+    if (!["csv", "xlsx", "xls"].includes(suffix || "")) {
+      setError(tr("Choose a CSV, XLSX or XLS catalog file."));
+      return;
+    }
     if (file.size > (excel ? 1000000 : 200000)) {
       setError(
         tr(
           excel
-            ? "XLSX file is too large. Maximum 1 MB."
+            ? "Excel file is too large. Maximum 1 MB."
             : "CSV file is too large. Maximum 200 KB.",
         ),
       );
@@ -78,7 +83,7 @@ export default function CatalogImport({
         for (let i = 0; i < bytes.length; i += 32768)
           binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
         const converted = await send<{ csv_text: string }>(
-          `/api/v1/tenants/${tenant}/catalog-imports/convert-xlsx`,
+          `/api/v1/tenants/${tenant}/catalog-imports/convert-${suffix}`,
           { file_base64: btoa(binary) },
         );
         setText(converted.csv_text);
@@ -200,7 +205,7 @@ export default function CatalogImport({
       {mode === "create" && (
         <p>
           {tr(
-            "Upload UTF-8 CSV or a single-sheet XLSX workbook, up to 200 rows. Existing products are never overwritten. All rows succeed together or no products are added.",
+            "Upload UTF-8 CSV or a single-sheet XLSX/XLS workbook, up to 200 rows. Existing products are never overwritten in create mode. All rows succeed together or none are added.",
           )}
         </p>
       )}
@@ -227,7 +232,7 @@ export default function CatalogImport({
         {tr("CSV or Excel file")}
         <input
           type="file"
-          accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           disabled={busy}
           onChange={(e) => load(e.target.files?.[0])}
         />

@@ -1,3 +1,4 @@
+import CameraScanner from "./CameraScanner";
 import { useEffect, useRef, useState } from "react";
 import { ScanBarcode, Keyboard, Plus } from "lucide-react";
 import { t as tr } from "./i18n";
@@ -28,6 +29,10 @@ export default function PosEntry({
     [quantity, setQuantity] = useState("1"),
     [message, setMessage] = useState("");
   const input = useRef<HTMLInputElement>(null);
+  const [camera, setCamera] = useState(false);
+  useEffect(() => {
+    if (busy) setCamera(false);
+  }, [busy]);
   useEffect(() => {
     localStorage.setItem("stockdesk-pos-entry", mode);
     setCode("");
@@ -96,6 +101,25 @@ export default function PosEntry({
           {tr("Manual entry")}
         </button>
       </div>
+      <button
+        type="button"
+        className="secondary"
+        disabled={busy || camera}
+        onClick={() => setCamera(true)}
+      >
+        {tr("Scan with camera")}
+      </button>
+      {camera && (
+        <CameraScanner
+          onClose={() => setCamera(false)}
+          onCode={(value) => {
+            setCode(value);
+            setCamera(false);
+            setMessage(tr("Code scanned. Review quantity and add to bill."));
+            input.current?.focus();
+          }}
+        />
+      )}
       <form onSubmit={submit}>
         <div className="entry-fields">
           <label className="field">

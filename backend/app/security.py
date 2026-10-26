@@ -28,23 +28,29 @@ def digest(token):
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-async def issue_token(c, user_id):
+async def issue_token(c, user_id, tenant_scope=None, pin_revision=None):
     token = secrets.token_urlsafe(40)
     await c.execute(
-        "INSERT INTO sessions(token_hash,user_id,expires) VALUES($1,$2,$3)",
+        "INSERT INTO sessions(token_hash,user_id,expires,tenant_scope,pin_revision) VALUES($1,$2,$3,$4,$5)",
         digest(token),
         user_id,
-        datetime.now(timezone.utc) + timedelta(hours=config.SESSION_HOURS),
+        datetime.now(timezone.utc)
+        + timedelta(
+            hours=min(config.SESSION_HOURS, 8) if tenant_scope else config.SESSION_HOURS
+        ),
+        tenant_scope,
+        pin_revision,
     )
     return token
 
 
-async def session(c, user_id, response):
-    token = await issue_token(c, user_id)
+async def session(c, user_id, response, tenant_scope=None, pin_revision=None):
+    token = await issue_token(c, user_id, tenant_scope, pin_revision)
     response.set_cookie(
         "stockdesk_session",
         token,
-        max_age=config.SESSION_HOURS * 3600,
+        max_age=(min(config.SESSION_HOURS, 8) if tenant_scope else config.SESSION_HOURS)
+        * 3600,
         httponly=True,
         secure=config.COOKIE_SECURE,
         samesite="lax",
@@ -66,12 +72,21 @@ def credential(request):
 async def identity(c, request):
     token = credential(request)
     u = await c.fetchrow(
-        "SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires>now() AND u.active=true",
+        "SELECT u.*,s.tenant_scope,s.pin_revision FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires>now() AND u.active=true",
         digest(token),
     )
     if not u:
         fail("Sign in to continue.", 401)
-    return u
+    if u["tenant_scope"]:
+        allowed = await c.fetchval(
+            "SELECT 1 FROM members m JOIN cashier_pins p ON p.tenant=m.tenant AND p.user_id=m.user_id WHERE m.tenant=$1 AND m.user_id=$2 AND m.active AND m.role='Cashier' AND m.custom_role_id IS NULL AND p.revision=$3",
+            u["tenant_scope"],
+            u["id"],
+            u["pin_revision"],
+        )
+        if u["is_admin"] or not allowed:
+            fail("Cashier session revoked. Sign in again.", 401)
+    return dict(u)
 
 
 def csrf(request):

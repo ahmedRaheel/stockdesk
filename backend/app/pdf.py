@@ -263,6 +263,17 @@ def invoice_pdf(sale, items, language="en", tenders=None):
             )
             story.append(p(label(caption) + ": " + money(abs(adjustment["net"]))))
             story.append(p(adjustment["id"] + " / " + adjustment["settlement"]))
+            for refund in adjustment.get("refunds", []):
+                name = refund.get("name_ur") if language == "ur" else refund["name"]
+                story.append(
+                    p(
+                        (name or refund["name"])
+                        + ": "
+                        + money(refund["amount"])
+                        + " / "
+                        + refund.get("settlement_reference", "")
+                    )
+                )
             if adjustment.get("cash_received"):
                 story.append(
                     p(
@@ -360,6 +371,8 @@ def invoice_pdf(sale, items, language="en", tenders=None):
         )
     for part in tenders or []:
         name = part.get("method_name_ur") if language == "ur" else part["method_name"]
+        if part.get("carried_credit"):
+            name = label("Return credit") + " / " + (name or part["method_name"])
         story.append(
             p(label(name or part["method_name"]) + ": " + money(part["amount"]))
         )
