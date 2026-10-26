@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StockDesk Inventory & POS",
-    "version": "1.18.0"
+    "version": "1.19.0"
   },
   "paths": {
     "/api/health": {
@@ -6612,6 +6612,16 @@
             }
           },
           {
+            "name": "escalated_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Escalated Only"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -9027,6 +9037,19 @@
             "title": "Severity",
             "default": "warning"
           },
+          "escalate_after_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10080.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalate After Minutes"
+          },
           "active": {
             "type": "boolean",
             "title": "Active",
@@ -9270,6 +9293,19 @@
             ],
             "title": "Severity",
             "default": "warning"
+          },
+          "escalate_after_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10080.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalate After Minutes"
           },
           "active": {
             "type": "boolean",

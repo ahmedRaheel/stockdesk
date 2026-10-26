@@ -1,4 +1,4 @@
-# Consolidated implementation checklist — 1.18
+# Consolidated implementation checklist — 1.19
 
 “Implemented” describes the bounded behavior below, not every requested variant. Code is delivered; production deployment and physical/provider acceptance are separate.
 
@@ -18,7 +18,7 @@
 | Cashier operations | Till opening, cash in/out, counted closing and discrepancy notes | Hardware cash drawer, full fiscal X/Z reports, PIN/biometric switching |
 | Analytics | Sales dashboard/rankings, basic profit breakdowns, descriptive ABC/XYZ, CSV reports; frozen tax register; current batch age and current-catalog-cost valuation; per-SKU quantity turnover from daily closing stock; Excel/PDF exports for implemented reports | Builder/scheduling, statutory tax/return-period reports, receipt-layer age and FIFO/LIFO valuation, cost-based turnover, consolidated financials |
 | Forecasting | Baseline demand/reorder, stockout/replenishment planning using available history and outstanding POs; descriptive basket support/confidence/lift; user-controlled sales/profit what-if calculations | Weather/festival models, optimization, probabilistic credit/cashflow, churn, supplier delay, shrinkage, personalized basket recommendations, staffing, predictive elasticity/stock-constrained simulation |
-| Alerts | Existing on-screen forecast exceptions; configurable inventory low-stock/stock-out/expiry rules, persistent inbox, acknowledgement and resolution history, optional background evaluation | Finance/security/predictive/custom-expression rules, push/email/SMS/WhatsApp/Urdu voice, quiet hours, escalation, external delivery/retry jobs |
+| Alerts | Existing on-screen forecast exceptions; configurable inventory low-stock/stock-out/expiry rules, persistent inbox, acknowledgement and resolution history, optional background evaluation, timed in-app escalation to critical with preserved history | Finance/security/predictive/custom-expression rules, push/email/SMS/WhatsApp/Urdu voice, quiet hours, recipient/escalation chains, external delivery/retry jobs |
 | CRM | Customer records, purchase/credit workflows, reference segments | Loyalty points, wallet/gift liabilities, memberships, campaigns, feedback |
 | Access and tenancy | Tenant-bound API/data references, built-in and custom tenant roles, immediate revocation, permission dependencies, searchable/page-exportable audits of implemented writes; independent credit/count/PO approvals | Store/region-scoped roles, regions/franchise hierarchy, multi-store scope, support consent/impersonation, portals, SSO/MFA |
 | SaaS operations | Platform business management and suspension, headless endpoints, bootstrap/admin controls | Plans/subscriptions/metering, native apps, white-labeling, backup orchestration and tested restore, uptime evidence |

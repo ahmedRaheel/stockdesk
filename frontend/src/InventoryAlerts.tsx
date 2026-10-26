@@ -24,6 +24,7 @@ const initial = {
   threshold: "",
   expiry_days: 30,
   severity: "warning",
+  escalate_after_minutes: "",
   active: true,
 };
 export default function InventoryAlerts({ tenant }: { tenant: string }) {
@@ -34,6 +35,7 @@ export default function InventoryAlerts({ tenant }: { tenant: string }) {
     [selected, setSelected] = useState<PurchaseOption>(),
     [workerEnabled, setWorkerEnabled] = useState(false),
     [status, setStatus] = useState("open"),
+    [escalatedOnly, setEscalatedOnly] = useState(false),
     [page, setPage] = useState(0),
     [data, setData] = useState<any>(null),
     [revision, setRevision] = useState(0),
@@ -48,9 +50,12 @@ export default function InventoryAlerts({ tenant }: { tenant: string }) {
     setError("");
     Promise.all([
       api<any>(base + "/rules", { signal: c.signal }),
-      api<any>(`${base}?status=${status}&offset=${page * 50}`, {
-        signal: c.signal,
-      }),
+      api<any>(
+        `${base}?status=${status}&escalated_only=${escalatedOnly}&offset=${page * 50}`,
+        {
+          signal: c.signal,
+        },
+      ),
     ])
       .then(([r, d]) => {
         setRules(r.items);
@@ -61,7 +66,7 @@ export default function InventoryAlerts({ tenant }: { tenant: string }) {
         if (e.name !== "AbortError") setError(e.message);
       });
     return () => c.abort();
-  }, [tenant, status, page, revision]);
+  }, [tenant, status, escalatedOnly, page, revision]);
   useEffect(() => {
     const timer = setInterval(() => setRevision((x) => x + 1), 30000);
     return () => clearInterval(timer);
@@ -143,6 +148,17 @@ export default function InventoryAlerts({ tenant }: { tenant: string }) {
             ))}
           </select>
         </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={escalatedOnly}
+            onChange={(e) => {
+              setEscalatedOnly(e.target.checked);
+              setPage(0);
+            }}
+          />
+          {tr("Escalated alerts only")}
+        </label>
         {!data ? (
           <p>{tr("Loading…")}</p>
         ) : (
@@ -186,7 +202,20 @@ export default function InventoryAlerts({ tenant }: { tenant: string }) {
                             </>
                           )}
                         </td>
-                        <td>{label(a.severity)}</td>
+                        <td>
+                          {label(a.severity)}
+                          {a.escalated_at && (
+                            <p>
+                              <strong>{tr("Escalated")}</strong> ·{" "}
+                              {label(a.escalated_from)} → {label(a.severity)}
+                              <br />
+                              {new Date(a.escalated_at).toLocaleString()}
+                              <br />
+                              {tr("Unacknowledged minutes")}:{" "}
+                              {a.escalation_minutes}
+                            </p>
+                          )}
+                        </td>
                         <td>
                           {label(a.status)}
                           {a.acknowledged_by && (
@@ -276,6 +305,11 @@ export default function InventoryAlerts({ tenant }: { tenant: string }) {
             e.preventDefault();
             const payload = {
               ...form,
+              escalate_after_minutes:
+                form.severity !== "critical" &&
+                form.escalate_after_minutes !== ""
+                  ? Number(form.escalate_after_minutes)
+                  : null,
               threshold:
                 form.kind === "low_stock" && form.threshold !== ""
                   ? Number(form.threshold)
@@ -321,7 +355,16 @@ export default function InventoryAlerts({ tenant }: { tenant: string }) {
               {tr("Severity")}
               <select
                 value={form.severity}
-                onChange={(e) => setForm({ ...form, severity: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    severity: e.target.value,
+                    escalate_after_minutes:
+                      e.target.value === "critical"
+                        ? ""
+                        : form.escalate_after_minutes,
+                  })
+                }
               >
                 {["info", "warning", "critical"].map((x) => (
                   <option key={x} value={x}>
@@ -329,6 +372,20 @@ export default function InventoryAlerts({ tenant }: { tenant: string }) {
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="field">
+              {tr("Escalate to critical after minutes (optional)")}
+              <input
+                type="number"
+                min="1"
+                max="10080"
+                step="1"
+                disabled={form.severity === "critical"}
+                value={form.escalate_after_minutes}
+                onChange={(e) =>
+                  setForm({ ...form, escalate_after_minutes: e.target.value })
+                }
+              />
             </label>
             <PurchaseLookup
               tenant={tenant}
@@ -383,6 +440,11 @@ export default function InventoryAlerts({ tenant }: { tenant: string }) {
           <p>
             {tr(
               "No product selection applies the rule to all active products. Expiry rules include already expired batches with remaining stock. No message is sent outside StockDesk.",
+            )}
+          </p>
+          <p className="hint">
+            {tr(
+              "Escalation raises unacknowledged open alerts to critical on evaluation. Acknowledged or cleared alerts do not escalate. Leave blank to disable.",
             )}
           </p>
           <button className="primary" disabled={busy}>
@@ -444,6 +506,10 @@ export default function InventoryAlerts({ tenant }: { tenant: string }) {
                             r.threshold == null ? "" : String(r.threshold),
                           expiry_days: r.expiry_days,
                           severity: r.severity,
+                          escalate_after_minutes:
+                            r.escalate_after_minutes == null
+                              ? ""
+                              : String(r.escalate_after_minutes),
                           active: r.active,
                         });
                         setSelected(

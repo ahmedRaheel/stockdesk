@@ -1,4 +1,13 @@
-# Verification record — StockDesk 1.18
+# Verification record — StockDesk 1.19
+
+## Release 1.19 checks
+
+- Full backend regression: **73 passed, 1 skipped** in 119.30 seconds under PGlite. The skipped test requires real PostgreSQL multiprocess concurrency. Focused alerts suite: **4 passed** in 12.19 seconds.
+- New coverage includes strict escalation bounds, critical-rule rejection, before/at-deadline behavior, one-time escalation/audit, acknowledged-alert suppression, resolution-before-escalation, recurrence, rule edits, worker evaluation, tenant isolation, escalated filtering and retained history. Initial tests caught and corrected an extra argument in the product validation query.
+- Chromium against React/FastAPI passed rule create/edit, overdue critical status, escalated-only filtering, acknowledgement and replenishment/resolution with retained escalation history. Desktop/Urdu mobile screenshots reviewed; no JavaScript page errors. Browser native randomUUID was unavailable throughout, preserving the EC2 HTTP fallback check.
+- TypeScript/Vite production build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.19. Migration 024 is new; migrations 001–023 are unchanged. No dependencies added.
+- Full tests and browser use PGlite; production pool settings are unchanged. Real PostgreSQL multiprocess/load, live EC2/Docker deployment, hardware/provider acceptance and the broader enterprise checklist remain unverified or outstanding.
+
 
 ## Release 1.18 checks
 

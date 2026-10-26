@@ -151,3 +151,8 @@ Create an offer with per-customer cap 1 and verify it persists after editing. Ap
 ## 1.18 automatic promotions
 
 Mark two offers automatic; verify edit retains the flag. Enable automatic selection in POS and verify the lowest final tax-inclusive total wins. Hold/resume preserves the choice. Complete checkout and inspect the selected offer on the receipt. Exhaust the winner and verify the next eligible offer wins. A stale quote must fail; retrying the successful request must not consume another redemption. Check exact-total ties, no eligible offers, schedules, minimums, registered-customer limits, mixed taxes, Urdu/mobile and HTTP UUID fallback.
+
+
+## 1.19 alert escalation
+
+Create a warning/info low-stock rule with a one-minute escalation threshold and verify edit persistence. Open an alert, leave it unacknowledged, and evaluate after the deadline: it becomes critical once. Filter escalated alerts, acknowledge it, replenish stock and evaluate again: resolution retains escalation history. Acknowledging before the deadline or clearing stock before evaluation must prevent escalation. Verify recurrence starts a new timer, critical rules reject escalation configuration, and Urdu/mobile displays the history.

@@ -1051,5 +1051,11 @@
   "Selects one eligible offer with the lowest total including tax. Offers are not combined.": "ٹیکس سمیت کم ترین کل رقم والی ایک اہل آفر منتخب ہوگی۔ آفرز یکجا نہیں ہوں گی۔",
   "Automatic offers cannot be combined with a code or manual discount.": "خودکار آفر کو کوڈ یا دستی رعایت کے ساتھ یکجا نہیں کیا جا سکتا۔",
   "At most 100 active automatic promotions are allowed. Disable an existing offer first.": "زیادہ سے زیادہ 100 فعال خودکار پروموشنز کی اجازت ہے۔ پہلے موجودہ آفر غیر فعال کریں۔",
-  "One promotion per sale. Manual discounts cannot be combined. Automatic offers and entered codes are checked again at checkout.": "فی فروخت ایک پروموشن۔ دستی رعایت یکجا نہیں کی جا سکتی۔ خودکار آفرز اور درج کردہ کوڈز کی ادائیگی کے وقت دوبارہ جانچ ہوتی ہے۔"
+  "One promotion per sale. Manual discounts cannot be combined. Automatic offers and entered codes are checked again at checkout.": "فی فروخت ایک پروموشن۔ دستی رعایت یکجا نہیں کی جا سکتی۔ خودکار آفرز اور درج کردہ کوڈز کی ادائیگی کے وقت دوبارہ جانچ ہوتی ہے۔",
+  "Escalated alerts only": "صرف شدت بڑھائے گئے الرٹس",
+  "Escalated": "شدت بڑھائی گئی",
+  "Unacknowledged minutes": "تصدیق کے بغیر منٹ",
+  "Escalate to critical after minutes (optional)": "کتنے منٹ بعد شدت نازک کریں (اختیاری)",
+  "Escalation raises unacknowledged open alerts to critical on evaluation. Acknowledged or cleared alerts do not escalate. Leave blank to disable.": "جانچ کے وقت غیر تصدیق شدہ کھلے الرٹس کی شدت نازک ہو جاتی ہے۔ تصدیق شدہ یا ختم شدہ الرٹس کی شدت نہیں بڑھتی۔ غیر فعال رکھنے کے لیے خالی چھوڑیں۔",
+  "Critical alerts cannot be escalated further.": "نازک الرٹس کی شدت مزید نہیں بڑھائی جا سکتی۔"
 }

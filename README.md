@@ -3,7 +3,7 @@
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Release 1.18** adds automatic offer selection using the lowest final total including tax. Per-customer limits and the sales customer picker remain included. Cross-product BOGO, paired returns and the EC2 HTTP fix remain included. See [release notes](docs/RELEASE-1.18.md) and the [remaining checklist](docs/CHECKLIST.md). The EC2 HTTP request-ID fix remains included; [standalone hotfix instructions](docs/RELEASE-1.15.1.md) remain available for older installations.
+**Release 1.19** adds timed in-app escalation of unacknowledged inventory alerts, with escalation history and filtering. Automatic offer selection and per-customer limits remain included. Cross-product BOGO, paired returns and the EC2 HTTP fix remain included. See [release notes](docs/RELEASE-1.19.md) and the [remaining checklist](docs/CHECKLIST.md). The EC2 HTTP request-ID fix remains included; [standalone hotfix instructions](docs/RELEASE-1.15.1.md) remain available for older installations.
 
 ## Upgrade your existing deployment
 

@@ -231,3 +231,8 @@ Promotion create/update adds nullable `per_customer_limit`. Sales quotes accept 
 ## 1.18 automatic promotions
 
 Promotion bodies add `automatic`; quote, checkout and held-bill bodies add `auto_promotion`. Both default false. Automatic mode selects one eligible offer with the lowest final total including tax, requires a fresh checkout quote, and excludes manual/code discounts. See [1.18 contracts and bounds](RELEASE-1.18.md).
+
+
+## 1.19 alert escalation
+
+Inventory alert rules accept nullable `escalate_after_minutes` (1–10080, noncritical rules only). Inbox supports `escalated_only`; events retain prior severity, timestamp and threshold. Evaluate adds an `escalated` count. See [1.19 behavior and contracts](RELEASE-1.19.md).

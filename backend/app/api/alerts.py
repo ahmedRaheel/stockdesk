@@ -26,12 +26,17 @@ class Rule(Contract):
     )
     expiry_days: int = Field(default=30, strict=True, ge=0, le=365)
     severity: Literal["info", "warning", "critical"] = "warning"
+    escalate_after_minutes: int | None = Field(
+        default=None, strict=True, ge=1, le=10080
+    )
     active: bool = Field(default=True, strict=True)
 
     @model_validator(mode="after")
     def valid(self):
         if self.kind != "low_stock" and self.threshold is not None:
             raise ValueError("Only low-stock rules accept a quantity threshold.")
+        if self.severity == "critical" and self.escalate_after_minutes is not None:
+            raise ValueError("Critical alerts cannot be escalated further.")
         return self
 
 
@@ -85,6 +90,7 @@ async def save(tenant, payload, request, user, id=None):
                 payload.expiry_days,
                 payload.severity,
                 payload.active,
+                payload.escalate_after_minutes,
             ]
             if id:
                 old = await c.fetchrow(
@@ -97,7 +103,7 @@ async def save(tenant, payload, request, user, id=None):
                 if old["version"] != payload.version:
                     fail("Alert rule changed. Reload before saving.", 409)
                 await c.execute(
-                    "UPDATE inventory_alert_rules SET name=$1,kind=$2,product=$3,threshold=$4,expiry_days=$5,severity=$6,active=$7,version=version+1,last_evaluated=NULL WHERE tenant=$8 AND id=$9",
+                    "UPDATE inventory_alert_rules SET name=$1,kind=$2,product=$3,threshold=$4,expiry_days=$5,severity=$6,active=$7,escalate_after_minutes=$8,version=version+1,last_evaluated=NULL WHERE tenant=$9 AND id=$10",
                     *values,
                     tenant,
                     id,
@@ -119,7 +125,7 @@ async def save(tenant, payload, request, user, id=None):
                     fail("Maximum 50 alert rules per business.", 422)
                 id = service.uid()
                 await c.execute(
-                    "INSERT INTO inventory_alert_rules(name,kind,product,threshold,expiry_days,severity,active,tenant,id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+                    "INSERT INTO inventory_alert_rules(name,kind,product,threshold,expiry_days,severity,active,escalate_after_minutes,tenant,id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
                     *values,
                     tenant,
                     id,
@@ -158,23 +164,28 @@ async def inbox(
     tenant: str,
     user: User,
     status: Literal["open", "acknowledged", "resolved", "all"] = "open",
+    escalated_only: bool = False,
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
     async with db.pool.acquire() as c:
         async with c.transaction(isolation="repeatable_read", readonly=True):
             await service.authorize(c, user, tenant, "alerts")
-            clause = "tenant=$1 AND ($2='all' OR status=$2)"
+            clause = "tenant=$1 AND ($2='all' OR status=$2) AND ($3=false OR escalated_at IS NOT NULL)"
             total = await c.fetchval(
-                "SELECT count(*) FROM inventory_alerts WHERE " + clause, tenant, status
+                "SELECT count(*) FROM inventory_alerts WHERE " + clause,
+                tenant,
+                status,
+                escalated_only,
             )
             rows = service.rows(
                 await c.fetch(
                     "SELECT * FROM inventory_alerts WHERE "
                     + clause
-                    + " ORDER BY opened DESC,id LIMIT $3 OFFSET $4",
+                    + " ORDER BY opened DESC,id LIMIT $4 OFFSET $5",
                     tenant,
                     status,
+                    escalated_only,
                     limit,
                     offset,
                 )

@@ -14,7 +14,7 @@ async def evaluate(c, tenant, user, due_only=False):
         tenant,
         due_only,
     )
-    opened = resolved = 0
+    opened = resolved = escalated = 0
     for rule in rules:
         if rule["kind"] == "expiry":
             matches = await c.fetch(
@@ -85,6 +85,28 @@ async def evaluate(c, tenant, user, due_only=False):
                 [r["id"] for r in existing.values()],
             )
             resolved += len(existing)
+        if rule["escalate_after_minutes"] is not None:
+            # Resolve cleared conditions first, then escalate only still-open episodes.
+            promoted = await c.fetch(
+                "UPDATE inventory_alerts SET escalated_from=severity,severity='critical',escalated_at=now(),escalation_minutes=$3 WHERE tenant=$1 AND rule=$2 AND status='open' AND severity IN ('info','warning') AND escalated_at IS NULL AND opened <= now()-($3::integer * interval '1 minute') RETURNING id",
+                tenant,
+                rule["id"],
+                rule["escalate_after_minutes"],
+            )
+            if promoted:
+                escalated += len(promoted)
+                await service.audit(
+                    c,
+                    tenant,
+                    user,
+                    "Inventory alerts escalated",
+                    dict(
+                        rule=rule["id"],
+                        count=len(promoted),
+                        after_minutes=rule["escalate_after_minutes"],
+                        severity="critical",
+                    ),
+                )
         await c.execute(
             "UPDATE inventory_alert_rules SET last_evaluated=now() WHERE tenant=$1 AND id=$2",
             tenant,
@@ -98,7 +120,9 @@ async def evaluate(c, tenant, user, due_only=False):
             "Inventory alerts evaluated",
             dict(opened=opened, resolved=resolved),
         )
-    return dict(evaluated=len(rules), opened=opened, resolved=resolved)
+    return dict(
+        evaluated=len(rules), opened=opened, resolved=resolved, escalated=escalated
+    )
 
 
 async def worker_once(after=""):
