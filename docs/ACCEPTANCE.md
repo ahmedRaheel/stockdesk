@@ -168,3 +168,10 @@ Configure all-day quiet hours and verify a low-stock match does not open an aler
 - Sell from two batches, explicitly return the later batch, then return the earlier batch. Verify lot stock and remaining sold quantities; reject unknown, duplicate, expired-restock and excessive quantities.
 - Make an installment khata sale with markup, record a recovery, partially return an item and inspect separate paid/credited schedule values. A recovery after preview must invalidate confirmation. Fully return remaining goods and reconcile debt, explicit waiver if any, refund and till movement.
 - Request approval for a partial return; approve from a separate user and confirm. Verify legacy full-return API also requires approval when enabled.
+
+## 1.22 catalog and assembly
+
+- Create a size/color family and assign SKUs. Reject duplicate combinations, missing axes, stale versions and foreign tenant SKUs. Detach/reassign and verify old versions remain invalid. Search the family in POS and sell the intended SKU.
+- Define a six-unit pack, build two packs from 12 units, then unpack one pack into six units. Verify product totals, batch quantities and job history; unchanged retries must not post twice.
+- Assemble a BOM with two components. Reject a dependency cycle, missing stock, fractional whole units and unpacking of a BOM. Require a new output SKU/recipe to change a used conversion.
+- Consume dated stock: reject missing/later output expiry and expired components. Preview, change component stock, then reject stale confirmation. Verify a failed output write leaves all component stock and job records unchanged.

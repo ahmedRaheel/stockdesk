@@ -1,3 +1,4 @@
+import CatalogTools from "./CatalogTools";
 import TransactionApprovals from "./TransactionApprovals";
 import { newRequestId } from "./requestId";
 import InvoiceAdjustment from "./InvoiceAdjustment";
@@ -57,6 +58,10 @@ import LookupSelect from "./LookupSelect";
 import CustomerSelect from "./CustomerSelect";
 import { api, send } from "./api";
 const titles: any = {
+  catalogtools: [
+    "Variants, recipes and packs",
+    "Manage SKU families and stock conversions.",
+  ],
   approvals: [
     "Transaction approvals",
     "Independent discount and return decisions.",
@@ -129,6 +134,7 @@ const titles: any = {
   ],
 };
 const icons: any = {
+  catalogtools: Package,
   approvals: ShieldCheck,
   feedback: SlidersHorizontal,
   alerts: SlidersHorizontal,
@@ -479,7 +485,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
         " " +
         (p.barcode || "") +
         " " +
-        (p.search_aliases || "")
+        (p.search_aliases || "") +
+        " " +
+        (p.variant_label || "")
       )
         .toLowerCase()
         .includes(search.toLowerCase()) &&
@@ -811,6 +819,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     ...(can("cost") ? ["reports"] : []),
     ...(can("finance") ? ["payables"] : []),
     ...(can("product") ? ["imports"] : []),
+    ...(can("product") || can("stock") ? ["catalogtools"] : []),
     ...(can("team") ? ["team"] : []),
     ...(can("audit") ? ["audit"] : []),
     ...(can("roles") ? ["roles"] : []),
@@ -1358,6 +1367,16 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               {view === "roles" && can("roles") && (
                 <RoleManagement key={tenant} tenant={tenant} />
               )}
+              {view === "catalogtools" && (can("product") || can("stock")) && (
+                <CatalogTools
+                  key={tenant}
+                  tenant={tenant}
+                  canProduct={can("product")}
+                  canStock={can("stock")}
+                  onChanged={() => load()}
+                  money={money}
+                />
+              )}
               {view === "imports" && can("product") && (
                 <CatalogImport
                   canUpdate={can("cost")}
@@ -1620,6 +1639,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                             <div className="product-info">
                               <small>{p.sku}</small>
                               <h3>{p.name}</h3>
+                              {p.variant_label && (
+                                <small>{p.variant_label}</small>
+                              )}
                               <div>
                                 <b>{money(p.price)}</b>
                                 <span

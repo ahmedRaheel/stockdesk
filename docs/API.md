@@ -245,3 +245,7 @@ Alert rule bodies add `quiet_start`/`quiet_end`; evaluation adds `deferred`. New
 ## 1.21 transaction controls
 
 See [RELEASE-1.21.md](RELEASE-1.21.md) for approval policy/request/decision routes, `approval_id` fields, batch selection and khata quote fields. The generated OpenAPI schema includes all request models. Installment schedule responses add `credited`; remaining due is `amount - paid - credited`.
+
+## 1.22 catalog and assembly
+
+See [RELEASE-1.22.md](RELEASE-1.22.md) for family/variant CRUD, pack/BOM recipes, previews, atomic jobs and paginated history. Product list/workspace responses add `variant_label`; product records add `variant_revision`. No existing write contract requires new fields.

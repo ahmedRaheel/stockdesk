@@ -3,7 +3,7 @@
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Release 1.21** adds partial khata corrections with installment credits, selected-batch returns, and independent discount/return approvals. Existing POS, promotions, alerts, feedback and EC2 HTTP fixes remain included. See [release notes](docs/RELEASE-1.21.md), the [remaining checklist](docs/CHECKLIST.md), and [completion roadmap](docs/COMPLETION-ROADMAP.md). The full enterprise scope is not complete.
+**Release 1.22** adds SKU variant families, reversible pack conversions and explicit BOM assembly with batch/expiry provenance and atomic stock reconciliation. Existing POS, khata corrections, transaction approvals and EC2 HTTP fixes remain included. See [release notes](docs/RELEASE-1.22.md), the [remaining checklist](docs/CHECKLIST.md), and [completion roadmap](docs/COMPLETION-ROADMAP.md). The full enterprise scope is not complete.
 
 ## Upgrade your existing deployment
 

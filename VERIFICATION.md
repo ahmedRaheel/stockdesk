@@ -1,4 +1,14 @@
-# Verification record — StockDesk 1.21
+# Verification record — StockDesk 1.22
+
+## Release 1.22 checks
+
+- Final full backend regression: **79 passed, 1 skipped** in 142.32 seconds under PGlite. The earlier run also passed 79/1 in 142.75 seconds. The skipped test requires real PostgreSQL multiprocess concurrency. Focused catalog tests passed after the persistent variant revision and single-query assignment read changes (2 passed in 6.81 seconds).
+- Variant tests cover normalized axes, duplicate combinations, missing attributes, stale updates, family deactivation, product search labels, detach/reassign stale-request protection, tenant references, role restrictions and CSRF.
+- Assembly tests cover build/unpack stock reconciliation, idempotent jobs and conflicting requests, frozen used conversion factors, version/stock changes after preview, multi-component BOM, dependency cycles, insufficient/expired input stock, output expiry limits, whole-unit constraints and immutable history evidence. A forced database output-write failure verifies rollback of earlier input debits and job records.
+- Chromium against React/FastAPI passed family creation and SKU assignment, recipe creation, building two packs and unpacking one, exact stock assertions, searching variants by family in POS, selling the resulting pack, and job history. Native randomUUID was disabled throughout the browser context. No JavaScript page errors. English desktop and Urdu/mobile screens were reviewed; selectors received explicit accessible labels, source batch details render separately from quantities, and history timestamps use display formatting.
+- TypeScript/Vite build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.22. Existing files and migrations 001–027 compared with the delivered 1.21 ZIP; no existing migration changed or source file disappeared. New migration 028 adds the catalog/assembly tables and search view. No dependencies, database containers or Docker/network configuration changes.
+- These checks use PGlite/test-only pooling, not live EC2/Docker or production PostgreSQL concurrency/load. No regulatory or physical hardware acceptance is claimed. Current-catalog cost estimates are not receipt-layer costing; the enterprise checklist remains partially implemented.
+
 
 ## Release 1.21 checks
 
