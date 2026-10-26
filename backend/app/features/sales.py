@@ -86,6 +86,8 @@ async def checkout(c, u, b, t=None):
             "paid_now": prior["paid_now"],
             "credit_amount": prior["credit_amount"],
         }
+    from .transaction_approvals import consume
+    await consume(c, u, tenant, "discount", b)
     if held_id:
         held = await c.fetchrow(
             "SELECT * FROM held_bills WHERE tenant=$1 AND id=$2 AND actor=$3 FOR UPDATE",
@@ -376,6 +378,8 @@ async def return_sale(c, u, b, t=None):
         fail("Use item adjustments for an invoice that has already been revised.", 409)
     if sale["status"] == "returned":
         return {"ok": True}
+    from .transaction_approvals import consume
+    await consume(c, u, tenant, "return", b, sid)
     reason_id = b.get("reason_id") or None
     if reason_id:
         await lookup(c, tenant, reason_id, "return_reason")

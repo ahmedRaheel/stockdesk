@@ -33,6 +33,9 @@ def invoice_pdf(sale, items, language="en", tenders=None):
         "Original collection": "اصل وصولی",
         "Invoice revision": "رسید کی ترمیم",
         "Retained payment": "باقی اشیاء کی ادا شدہ رقم",
+        "Khata debt reduction": "کھاتے کے قرض میں کمی",
+        "Financing balance waived": "معاف کردہ فنانسنگ بقایا",
+        "Remaining invoice debt": "بل کا باقی قرض",
         "Return credit": "واپسی کی قیمت",
         "Collected from customer": "گاہک سے وصول شدہ",
         "Refunded to customer": "گاہک کو واپس کردہ",
@@ -242,6 +245,9 @@ def invoice_pdf(sale, items, language="en", tenders=None):
                     )
                 )
             story.append(p(label("Return credit") + ": " + money(adjustment["credit"])))
+            if adjustment.get("outstanding_before", 0):
+                for caption, key in (("Khata debt reduction", "debt_credit"), ("Financing balance waived", "debt_waiver"), ("Remaining invoice debt", "outstanding_after")):
+                    story.append(p(label(caption) + ": " + money(adjustment[key])))
             caption = (
                 "Collected from customer"
                 if adjustment["net"] > 0

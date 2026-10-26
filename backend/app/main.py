@@ -48,7 +48,7 @@ async def lifespan(app):
 
 app = FastAPI(
     title="StockDesk Inventory & POS",
-    version="1.19.0",
+    version="1.21.0",
     lifespan=lifespan,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
@@ -389,3 +389,10 @@ app.include_router(alerts_router)
 from .api.exchanges import router as exchanges_router
 
 app.include_router(exchanges_router)
+
+from .api.feedback import router as feedback_router
+
+app.include_router(feedback_router)
+
+from .api.transaction_approvals import router as transaction_approvals_router
+app.include_router(transaction_approvals_router)

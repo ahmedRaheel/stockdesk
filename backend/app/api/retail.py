@@ -466,7 +466,7 @@ async def overview(tenant: str, user: User):
           FROM receivables r JOIN customers c ON c.tenant=r.tenant AND c.id=r.customer WHERE r.tenant=$1 AND r.status='open')
           SELECT b.customer,b.name,b.phone,b.id AS receivable,b.due_date,b.balance AS amount FROM balances b
           WHERE b.balance>0 AND NOT EXISTS(SELECT 1 FROM installment_plans p WHERE p.tenant=b.tenant AND p.receivable=b.id)
-          UNION ALL SELECT b.customer,b.name,b.phone,b.id,s.due_date,s.amount-s.paid FROM balances b JOIN installment_plans p ON p.tenant=b.tenant AND p.receivable=b.id JOIN installment_schedule s ON s.tenant=p.tenant AND s.plan=p.id WHERE s.amount>s.paid ORDER BY due_date""",
+          UNION ALL SELECT b.customer,b.name,b.phone,b.id,s.due_date,s.amount-s.paid-s.credited FROM balances b JOIN installment_plans p ON p.tenant=b.tenant AND p.receivable=b.id JOIN installment_schedule s ON s.tenant=p.tenant AND s.plan=p.id WHERE s.amount>s.paid+s.credited ORDER BY due_date""",
                 tenant,
             )
         )

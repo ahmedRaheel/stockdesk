@@ -3,9 +3,19 @@
 import asyncio
 import json
 import logging
-from datetime import timedelta
+from datetime import timedelta, datetime
+from zoneinfo import ZoneInfo
 from .. import db, service
 from ..rules import business_date, fail
+
+
+def quiet_now(rule, now):
+    start, end = rule.get("quiet_start"), rule.get("quiet_end")
+    if start is None or end is None:
+        return False
+    local = now.astimezone(ZoneInfo("Asia/Karachi"))
+    minute = local.hour * 60 + local.minute
+    return start <= minute < end if start < end else minute >= start or minute < end
 
 
 async def evaluate(c, tenant, user, due_only=False):
@@ -14,8 +24,10 @@ async def evaluate(c, tenant, user, due_only=False):
         tenant,
         due_only,
     )
-    opened = resolved = escalated = 0
+    opened = resolved = escalated = deferred = 0
+    now = await c.fetchval("SELECT now()")
     for rule in rules:
+        quiet = quiet_now(rule, now)
         if rule["kind"] == "expiry":
             matches = await c.fetch(
                 """SELECT b.id AS entity,p.id AS product,p.sku,p.name,b.lot,b.expires,b.stock,l.name AS unit
@@ -56,6 +68,9 @@ async def evaluate(c, tenant, user, due_only=False):
         records = []
         for row in matches:
             prior = existing.pop(row["entity"], None)
+            if quiet and not prior:
+                deferred += 1
+                continue
             records.append(
                 dict(
                     id=prior["id"] if prior else service.uid(),
@@ -85,7 +100,7 @@ async def evaluate(c, tenant, user, due_only=False):
                 [r["id"] for r in existing.values()],
             )
             resolved += len(existing)
-        if rule["escalate_after_minutes"] is not None:
+        if not quiet and rule["escalate_after_minutes"] is not None:
             # Resolve cleared conditions first, then escalate only still-open episodes.
             promoted = await c.fetch(
                 "UPDATE inventory_alerts SET escalated_from=severity,severity='critical',escalated_at=now(),escalation_minutes=$3 WHERE tenant=$1 AND rule=$2 AND status='open' AND severity IN ('info','warning') AND escalated_at IS NULL AND opened <= now()-($3::integer * interval '1 minute') RETURNING id",
@@ -121,7 +136,11 @@ async def evaluate(c, tenant, user, due_only=False):
             dict(opened=opened, resolved=resolved),
         )
     return dict(
-        evaluated=len(rules), opened=opened, resolved=resolved, escalated=escalated
+        evaluated=len(rules),
+        opened=opened,
+        resolved=resolved,
+        escalated=escalated,
+        deferred=deferred,
     )
 
 

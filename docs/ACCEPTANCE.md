@@ -156,3 +156,15 @@ Mark two offers automatic; verify edit retains the flag. Enable automatic select
 ## 1.19 alert escalation
 
 Create a warning/info low-stock rule with a one-minute escalation threshold and verify edit persistence. Open an alert, leave it unacknowledged, and evaluate after the deadline: it becomes critical once. Filter escalated alerts, acknowledge it, replenish stock and evaluate again: resolution retains escalation history. Acknowledging before the deadline or clearing stock before evaluation must prevent escalation. Verify recurrence starts a new timer, critical rules reject escalation configuration, and Urdu/mobile displays the history.
+
+
+## 1.20 quiet hours and customer feedback
+
+Configure all-day quiet hours and verify a low-stock match does not open an alert; clear quiet hours and evaluate to open it. Existing acknowledged/cleared episodes must continue to behave correctly. Test overnight boundaries and deferred escalation. Record rated feedback with an optional invoice, retry it without duplication, resolve and reopen with notes, reject stale versions and foreign invoices, and confirm unauthorized roles cannot read or mutate feedback. Check Urdu/mobile and HTTP UUID fallback.
+
+## 1.21 transaction controls
+
+- Enable both approval policies as Owner; another Manager approves a discounted POS order. Verify self-approval, changed data, revoked approver and expired requests fail; unchanged checkout retries create one sale.
+- Sell from two batches, explicitly return the later batch, then return the earlier batch. Verify lot stock and remaining sold quantities; reject unknown, duplicate, expired-restock and excessive quantities.
+- Make an installment khata sale with markup, record a recovery, partially return an item and inspect separate paid/credited schedule values. A recovery after preview must invalidate confirmation. Fully return remaining goods and reconcile debt, explicit waiver if any, refund and till movement.
+- Request approval for a partial return; approve from a separate user and confirm. Verify legacy full-return API also requires approval when enabled.

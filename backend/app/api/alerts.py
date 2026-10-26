@@ -29,6 +29,8 @@ class Rule(Contract):
     escalate_after_minutes: int | None = Field(
         default=None, strict=True, ge=1, le=10080
     )
+    quiet_start: int | None = Field(default=None, strict=True, ge=0, le=1439)
+    quiet_end: int | None = Field(default=None, strict=True, ge=1, le=1440)
     active: bool = Field(default=True, strict=True)
 
     @model_validator(mode="after")
@@ -37,6 +39,10 @@ class Rule(Contract):
             raise ValueError("Only low-stock rules accept a quantity threshold.")
         if self.severity == "critical" and self.escalate_after_minutes is not None:
             raise ValueError("Critical alerts cannot be escalated further.")
+        if (self.quiet_start is None) != (self.quiet_end is None) or (
+            self.quiet_start is not None and self.quiet_start == self.quiet_end
+        ):
+            raise ValueError("Choose both distinct quiet-hour endpoints.")
         return self
 
 
@@ -91,6 +97,8 @@ async def save(tenant, payload, request, user, id=None):
                 payload.severity,
                 payload.active,
                 payload.escalate_after_minutes,
+                payload.quiet_start,
+                payload.quiet_end,
             ]
             if id:
                 old = await c.fetchrow(
@@ -103,7 +111,7 @@ async def save(tenant, payload, request, user, id=None):
                 if old["version"] != payload.version:
                     fail("Alert rule changed. Reload before saving.", 409)
                 await c.execute(
-                    "UPDATE inventory_alert_rules SET name=$1,kind=$2,product=$3,threshold=$4,expiry_days=$5,severity=$6,active=$7,escalate_after_minutes=$8,version=version+1,last_evaluated=NULL WHERE tenant=$9 AND id=$10",
+                    "UPDATE inventory_alert_rules SET name=$1,kind=$2,product=$3,threshold=$4,expiry_days=$5,severity=$6,active=$7,escalate_after_minutes=$8,quiet_start=$9,quiet_end=$10,version=version+1,last_evaluated=NULL WHERE tenant=$11 AND id=$12",
                     *values,
                     tenant,
                     id,
@@ -125,7 +133,7 @@ async def save(tenant, payload, request, user, id=None):
                     fail("Maximum 50 alert rules per business.", 422)
                 id = service.uid()
                 await c.execute(
-                    "INSERT INTO inventory_alert_rules(name,kind,product,threshold,expiry_days,severity,active,escalate_after_minutes,tenant,id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
+                    "INSERT INTO inventory_alert_rules(name,kind,product,threshold,expiry_days,severity,active,escalate_after_minutes,quiet_start,quiet_end,tenant,id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",
                     *values,
                     tenant,
                     id,

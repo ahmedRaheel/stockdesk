@@ -25,6 +25,8 @@ const initial = {
   expiry_days: 30,
   severity: "warning",
   escalate_after_minutes: "",
+  quiet_start: "",
+  quiet_end: "",
   active: true,
 };
 export default function InventoryAlerts({ tenant }: { tenant: string }) {
@@ -305,6 +307,14 @@ export default function InventoryAlerts({ tenant }: { tenant: string }) {
             e.preventDefault();
             const payload = {
               ...form,
+              quiet_start: form.quiet_start
+                ? Number(form.quiet_start.slice(0, 2)) * 60 +
+                  Number(form.quiet_start.slice(3))
+                : null,
+              quiet_end: form.quiet_end
+                ? Number(form.quiet_end.slice(0, 2)) * 60 +
+                    Number(form.quiet_end.slice(3)) || 1440
+                : null,
               escalate_after_minutes:
                 form.severity !== "critical" &&
                 form.escalate_after_minutes !== ""
@@ -387,6 +397,26 @@ export default function InventoryAlerts({ tenant }: { tenant: string }) {
                 }
               />
             </label>
+            <label className="field">
+              {tr("Quiet hours start (Karachi)")}
+              <input
+                type="time"
+                value={form.quiet_start}
+                onChange={(e) =>
+                  setForm({ ...form, quiet_start: e.target.value })
+                }
+              />
+            </label>
+            <label className="field">
+              {tr("Quiet hours end (Karachi)")}
+              <input
+                type="time"
+                value={form.quiet_end}
+                onChange={(e) =>
+                  setForm({ ...form, quiet_end: e.target.value })
+                }
+              />
+            </label>
             <PurchaseLookup
               tenant={tenant}
               kind="products"
@@ -445,6 +475,11 @@ export default function InventoryAlerts({ tenant }: { tenant: string }) {
           <p className="hint">
             {tr(
               "Escalation raises unacknowledged open alerts to critical on evaluation. Acknowledged or cleared alerts do not escalate. Leave blank to disable.",
+            )}
+          </p>
+          <p>
+            {tr(
+              "Quiet hours defer new alerts and escalation, including critical alerts. Existing alerts still update and resolve. Clear both times to disable.",
             )}
           </p>
           <button className="primary" disabled={busy}>
@@ -506,6 +541,14 @@ export default function InventoryAlerts({ tenant }: { tenant: string }) {
                             r.threshold == null ? "" : String(r.threshold),
                           expiry_days: r.expiry_days,
                           severity: r.severity,
+                          quiet_start:
+                            r.quiet_start == null
+                              ? ""
+                              : `${String(Math.floor(r.quiet_start / 60)).padStart(2, "0")}:${String(r.quiet_start % 60).padStart(2, "0")}`,
+                          quiet_end:
+                            r.quiet_end == null
+                              ? ""
+                              : `${String(Math.floor(r.quiet_end / 60) % 24).padStart(2, "0")}:${String(r.quiet_end % 60).padStart(2, "0")}`,
                           escalate_after_minutes:
                             r.escalate_after_minutes == null
                               ? ""

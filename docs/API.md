@@ -236,3 +236,12 @@ Promotion bodies add `automatic`; quote, checkout and held-bill bodies add `auto
 ## 1.19 alert escalation
 
 Inventory alert rules accept nullable `escalate_after_minutes` (1–10080, noncritical rules only). Inbox supports `escalated_only`; events retain prior severity, timestamp and threshold. Evaluate adds an `escalated` count. See [1.19 behavior and contracts](RELEASE-1.19.md).
+
+
+## 1.20 quiet hours and customer feedback
+
+Alert rule bodies add `quiet_start`/`quiet_end`; evaluation adds `deferred`. New `/feedback` list/create and `/{id}` update endpoints require feedback permission. See [1.20 contracts](RELEASE-1.20.md).
+
+## 1.21 transaction controls
+
+See [RELEASE-1.21.md](RELEASE-1.21.md) for approval policy/request/decision routes, `approval_id` fields, batch selection and khata quote fields. The generated OpenAPI schema includes all request models. Installment schedule responses add `credited`; remaining due is `amount - paid - credited`.

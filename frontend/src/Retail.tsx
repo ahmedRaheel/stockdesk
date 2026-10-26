@@ -448,13 +448,22 @@ export default function Retail({
                     <tr key={s.id}>
                       <td>{s.due_date}</td>
                       <td>{money(s.amount)}</td>
-                      <td>{money(s.paid)}</td>
+                      <td>
+                        {money(s.paid)}
+                        {s.credited > 0 && (
+                          <small>
+                            {tr("Return credit")}: {money(s.credited)}
+                          </small>
+                        )}
+                      </td>
                       <td>
                         {s.document_status === "cancelled"
                           ? "Cancelled"
-                          : s.paid === s.amount
-                            ? "Paid"
-                            : "Outstanding"}
+                          : s.paid + s.credited === s.amount
+                            ? s.credited > 0
+                              ? tr("Settled")
+                              : tr("Paid")
+                            : tr("Outstanding")}
                       </td>
                     </tr>
                   ))}

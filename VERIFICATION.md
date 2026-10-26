@@ -1,4 +1,23 @@
-# Verification record — StockDesk 1.19
+# Verification record — StockDesk 1.21
+
+## Release 1.21 checks
+
+- Full backend regression: **77 passed, 1 skipped** in 139.30 seconds under PGlite. After adding disabled-approver-account enforcement, the two transaction-control integration tests passed again in 12.34 seconds. The skipped test still requires real PostgreSQL multiprocess concurrency.
+- Batch/khata coverage includes explicit lot allocation across successive returns, invalid/duplicate/excess allocations, original stock reconciliation, installment paid-versus-credited values, latest-installment-first credits, recovery-after-preview rejection, final refunds, full-return markup waiver and idempotent adjustment retries. Existing exchange, cash, tax, promotions, role and credit suites also pass.
+- Approval coverage includes separate policy switches and stale versions, owner-only configuration, mandatory enforcement on checkout/full returns/partial adjustments, self-approval denial, changed transaction/other actor denial, one-time use with safe checkout replay, expiration, rejection, disabled accounts, membership revocation, tenant isolation, malformed nested payloads and CSRF.
+- Chromium against React/FastAPI passed Owner policy setup, POS discount request, separate Manager approval, unchanged checkout, selected-batch refund approval/confirmation, khata return approval/zero-cash debt credit, and Urdu/mobile review. Native randomUUID was disabled in the cashier browser; no JavaScript page errors. The test uses separate browser processes because this Chromium build shares session state across contexts in a single process. Earlier test selectors were corrected for combined status text and duplicate Refresh controls.
+- TypeScript/Vite build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.21. Migrations 001–025 compared byte-for-byte with the saved 1.20 archive and remain unchanged. New migrations 026–027 add schedule credits and transaction approvals; no dependencies or deployment configuration changes.
+- Tests use PGlite with a test-only single-connection pool. No live EC2/Docker deployment, real PostgreSQL multiprocess/load, hardware or regulatory acceptance is claimed. This release delivers the three documented transaction-control features; the other enterprise modules remain open and the latest exclusions are recorded in the checklist.
+
+
+## Release 1.20 checks
+
+- Full backend regression: **75 passed, 1 skipped** in 123.92 seconds under PGlite. The skipped test still requires real PostgreSQL multiprocess concurrency. Quiet-hours/feedback/alerts focused tests: **6 passed** in 17.66 seconds.
+- Quiet-hour tests cover overnight start/end boundaries, all-day windows, invalid endpoints, deferral without replaying cleared conditions, existing-alert resolution and escalation suppression. Feedback tests cover strict rating/note contracts, invoice linkage and tenant isolation, duplicate retries/conflicts, status filters/summary, stale updates, resolve/reopen audit, unauthorized Cashier access and CSRF.
+- Chromium against React/FastAPI passed quiet-hour create/edit/defer/release and feedback record/resolve/reopen with native randomUUID unavailable. Desktop and Urdu/mobile screens reviewed. Rating fractions use explicit left-to-right isolation in RTL; textareas provide three lines. No JavaScript page errors.
+- TypeScript/Vite build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.20. Migrations 001–024 were checked against the authoritative 1.19 archive and are unchanged; migration 025 is new. No dependencies added. An initial TypeScript check caught a time-string conversion in the severity change handler; it was restricted to payload serialization.
+- Existing deployment/network configuration is unchanged. PGlite tests are not production PostgreSQL concurrency/load, AWS/Docker, hardware or regulatory acceptance. Full enterprise completion is not claimed; docs/COMPLETION-ROADMAP.md orders outstanding work.
+
 
 ## Release 1.19 checks
 

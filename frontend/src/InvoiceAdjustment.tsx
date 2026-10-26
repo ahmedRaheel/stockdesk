@@ -37,8 +37,11 @@ export default function InvoiceAdjustment({
     undefined,
   );
   useEffect(() => {
-    api<any>(`/api/v1/tenants/${tenant}/sales/${sale.id}`)
-      .then((r) => {
+    Promise.all([
+      api<any>(`/api/v1/tenants/${tenant}/sales/${sale.id}`),
+      api<any>(base + "/batches"),
+    ])
+      .then(([r, allocation]) => {
         setReceipt(r);
         setLines(
           r.items.map((i: any) => ({
@@ -46,6 +49,11 @@ export default function InvoiceAdjustment({
             returnQty: "0",
             reason: "damaged",
             restock: false,
+            batches: (
+              allocation.items.find((a: any) => a.item === i.id)?.batches || []
+            )
+              .filter((b: any) => Number(b.available) > 0)
+              .map((b: any) => ({ ...b, quantity: "0" })),
           })),
         );
       })
@@ -74,6 +82,9 @@ export default function InvoiceAdjustment({
         quantity: l.returnQty,
         reason: l.reason,
         restock: l.restock,
+        batches: l.batches
+          .filter((b: any) => Number(b.quantity) > 0)
+          .map((b: any) => ({ batch: b.batch, quantity: b.quantity })),
       })),
     replacements: replacements.map((l) => ({ id: l.id, quantity: l.quantity })),
     tax_bps: Math.round(Number(rate) * 100),
@@ -90,7 +101,11 @@ export default function InvoiceAdjustment({
       setBusy(false);
     }
   }
-  async function commit() {
+  const approvalRequest = useRef<{ signature: string; id: string } | undefined>(
+    undefined,
+  );
+  const [approval, setApproval] = useState<{ signature: string; id: string }>();
+  async function commit(requestApproval = false) {
     setBusy(true);
     setError("");
     try {
@@ -104,7 +119,29 @@ export default function InvoiceAdjustment({
       const signature = JSON.stringify(payload);
       if (pending.current?.signature !== signature)
         pending.current = { signature, id: newRequestId() };
-      setResult(await send(base, { ...payload, request: pending.current.id }));
+      if (requestApproval) {
+        if (approvalRequest.current?.signature !== signature)
+          approvalRequest.current = { signature, id: newRequestId() };
+        const answer: any = await send(
+          `/api/v1/tenants/${tenant}/transaction-approvals`,
+          {
+            request: approvalRequest.current.id,
+            kind: "adjustment",
+            sale: sale.id,
+            payload,
+          },
+        );
+        approvalRequest.current = undefined;
+        setApproval({ signature, id: answer.id });
+        return;
+      }
+      setResult(
+        await send(base, {
+          ...payload,
+          request: pending.current.id,
+          approval_id: approval?.signature === signature ? approval.id : null,
+        }),
+      );
       onSaved();
     } catch (e: any) {
       setError(e.message);
@@ -167,6 +204,14 @@ export default function InvoiceAdjustment({
                 {tr("Change returned")}: {money(result.change)}
               </h3>
             )}
+            {result.outstanding_before > 0 && (
+              <p>
+                {tr("Khata debt reduction")}: {money(result.debt_credit)} ·{" "}
+                {tr("Financing balance waived")}: {money(result.debt_waiver)} ·{" "}
+                {tr("Remaining invoice debt")}:{" "}
+                {money(result.outstanding_after)}
+              </p>
+            )}
             <p>
               {tr("Adjustment reference")}: {result.id}
             </p>
@@ -223,6 +268,7 @@ export default function InvoiceAdjustment({
                       <th>{tr("Return quantity")}</th>
                       <th>{tr("Return reason")}</th>
                       <th>{tr("Restock")}</th>
+                      <th>{tr("Returned batches")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -278,11 +324,51 @@ export default function InvoiceAdjustment({
                             }
                           />
                         </td>
+                        <td>
+                          {l.batches.map((b: any) => (
+                            <label className="field" key={b.batch}>
+                              <span>
+                                {b.lot || tr("Unlabelled batch")} ·{" "}
+                                {tr("Available to return")}: {b.available}
+                                {b.expires ? ` · ${b.expires}` : ""}
+                              </span>
+                              <input
+                                type="number"
+                                min="0"
+                                max={b.available}
+                                step="0.001"
+                                aria-label={`${tr("Batch return quantity")} ${l.name} ${b.lot || b.batch}`}
+                                value={b.quantity}
+                                onChange={(e) =>
+                                  update(
+                                    i,
+                                    "batches",
+                                    l.batches.map((x: any) =>
+                                      x.batch === b.batch
+                                        ? { ...x, quantity: e.target.value }
+                                        : x,
+                                    ),
+                                  )
+                                }
+                              />
+                            </label>
+                          ))}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              <p className="hint">
+                {tr(
+                  "Batch quantities must total the return quantity. Leave all at zero for automatic allocation; partial restocking from multiple batches requires selection.",
+                )}
+              </p>
+              <p className="hint">
+                {tr(
+                  "Khata returns reduce this invoice's debt first, starting with the latest unpaid installments. Remaining credit funds replacements or a refund. Fully returning the invoice waives its remaining financing balance.",
+                )}
+              </p>
               <h3>{tr("Replacement items (optional)")}</h3>
               <PurchaseLookup
                 tenant={tenant}
@@ -373,22 +459,11 @@ export default function InvoiceAdjustment({
               )}
               <button
                 className="primary"
-                disabled={
-                  busy ||
-                  !lines.some((l) => Number(l.returnQty) > 0) ||
-                  Boolean(receipt.sale.credit_amount)
-                }
+                disabled={busy || !lines.some((l) => Number(l.returnQty) > 0)}
                 onClick={preview}
               >
                 {tr("Preview adjustment")}
               </button>
-              {Boolean(receipt.sale.credit_amount) && (
-                <p className="form-error">
-                  {tr(
-                    "Partial adjustments for khata invoices are not supported; use the existing full-return workflow.",
-                  )}
-                </p>
-              )}
               {quote && (
                 <section
                   className="panel"
@@ -398,6 +473,26 @@ export default function InvoiceAdjustment({
                     <span>{tr("Return credit")}</span>
                     <b>{money(quote.credit)}</b>
                   </div>
+                  {quote.outstanding_before > 0 && (
+                    <>
+                      <div className="cart-math">
+                        <span>{tr("Khata debt reduction")}</span>
+                        <b>{money(quote.debt_credit)}</b>
+                      </div>
+                      <div className="cart-math">
+                        <span>{tr("Financing balance waived")}</span>
+                        <b>{money(quote.debt_waiver)}</b>
+                      </div>
+                      <div className="cart-math">
+                        <span>{tr("Remaining invoice debt")}</span>
+                        <b>{money(quote.outstanding_after)}</b>
+                      </div>
+                      <div className="cart-math">
+                        <span>{tr("Credit available for settlement")}</span>
+                        <b>{money(quote.available_credit)}</b>
+                      </div>
+                    </>
+                  )}
                   <div className="cart-math">
                     <span>{tr("Revised invoice total")}</span>
                     <b>{money(quote.revised_total)}</b>
@@ -467,6 +562,21 @@ export default function InvoiceAdjustment({
                     )}
                   </p>
                   <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => commit(true)}
+                  >
+                    {tr("Request return approval")}
+                  </button>
+                  {approval && (
+                    <p className="hint">
+                      {tr("Approval reference")}: {approval.id} ·{" "}
+                      {tr(
+                        "After another user approves, confirm the unchanged adjustment.",
+                      )}
+                    </p>
+                  )}
+                  <button
                     className="primary"
                     disabled={
                       busy ||
@@ -477,7 +587,7 @@ export default function InvoiceAdjustment({
                         quote.net !== 0 &&
                         !reference.trim())
                     }
-                    onClick={commit}
+                    onClick={() => commit()}
                   >
                     {tr("Confirm adjustment and settlement")}
                   </button>

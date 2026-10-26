@@ -1,3 +1,4 @@
+import TransactionApprovals from "./TransactionApprovals";
 import { newRequestId } from "./requestId";
 import InvoiceAdjustment from "./InvoiceAdjustment";
 import { t as tr } from "./i18n";
@@ -45,6 +46,7 @@ import Payables from "./Payables";
 import Promotions, { PromotionPicker } from "./Promotions";
 import ManagementReport from "./ManagementReport";
 import InventoryAlerts from "./InventoryAlerts";
+import Feedback from "./Feedback";
 import StockCounts from "./StockCounts";
 import PosEntry from "./PosEntry";
 import SplitPayments, { PaymentRow } from "./SplitPayments";
@@ -55,6 +57,11 @@ import LookupSelect from "./LookupSelect";
 import CustomerSelect from "./CustomerSelect";
 import { api, send } from "./api";
 const titles: any = {
+  approvals: [
+    "Transaction approvals",
+    "Independent discount and return decisions.",
+  ],
+  feedback: ["Customer feedback", "Ratings, comments and resolution tracking."],
   alerts: [
     "Inventory alerts",
     "Rules, acknowledgements and resolution history.",
@@ -122,6 +129,8 @@ const titles: any = {
   ],
 };
 const icons: any = {
+  approvals: ShieldCheck,
+  feedback: SlidersHorizontal,
   alerts: SlidersHorizontal,
   promotions: SlidersHorizontal,
   roles: ShieldCheck,
@@ -616,7 +625,14 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
   }, [view, modal, receipt]);
-  async function checkout() {
+  const approvalRequest = useRef<{ signature: string; id: string } | undefined>(
+    undefined,
+  );
+  const [discountApproval, setDiscountApproval] = useState<{
+    signature: string;
+    id: string;
+  }>();
+  async function checkout(requestApproval = false) {
     if (!cart.length || busy || !quoteReady) return;
     setBusy(true);
     setError("");
@@ -653,10 +669,29 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     try {
       if (pending.current?.signature !== signature)
         pending.current = { signature, id: newRequestId() };
+      if (requestApproval) {
+        if (approvalRequest.current?.signature !== signature)
+          approvalRequest.current = { signature, id: newRequestId() };
+        const approval: any = await send(
+          `/api/v1/tenants/${tenant}/transaction-approvals`,
+          { request: approvalRequest.current.id, kind: "discount", payload },
+        );
+        approvalRequest.current = undefined;
+        setDiscountApproval({ signature, id: approval.id });
+        setToast(
+          "Approval requested. Another authorized user must approve it in Transaction approvals before you complete the unchanged sale.",
+        );
+        return;
+      }
       const result = await post("checkout", {
         ...payload,
         request: pending.current.id,
+        approval_id:
+          discountApproval?.signature === signature
+            ? discountApproval.id
+            : null,
       });
+      setDiscountApproval(undefined);
       setCart([]);
       setSplit(false);
       setPaymentRows([]);
@@ -765,12 +800,13 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     "dashboard",
     ...(can("forecast") ? ["forecasts"] : []),
     "products",
-    ...(can("sale") ? ["pos", "sales", "tills"] : []),
+    ...(can("sale") ? ["pos", "sales", "tills", "approvals"] : []),
     "movements",
     ...(can("stock") ? ["purchasing", "batches", "counts"] : []),
     ...(can("credit") ? ["khata"] : []),
     ...(can("settings") ? ["lookups", "taxes"] : []),
     ...(can("alerts") ? ["alerts"] : []),
+    ...(can("feedback") ? ["feedback"] : []),
     ...(can("promotions") ? ["promotions"] : []),
     ...(can("cost") ? ["reports"] : []),
     ...(can("finance") ? ["payables"] : []),
@@ -1337,6 +1373,19 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   currency={currency}
                   canReturn={can("supplier_return")}
                 />
+              )}
+              {view === "approvals" && can("sale") && (
+                <TransactionApprovals
+                  tenant={tenant}
+                  owner={can("roles")}
+                  discountApprover={can("discount_approve")}
+                  voidApprover={can("void_approve")}
+                  email={data.user?.email || ""}
+                  money={money}
+                />
+              )}
+              {view === "feedback" && can("feedback") && (
+                <Feedback key={tenant} tenant={tenant} />
               )}
               {view === "alerts" && can("alerts") && (
                 <InventoryAlerts key={tenant} tenant={tenant} />
@@ -1999,6 +2048,22 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         )}{" "}
                       </p>
                     )}
+                    {discountCents > 0 && (
+                      <>
+                        <button
+                          className="secondary"
+                          disabled={busy || !quoteReady}
+                          onClick={() => checkout(true)}
+                        >
+                          {tr("Request discount approval")}
+                        </button>
+                        {discountApproval && (
+                          <p className="hint">
+                            {tr("Approval reference")}: {discountApproval.id}
+                          </p>
+                        )}
+                      </>
+                    )}
                     <button
                       className="primary checkout"
                       disabled={
@@ -2024,7 +2089,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                 Number(r.amount) <= 0,
                             )))
                       }
-                      onClick={checkout}
+                      onClick={() => checkout()}
                     >
                       {busy ? (
                         <Loader2 className="spin" size={17} />
@@ -2095,14 +2160,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                     s.status === "completed" && (
                                       <button
                                         className="mini"
-                                        onClick={() =>
-                                          open(
-                                            s.credit_amount
-                                              ? "return"
-                                              : "adjust",
-                                            s,
-                                          )
-                                        }
+                                        onClick={() => open("adjust", s)}
                                       >
                                         {" "}
                                         {tr("Return / exchange")}{" "}
@@ -3028,6 +3086,14 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       )}
                       : {money(Math.abs(a.net))}
                     </p>
+                    {a.outstanding_before > 0 && (
+                      <p>
+                        {tr("Khata debt reduction")}: {money(a.debt_credit)} ·{" "}
+                        {tr("Financing balance waived")}: {money(a.debt_waiver)}{" "}
+                        · {tr("Remaining invoice debt")}:{" "}
+                        {money(a.outstanding_after)}
+                      </p>
+                    )}
                     {a.returns?.map((r: any) => (
                       <p key={r.item}>
                         {r.name} · {r.quantity} ·{" "}
