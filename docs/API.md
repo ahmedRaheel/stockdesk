@@ -221,3 +221,8 @@ See [1.15 contracts and boundaries](RELEASE-1.15.md). Catalog preview/commit acc
 ## 1.16 cross-product BOGO
 
 Promotion create/update now accepts `kind="cross_bogo"` and `reward_product`, with two distinct whole-unit component products. Checkout freezes reward allocation and the paired-return policy; receipt responses expose `return_pair_products`. See [contracts and boundaries](RELEASE-1.16.md).
+
+
+## 1.17 per-customer promotion limits
+
+Promotion create/update adds nullable `per_customer_limit`. Sales quotes accept `customer_id`; limited quotes and checkout require an active tenant customer. Sale-authorized `/sale-customers` list/detail endpoints expose only ID/name/phone. See [1.17 contracts](RELEASE-1.17.md).

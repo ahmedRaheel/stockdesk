@@ -84,10 +84,14 @@ def calculate(lines, discount, mode, manual_bps=0, line_discounts=None):
     )
 
 
-async def quote(c, tenant, products, discount, manual_bps=0, promotion_code=""):
+async def quote(
+    c, tenant, products, discount, manual_bps=0, promotion_code="", customer_id=None
+):
     from .promotions import resolve
 
-    promotion = await resolve(c, tenant, promotion_code, products, discount)
+    promotion = await resolve(
+        c, tenant, promotion_code, products, discount, customer_id
+    )
     deductions = None
     if promotion:
         discount = promotion["discount"]
@@ -164,4 +168,5 @@ async def preview(c, tenant, body):
         body.get("discount", 0),
         body.get("tax_bps", 0),
         body.get("promotion_code", ""),
+        body.get("customer_id"),
     )

@@ -3,7 +3,7 @@
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Release 1.16** adds cross-product “buy X, get Y free” promotions with paired returns. See [release notes](docs/RELEASE-1.16.md) and the [remaining checklist](docs/CHECKLIST.md). The EC2 HTTP request-ID fix remains included; [standalone hotfix instructions](docs/RELEASE-1.15.1.md) remain available for older installations.
+**Release 1.17** adds per-customer promotion limits and a sales customer picker. Cross-product BOGO, paired returns and the EC2 HTTP fix remain included. See [release notes](docs/RELEASE-1.17.md) and the [remaining checklist](docs/CHECKLIST.md). The EC2 HTTP request-ID fix remains included; [standalone hotfix instructions](docs/RELEASE-1.15.1.md) remain available for older installations.
 
 ## Upgrade your existing deployment
 

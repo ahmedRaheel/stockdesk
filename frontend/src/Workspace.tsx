@@ -492,6 +492,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
   }, [tenant, data.tenant]);
   const quoteBody = JSON.stringify({
     promotion_code: promotionCode,
+    customer_id: customerId || null,
     items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
     discount: Math.round(Number(discount || 0) * 100),
     tax_bps: Math.round(Number(taxRate || 0) * 100),
@@ -1648,8 +1649,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         onChange={(e) => setCustomer(e.target.value)}
                       />
                     </label>
-                    {can("credit") && (
+                    {can("sale") && (
                       <CustomerSelect
+                        sales
                         tenant={tenant}
                         value={customerId}
                         onChange={(id, c) => {

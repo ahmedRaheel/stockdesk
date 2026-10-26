@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import { api } from "./api";
 export default function CustomerSelect({
   tenant,
+  sales = false,
   value,
   onChange,
 }: {
   tenant: string;
+  sales?: boolean;
   value: string;
   onChange: (id: string, customer?: any) => void;
 }) {
@@ -18,20 +20,23 @@ export default function CustomerSelect({
     setSelected(null);
     if (!value) return;
     const c = new AbortController();
-    api<any>(`/api/v1/tenants/${tenant}/customers/${value}`, {
-      signal: c.signal,
-    })
+    api<any>(
+      `/api/v1/tenants/${tenant}/${sales ? "sale-customers" : "customers"}/${value}`,
+      {
+        signal: c.signal,
+      },
+    )
       .then(setSelected)
       .catch((e) => {
         if (e.name !== "AbortError") setError(e.message);
       });
     return () => c.abort();
-  }, [tenant, value]);
+  }, [tenant, value, sales]);
   useEffect(() => {
     const c = new AbortController();
     const timer = setTimeout(() => {
       api<any>(
-        `/api/v1/tenants/${tenant}/customers?q=${encodeURIComponent(q)}&limit=50`,
+        `/api/v1/tenants/${tenant}/${sales ? "sale-customers" : "customers"}?q=${encodeURIComponent(q)}&limit=50`,
         { signal: c.signal },
       )
         .then((d) => {
@@ -46,7 +51,7 @@ export default function CustomerSelect({
       clearTimeout(timer);
       c.abort();
     };
-  }, [tenant, q]);
+  }, [tenant, q, sales]);
   return (
     <div className="customer-select">
       <input
@@ -56,7 +61,7 @@ export default function CustomerSelect({
         onChange={(e) => setQ(e.target.value)}
       />
       <select
-        aria-label={tr("Khata customer")}
+        aria-label={tr(sales ? "Registered customer" : "Khata customer")}
         value={value}
         onChange={(e) =>
           onChange(

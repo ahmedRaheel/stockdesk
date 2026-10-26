@@ -1,4 +1,13 @@
-# Verification record — StockDesk 1.16
+# Verification record — StockDesk 1.17
+
+## Release 1.17 checks
+
+- Full backend regression: **70 passed, 1 skipped** in 107.71 seconds under PGlite. The skipped test requires real PostgreSQL multiprocess concurrency. Promotion-focused tests: **10 passed** in 18.13 seconds.
+- New coverage includes strict cap validation, active/tenant customer boundaries, customer-bound quote tokens, failed-payment rollback, exhausted-cap/stale-quote rejection, idempotent replay, returns preserving usage, cap increases/decreases, unlimited-period history and independent global caps. Sales-only custom-role tests verify customer selection without financial fields or credit endpoint access.
+- Chromium against React/FastAPI passed cap creation/edit, required-customer errors, successful cash checkout, exhausted-customer rejection, switching to an eligible customer, Urdu/mobile and HTTP UUID fallback. No JavaScript page errors. Desktop and mobile screenshots reviewed. The browser uses a test-only single-connection PGlite pool; production settings are unchanged.
+- TypeScript/Vite build, literal Urdu coverage and four request-ID tests passed. OpenAPI regenerated for 1.17. Migration 022 adds caps and customer redemption attribution; migrations 001–021 unchanged. No new dependencies.
+- No live EC2/Docker deployment, real PostgreSQL multiprocess/load or hardware/provider acceptance is claimed. This completes per-customer promotion limits; other gaps remain in docs/CHECKLIST.md.
+
 
 ## Release 1.16 checks
 

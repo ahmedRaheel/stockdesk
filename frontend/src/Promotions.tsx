@@ -109,6 +109,9 @@ export default function Promotions({
       starts_minute: minute("starts_minute"),
       ends_minute: minute("ends_minute", true),
       usage_limit: text("usage_limit") ? Number(text("usage_limit")) : null,
+      per_customer_limit: text("per_customer_limit")
+        ? Number(text("per_customer_limit"))
+        : null,
       active: f.has("active"),
       components: parts.map((p) => ({
         product: p.product,
@@ -268,6 +271,13 @@ export default function Promotions({
                 selected?.usage_limit,
                 { min: 1, max: 1000000000, step: 1 },
               )}
+              {field(
+                "Per-customer redemption limit (optional)",
+                "per_customer_limit",
+                "number",
+                selected?.per_customer_limit,
+                { min: 1, max: 1000000000, step: 1 },
+              )}
               <label className="check">
                 <input
                   name="active"
@@ -277,6 +287,11 @@ export default function Promotions({
                 {tr("Active promotion")}
               </label>
             </div>
+            <p className="hint">
+              {tr(
+                "Limited offers require a registered customer. Returns do not restore redemptions; leave blank for no per-customer cap.",
+              )}
+            </p>
             <fieldset
               style={{
                 border: "1px solid #dbe2ea",

@@ -42,6 +42,9 @@ class Promotion(Contract):
     starts_minute: int | None = Field(default=None, strict=True, ge=0, le=1439)
     ends_minute: int | None = Field(default=None, strict=True, ge=1, le=1440)
     usage_limit: int | None = Field(default=None, strict=True, ge=1, le=1_000_000_000)
+    per_customer_limit: int | None = Field(
+        default=None, strict=True, ge=1, le=1_000_000_000
+    )
     active: bool = Field(default=True, strict=True)
     components: list[Component] = Field(default_factory=list, max_length=20)
 
@@ -167,6 +170,16 @@ async def save(tenant, payload, request, user, identifier=None):
                     fail("Usage limit cannot be less than existing redemptions.")
             else:
                 identifier = service.uid()
+            if payload.per_customer_limit is not None:
+                highest = await c.fetchval(
+                    "SELECT COALESCE(MAX(n),0) FROM (SELECT count(*) n FROM promotion_redemptions WHERE tenant=$1 AND promotion=$2 AND customer IS NOT NULL GROUP BY customer) counts",
+                    tenant,
+                    identifier,
+                )
+                if payload.per_customer_limit < highest:
+                    fail(
+                        "Per-customer limit cannot be less than existing customer redemptions."
+                    )
             for item in payload.components:
                 p = await c.fetchrow(
                     "SELECT p.active,l.fractional FROM products p JOIN lookups l ON l.tenant=p.tenant AND l.id=p.unit_id WHERE p.tenant=$1 AND p.id=$2",

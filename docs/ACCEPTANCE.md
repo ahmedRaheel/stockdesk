@@ -141,3 +141,8 @@ Export a filtered editable workbook; retain leading-zero barcodes and literal te
 ## 1.16 cross-product BOGO
 
 Create buy-2-Tea/get-1-Milk, then edit and verify product roles persist. Add two Tea and two Milk to POS: only one Milk is discounted. Complete cash payment and verify change and receipt/PDF policy. Reject a partial promotional-product return; select all promotional items and complete the net cash refund. Return unrelated lines independently, edit the live promotion, and verify original policy and credits remain unchanged. Repeat with native randomUUID unavailable; check Urdu/mobile rendering.
+
+
+## 1.17 per-customer promotion limits
+
+Create an offer with per-customer cap 1 and verify it persists after editing. Applying its code without a registered customer must fail. Complete a sale for customer A: subsequent uses, including stale quotes, must fail; B remains eligible. Retry the first request and verify no second redemption. Return the invoice and verify A remains exhausted. Failed checkout must not consume usage; global caps still apply. Sales-only staff can select customers without viewing credit data. Check Urdu/mobile and HTTP UUID fallback.

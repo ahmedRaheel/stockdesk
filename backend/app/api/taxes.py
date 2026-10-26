@@ -4,7 +4,7 @@ from datetime import date
 from typing import Literal
 from fastapi import APIRouter, Depends, Request
 from pydantic import Field, model_validator
-from .contracts import Contract, Money, SaleLine
+from .contracts import Contract, Money, SaleLine, Identifier
 from .router import User, authenticated
 from .. import db, service, security
 from ..rules import fail
@@ -39,6 +39,7 @@ class Settings(Contract):
 
 
 class Quote(Contract):
+    customer_id: Identifier | None = None
     promotion_code: str = Field(default="", max_length=40)
     items: list[SaleLine] = Field(min_length=1, max_length=100)
     discount: Money = 0

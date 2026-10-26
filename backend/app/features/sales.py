@@ -130,7 +130,7 @@ async def checkout(c, u, b, t=None):
     subtotal = sum(p["line_total"] for p in products)
     number(subtotal, "Subtotal")
     tax_quote = await taxation.quote(
-        c, tenant, products, discount, tax_bps, promotion_code
+        c, tenant, products, discount, tax_bps, promotion_code, customer_id
     )
     if (tax_quote["mode"] != "manual" or promotion_code) and b.get(
         "quote_token"
@@ -258,11 +258,12 @@ async def checkout(c, u, b, t=None):
             sid,
         )
         await c.execute(
-            "INSERT INTO promotion_redemptions(tenant,promotion,sale,discount) VALUES($1,$2,$3,$4)",
+            "INSERT INTO promotion_redemptions(tenant,promotion,sale,discount,customer) VALUES($1,$2,$3,$4,$5)",
             tenant,
             promotion["id"],
             sid,
             discount,
+            customer_id,
         )
     if credit_amount:
         await credit.create_receivable(

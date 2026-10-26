@@ -882,3 +882,38 @@ async def get_customer(tenant: str, identifier: str, user: User):
         if not record:
             fail("Customer not found.", 404)
     return dict(record)
+
+
+@router.get("/sale-customers")
+async def sale_customers(
+    tenant: str,
+    user: User,
+    q: str = Query("", max_length=100),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=1000000),
+):
+    """Minimal active-customer picker for sales; no financial data."""
+    async with db.pool.acquire() as c:
+        await service.authorize(c, user, tenant, "sale")
+        items = await c.fetch(
+            "SELECT id,name,phone FROM customers WHERE tenant=$1 AND active=true AND ($2='' OR strpos(lower(name||' '||phone||' '||search_aliases),lower($2))>0) ORDER BY name,id LIMIT $3 OFFSET $4",
+            tenant,
+            q,
+            limit,
+            offset,
+        )
+    return dict(items=service.rows(items), limit=limit, offset=offset)
+
+
+@router.get("/sale-customers/{customer}")
+async def sale_customer(tenant: str, customer: str, user: User):
+    async with db.pool.acquire() as c:
+        await service.authorize(c, user, tenant, "sale")
+        item = await c.fetchrow(
+            "SELECT id,name,phone FROM customers WHERE tenant=$1 AND id=$2 AND active=true",
+            tenant,
+            customer,
+        )
+        if not item:
+            fail("Customer not found.", 404)
+    return dict(item)

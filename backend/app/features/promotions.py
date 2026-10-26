@@ -127,7 +127,7 @@ def evaluate(rule, components, products, now, used=0):
     )
 
 
-async def resolve(c, tenant, code, products, manual_discount):
+async def resolve(c, tenant, code, products, manual_discount, customer_id=None):
     code = clean(code or "", "Promotion code", 40, True).upper()
     if not code:
         return None
@@ -138,6 +138,27 @@ async def resolve(c, tenant, code, products, manual_discount):
     )
     if not rule:
         fail("Promotion code not found.", 404)
+    customer_details = {}
+    if rule["per_customer_limit"] is not None:
+        if not customer_id:
+            fail("Select a registered customer for this promotion.")
+        if not await c.fetchval(
+            "SELECT 1 FROM customers WHERE tenant=$1 AND id=$2 AND active=true",
+            tenant,
+            customer_id,
+        ):
+            fail("Choose an active customer from this business.")
+        customer_used = await c.fetchval(
+            "SELECT count(*) FROM promotion_redemptions WHERE tenant=$1 AND promotion=$2 AND customer=$3",
+            tenant,
+            rule["id"],
+            customer_id,
+        )
+        if customer_used >= rule["per_customer_limit"]:
+            fail("This customer has reached the promotion redemption limit.", 409)
+        customer_details = dict(
+            customer_id=customer_id, per_customer_limit=rule["per_customer_limit"]
+        )
     components = await c.fetch(
         "SELECT product,quantity FROM promotion_items WHERE tenant=$1 AND promotion=$2 ORDER BY product",
         tenant,
@@ -148,6 +169,9 @@ async def resolve(c, tenant, code, products, manual_discount):
         tenant,
         rule["id"],
     )
-    return evaluate(
-        rule, components, products, datetime.now(ZoneInfo("Asia/Karachi")), used
-    )
+    return {
+        **evaluate(
+            rule, components, products, datetime.now(ZoneInfo("Asia/Karachi")), used
+        ),
+        **customer_details,
+    }
