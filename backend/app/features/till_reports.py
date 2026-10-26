@@ -38,7 +38,7 @@ async def build(c, tenant, session, kind="X", number=None):
         session["id"],
     )
     all_tenders = await c.fetch(
-        "SELECT st.sale,st.method_name,st.is_cash,st.amount FROM sale_tenders st JOIN sales s ON s.tenant=st.tenant AND s.id=st.sale WHERE s.tenant=$1 AND s.till_session=$2 ORDER BY st.id",
+        "SELECT st.sale,st.method_name,st.is_cash,st.amount,st.carried_credit FROM sale_tenders st JOIN sales s ON s.tenant=st.tenant AND s.id=st.sale WHERE s.tenant=$1 AND s.till_session=$2 ORDER BY st.id",
         tenant,
         session["id"],
     )
@@ -55,9 +55,13 @@ async def build(c, tenant, session, kind="X", number=None):
         if parts is None:
             parts = by_sale[current["id"]]
         for part in parts:
-            tender_totals[(part["method_name"], bool(part["is_cash"]))] += part[
-                "amount"
-            ]
+            tender_totals[
+                (
+                    ("Return credit · " if part.get("carried_credit") else "")
+                    + part["method_name"],
+                    bool(part["is_cash"]) and not part.get("carried_credit", False),
+                )
+            ] += part["amount"]
         subtotal += sale["subtotal"]
         discount += sale["discount"]
         tax += sale["tax"]

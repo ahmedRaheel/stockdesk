@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StockDesk Inventory & POS",
-    "version": "1.24.0"
+    "version": "1.25.0"
   },
   "paths": {
     "/api/health": {
@@ -10949,6 +10949,29 @@
         ],
         "title": "Refund"
       },
+      "RefundReference": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Source"
+          },
+          "reference": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reference"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "reference"
+        ],
+        "title": "RefundReference"
+      },
       "Resolve": {
         "properties": {
           "version": {
@@ -11758,6 +11781,11 @@
       },
       "app__api__exchanges__Commit": {
         "properties": {
+          "original_methods": {
+            "type": "boolean",
+            "title": "Original Methods",
+            "default": false
+          },
           "revision": {
             "type": "integer",
             "minimum": 0.0,
@@ -11822,10 +11850,19 @@
             "type": "string",
             "enum": [
               "cash",
-              "external"
+              "external",
+              "original"
             ],
             "title": "Settlement",
             "default": "cash"
+          },
+          "refund_references": {
+            "items": {
+              "$ref": "#/components/schemas/RefundReference"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Refund References"
           },
           "tendered": {
             "type": "integer",
@@ -11853,6 +11890,11 @@
       },
       "app__api__exchanges__Preview": {
         "properties": {
+          "original_methods": {
+            "type": "boolean",
+            "title": "Original Methods",
+            "default": false
+          },
           "revision": {
             "type": "integer",
             "minimum": 0.0,

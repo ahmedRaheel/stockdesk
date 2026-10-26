@@ -1,4 +1,13 @@
-# Verification record — StockDesk 1.24
+# Verification record — StockDesk 1.25
+
+## Release 1.25 checks
+
+- Full backend suite: **84 passed, 1 skipped** in 168.31 seconds under PGlite. The skipped test requires real PostgreSQL multiprocess concurrency. Focused refund-provenance integration passed in 7.03 seconds; exchange/stacking/till regressions passed 5/5 in 18.87 seconds.
+- New coverage: cash/bank split refunds, exact cumulative source caps across successive returns and replacement returns, required/duplicate/foreign references, failed-commit revision rollback, retry deduplication, carried tender credit versus fresh till cash, English/Urdu PDF generation, invoice-specific khata recoveries, recovery-after-preview invalidation, frozen recovery method names, manual fallback for older ambiguous history and rejection of original-method mode when additional collection is due. An initial regression caught a reused batch/payment allocation variable; it was separated before all tests passed.
+- Chromium passed original-payment selection, proportional preview, required bank reference, exact recorded cash/bank amounts, revised receipt/PDF and Urdu/mobile with native randomUUID disabled. No JavaScript page errors. Desktop preview/receipt reviewed; original payment references now identify sources, input accessible names are source-specific, and the checkbox width was corrected. PDF text confirms separate original collection and refund evidence.
+- TypeScript/Vite build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.25. All previously delivered source files retained; migrations 001–031 byte-identical to 1.24, with new migration 032. No dependencies or Docker/external PostgreSQL settings changed.
+- External refunds are recorded after confirmation outside StockDesk; providers are not contacted. Old untraceable adjustment/payment histories remain manual. No live EC2, production concurrency/load or statutory financial certification is claimed. Currency conversion, statutory credit notes, reversals and the other enterprise modules remain open in CHECKLIST.md.
+
 
 ## Release 1.24 checks
 

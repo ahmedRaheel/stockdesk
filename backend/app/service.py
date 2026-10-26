@@ -105,7 +105,7 @@ async def get_receipt(c, u, tenant, sale_id):
     }
     result["tenders"] = rows(
         await c.fetch(
-            "SELECT method_name,method_name_ur,is_cash,amount,reference FROM sale_tenders WHERE tenant=$1 AND sale=$2 ORDER BY id",
+            "SELECT method_name,method_name_ur,is_cash,amount,reference,carried_credit FROM sale_tenders WHERE tenant=$1 AND sale=$2 ORDER BY id",
             tenant,
             sale_id,
         )

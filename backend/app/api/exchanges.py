@@ -32,7 +32,13 @@ class ReturnedLine(Contract):
     batches: list[ReturnBatch] = Field(default_factory=list, max_length=100)
 
 
+class RefundReference(Contract):
+    source: str = Field(min_length=1, max_length=150)
+    reference: str = Field(min_length=1, max_length=500)
+
+
 class Preview(Contract):
+    original_methods: bool = Field(default=False, strict=True)
     revision: int = Field(ge=0, strict=True)
     returns: list[ReturnedLine] = Field(min_length=1, max_length=100)
     replacements: list[SaleLine] = Field(default_factory=list, max_length=100)
@@ -44,7 +50,10 @@ class Commit(Preview):
     approval_id: Identifier | None = None
     request: Identifier
     quote_token: Identifier
-    settlement: Literal["cash", "external"] = "cash"
+    settlement: Literal["cash", "external", "original"] = "cash"
+    refund_references: list[RefundReference] = Field(
+        default_factory=list, max_length=200
+    )
     tendered: Money = 0
     reference: str = Field(default="", max_length=500)
 
@@ -238,6 +247,17 @@ async def prepare(c, tenant, sale_id, body):
         revision=body.revision,
         returns=returns,
     )
+    from ..features.refund_sources import plan
+
+    allocation = await plan(c, tenant, sale_id, available_credit, replacement["total"])
+    result["payment_allocation"] = allocation
+    if body.original_methods:
+        if not allocation["available"]:
+            fail(allocation["reason"], 409)
+        if result["net"] > 0:
+            fail(
+                "Choose cash or external settlement when collecting additional payment."
+            )
     result["quote_token"] = hashlib.sha256(
         json.dumps(
             {
@@ -395,6 +415,10 @@ async def history(tenant: str, sale_id: str, user: User):
 async def commit(tenant: str, sale_id: str, body: Commit, request: Request, user: User):
     security.csrf(request)
     signature_body = body.model_dump(mode="json")
+    if not signature_body["original_methods"]:
+        del signature_body["original_methods"]
+    if not signature_body["refund_references"]:
+        del signature_body["refund_references"]
     if not signature_body["approval_id"]:
         del signature_body["approval_id"]
     for line in signature_body["returns"]:
@@ -426,6 +450,26 @@ async def commit(tenant: str, sale_id: str, body: Commit, request: Request, user
                 c, user, tenant, "adjustment", body.model_dump(mode="json"), sale_id
             )
             net = quote["net"]
+            if body.original_methods != (body.settlement == "original"):
+                fail(
+                    "Preview the selected original-payment settlement before confirming.",
+                    409,
+                )
+            from ..features.refund_sources import checked_references
+
+            payment_plan = quote["payment_allocation"]
+            refunds = (
+                checked_references(payment_plan, body.refund_references)
+                if body.original_methods
+                else []
+            )
+            if not body.original_methods and body.refund_references:
+                fail("Refund references apply only to original-payment settlement.")
+            cash_refund = (
+                payment_plan["cash_refund"]
+                if body.original_methods
+                else max(0, -net) if body.settlement == "cash" else 0
+            )
             if body.settlement == "cash" and body.tendered < max(0, net):
                 fail("Cash received is less than the amount to collect.")
             if (net <= 0 or body.settlement != "cash") and body.tendered:
@@ -437,11 +481,11 @@ async def commit(tenant: str, sale_id: str, body: Commit, request: Request, user
                 tenant,
                 user["id"],
             )
-            if net and body.settlement == "cash" and not till:
+            if ((net and body.settlement == "cash") or cash_refund) and not till:
                 fail(
                     "Open your till before recording a cash collection or refund.", 409
                 )
-            if net < 0 and body.settlement == "cash":
+            if cash_refund:
                 from .retail import till_totals
 
                 session = await c.fetchrow(
@@ -450,7 +494,7 @@ async def commit(tenant: str, sale_id: str, body: Commit, request: Request, user
                     till,
                 )
                 balance = await till_totals(c, tenant, session)
-                if balance["expected"] < -net:
+                if balance["expected"] < cash_refund:
                     fail("Refund exceeds cash available in the till.", 409)
             aid = service.uid()
             # Allocate returns from the original sold batches, subtracting previous partial returns.
@@ -552,37 +596,57 @@ async def commit(tenant: str, sale_id: str, body: Commit, request: Request, user
                     tenant,
                     new["id"],
                 )
-                for label, amount, is_cash in [
-                    (
-                        "Return credit",
-                        min(quote["available_credit"], replacement["total"]),
-                        False,
-                    ),
-                    (
-                        "Cash" if body.settlement == "cash" else "External collection",
-                        max(0, net),
-                        bool(cash),
-                    ),
-                ]:
-                    if amount:
+                transferred = (
+                    payment_plan["transfers"]
+                    if payment_plan["available"]
+                    else [
+                        {
+                            "name": "Return credit",
+                            "name_ur": "",
+                            "method_id": None,
+                            "is_cash": False,
+                            "amount": min(
+                                quote["available_credit"], replacement["total"]
+                            ),
+                            "origin": {},
+                        }
+                    ]
+                )
+                # Carried cash-origin credit is not newly collected cash in this till.
+                for part in transferred:
+                    if part["amount"]:
                         await c.execute(
-                            "INSERT INTO sale_tenders(id,tenant,sale,method_name,method_name_ur,is_cash,amount,reference) VALUES($1,$2,$3,$4,'',$5,$6,$7)",
+                            "INSERT INTO sale_tenders(id,tenant,sale,method_id,method_name,method_name_ur,is_cash,amount,reference,origin,carried_credit) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true)",
                             service.uid(),
                             tenant,
                             new["id"],
-                            label,
-                            is_cash,
-                            amount,
+                            part.get("method_id"),
+                            part["name"],
+                            part["name_ur"],
+                            part["is_cash"],
+                            part["amount"],
                             aid,
+                            json.dumps(part.get("origin", {})),
                         )
-            if net < 0 and body.settlement == "cash":
+                if net > 0:
+                    await c.execute(
+                        "INSERT INTO sale_tenders(id,tenant,sale,method_name,method_name_ur,is_cash,amount,reference) VALUES($1,$2,$3,$4,'',$5,$6,$7)",
+                        service.uid(),
+                        tenant,
+                        new["id"],
+                        "Cash" if cash else "External collection",
+                        bool(cash),
+                        net,
+                        body.reference,
+                    )
+            if cash_refund:
                 await c.execute(
                     "INSERT INTO till_cash_movements(id,tenant,session,request,amount,reason,actor) VALUES($1,$2,$3,$4,$5,$6,$7)",
                     service.uid(),
                     tenant,
                     till,
                     "exchange-" + aid,
-                    net,
+                    -cash_refund,
                     "Customer refund · " + aid,
                     user["email"],
                 )
@@ -594,6 +658,11 @@ async def commit(tenant: str, sale_id: str, body: Commit, request: Request, user
                 "replacement_invoice": new["invoice_number"] if new else None,
                 "settlement": body.settlement,
                 "reference": body.reference,
+                "refunds": refunds,
+                "source_usage": (
+                    payment_plan["usage"] if payment_plan["available"] else None
+                ),
+                "cash_refund": cash_refund,
                 "cash_received": body.tendered,
                 "change": (
                     body.tendered - max(0, net) if body.settlement == "cash" else 0
@@ -651,7 +720,7 @@ async def original_receipt(tenant: str, sale_id: str, user: User):
 
         result["tenders"] = service.rows(
             await c.fetch(
-                "SELECT method_name,method_name_ur,is_cash,amount,reference FROM sale_tenders WHERE tenant=$1 AND sale=$2 ORDER BY id",
+                "SELECT method_name,method_name_ur,is_cash,amount,reference,carried_credit FROM sale_tenders WHERE tenant=$1 AND sale=$2 ORDER BY id",
                 tenant,
                 sale_id,
             )

@@ -1247,5 +1247,21 @@
   "Choose X or Z report.": "X یا Z رپورٹ منتخب کریں۔",
   "Use the frozen Z report for a closed session.": "بند سیشن کی محفوظ Z رپورٹ استعمال کریں۔",
   "No frozen Z report exists. Reports are generated when sessions close after this upgrade.": "محفوظ Z رپورٹ موجود نہیں۔ اس اپ گریڈ کے بعد سیشن بند ہونے پر رپورٹ بنتی ہے۔",
-  "Cash out": "نقد اخراج"
+  "Cash out": "نقد اخراج",
+  "Refund to original payment methods": "اصل ادائیگی کے طریقوں پر رقم واپس کریں",
+  "Original-method refunds are allocated proportionally across remaining recorded payments. Replacement credit keeps its payment provenance. Additional collections use cash or external settlement.": "اصل طریقوں پر واپسی باقی درج شدہ ادائیگیوں کے تناسب سے تقسیم ہوتی ہے۔ متبادل بل کا کریڈٹ ادائیگی کا اصل ریکارڈ برقرار رکھتا ہے۔ اضافی وصولی نقد یا بیرونی طریقے سے کریں۔",
+  "Original payment methods": "اصل ادائیگی کے طریقے",
+  "Refund allocation": "واپسی کی تقسیم",
+  "External refund reference": "بیرونی واپسی کا حوالہ",
+  "Cash refund from till": "کیش دراز سے نقد واپسی",
+  "original": "اصل طریقے",
+  "Provide exactly one settlement reference for each non-cash refund source.": "ہر غیر نقد واپسی کے ماخذ کے لیے ایک ادائیگی کا حوالہ درج کریں۔",
+  "Preview the selected original-payment settlement before confirming.": "تصدیق سے پہلے اصل ادائیگی کی منتخب واپسی کا پیش منظر دیکھیں۔",
+  "Refund references apply only to original-payment settlement.": "واپسی کے حوالے صرف اصل ادائیگی کے طریقے پر لاگو ہوتے ہیں۔",
+  "Choose cash or external settlement when collecting additional payment.": "اضافی رقم وصول کرتے وقت نقد یا بیرونی طریقہ منتخب کریں۔",
+  "This invoice contains older exchange credit without payment provenance. Use manual settlement.": "اس بل میں پرانے تبادلے کا کریڈٹ ہے جس کی اصل ادائیگی کا ریکارڈ نہیں۔ دستی ادائیگی استعمال کریں۔",
+  "An earlier adjustment has no payment allocation evidence. Use manual settlement.": "پچھلی ترمیم کی ادائیگی کی تقسیم کا ریکارڈ موجود نہیں۔ دستی ادائیگی استعمال کریں۔",
+  "Payment allocation evidence is inconsistent. Use manual settlement.": "ادائیگی کی تقسیم کے ریکارڈ میں مطابقت نہیں۔ دستی ادائیگی استعمال کریں۔",
+  "Recorded payment sources do not cover this credit. Use manual settlement.": "درج شدہ ادائیگیوں کے ماخذ اس کریڈٹ کے لیے کافی نہیں۔ دستی ادائیگی استعمال کریں۔",
+  "Original payment reference": "اصل ادائیگی کا حوالہ"
 }

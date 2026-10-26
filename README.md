@@ -3,7 +3,7 @@
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Release 1.24** adds camera code entry on supported browsers, tenant-restricted cashier PIN sessions, and operational X/Z till reports with immutable closing evidence. See [release notes](docs/RELEASE-1.24.md), the [remaining checklist](docs/CHECKLIST.md), and [completion roadmap](docs/COMPLETION-ROADMAP.md). The requested enterprise scope is not complete.
+**Release 1.25** adds original-payment refund allocation, including split payments, khata recoveries and payment provenance carried into replacement invoices. See [release notes](docs/RELEASE-1.25.md), the [remaining checklist](docs/CHECKLIST.md), and [completion roadmap](docs/COMPLETION-ROADMAP.md). The requested enterprise scope is not complete.
 
 ## Upgrade your existing deployment
 

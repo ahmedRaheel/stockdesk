@@ -3171,6 +3171,14 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         {tr("Change returned")}: {money(a.change)}
                       </p>
                     )}
+                    {a.refunds?.map((r: any) => (
+                      <p key={r.source}>
+                        {language === "ur" && r.name_ur ? r.name_ur : r.name}:{" "}
+                        {money(r.amount)}{" "}
+                        {r.settlement_reference &&
+                          ` · ${r.settlement_reference}`}
+                      </p>
+                    ))}
                     {a.reference && <p>{a.reference}</p>}
                     <small>
                       {a.created ? date(a.created) : ""} · {a.actor}
@@ -3201,6 +3209,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
             {receipt.tenders?.map((r: any, i: number) => (
               <div className="cart-math" key={i}>
                 <span>
+                  {r.carried_credit && `${tr("Return credit")} · `}
                   {language === "ur" && r.method_name_ur
                     ? r.method_name_ur
                     : tr(r.method_name)}

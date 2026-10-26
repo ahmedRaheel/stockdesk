@@ -185,3 +185,7 @@ Enable stacking on two offers, enter both codes in POS, verify sequential discou
 Enroll a cashier PIN using their password; switch from an authenticated operator and verify their business list, permissions and till identity. Try incorrect PIN, wrong origin, another business, role elevation, PIN rotation and owner revocation. Active bills must be held/cleared before UI switching.
 
 On a supported secure-origin browser, scan one product code, verify the camera stops, then explicitly add the item once. Verify denied/unsupported camera fallback. Open a till, sell, read X, close, read/export Z; return a prior invoice in a new till and verify the original Z remains identical. Treat physical camera and production PostgreSQL verification as separate acceptance steps.
+
+## 1.25 original-payment refunds
+
+Sell with cash/bank split, refund part using original methods, require a bank refund reference and check only the cash portion leaves the till. Exchange another portion for a cheaper replacement, then return both the original remainder and replacement: combined payouts must equal the original collections. Verify khata recoveries are invoice-specific, new recovery invalidates an earlier quote, repeated commits do not double-refund, and older ambiguous credit remains manual.
