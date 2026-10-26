@@ -1,4 +1,13 @@
-# Verification record — StockDesk 1.25
+# Verification record — StockDesk 1.26
+
+## Release 1.26 checks
+
+- Chromium against React/FastAPI: actual XLS file upload, preview and creation; second XLS upload, changed-field preview and update; Urdu/mobile rendering; no browser JavaScript errors. Native randomUUID disabled to exercise the HTTP fallback.
+
+- Full backend regression suite: **101 passed, 1 skipped** in 172.59 seconds on the PostgreSQL-compatible PGlite harness. The skipped real PostgreSQL multiprocess test still requires production-like PostgreSQL execution.
+
+- XLS/XLSX-focused suite: **20 passed**. Covers raw BIFF8 and OLE compound files, text identifiers and Unicode, numeric values, formula/external-link/encryption/macro rejection, row/column/file bounds, invalid encoding and headers, HTTP permission and CSRF boundaries, atomic create/update, retry replay and stock preservation.
+- TypeScript/Vite production build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.26. Added pinned xlrd 2.0.1; no migrations or Docker/external PostgreSQL configuration changes.
 
 ## Release 1.25 checks
 

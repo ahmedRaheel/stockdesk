@@ -316,6 +316,19 @@ async def convert_excel(
     return await asyncio.to_thread(convert, payload.file_base64)
 
 
+@router.post("/convert-xls")
+async def convert_legacy_excel(
+    tenant: str, payload: ExcelUpload, request: Request, user: User
+):
+    import asyncio
+    from ..features.xls_import import convert
+
+    security.csrf(request)
+    async with db.pool.acquire() as c:
+        await service.authorize(c, user, tenant, "product")
+    return await asyncio.to_thread(convert, payload.file_base64)
+
+
 @router.get("/template.xlsx")
 async def excel_template(tenant: str, user: User):
     from pathlib import Path

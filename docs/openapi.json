@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StockDesk Inventory & POS",
-    "version": "1.25.0"
+    "version": "1.26.0"
   },
   "paths": {
     "/api/health": {
@@ -4799,6 +4799,64 @@
         ],
         "summary": "Convert Excel",
         "operationId": "convert_excel_api_v1_tenants__tenant__catalog_imports_convert_xlsx_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExcelUpload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/catalog-imports/convert-xls": {
+      "post": {
+        "tags": [
+          "Catalog imports"
+        ],
+        "summary": "Convert Legacy Excel",
+        "operationId": "convert_legacy_excel_api_v1_tenants__tenant__catalog_imports_convert_xls_post",
         "security": [
           {
             "APIKeyCookie": []

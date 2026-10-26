@@ -1263,5 +1263,8 @@
   "An earlier adjustment has no payment allocation evidence. Use manual settlement.": "پچھلی ترمیم کی ادائیگی کی تقسیم کا ریکارڈ موجود نہیں۔ دستی ادائیگی استعمال کریں۔",
   "Payment allocation evidence is inconsistent. Use manual settlement.": "ادائیگی کی تقسیم کے ریکارڈ میں مطابقت نہیں۔ دستی ادائیگی استعمال کریں۔",
   "Recorded payment sources do not cover this credit. Use manual settlement.": "درج شدہ ادائیگیوں کے ماخذ اس کریڈٹ کے لیے کافی نہیں۔ دستی ادائیگی استعمال کریں۔",
-  "Original payment reference": "اصل ادائیگی کا حوالہ"
+  "Original payment reference": "اصل ادائیگی کا حوالہ",
+  "Choose a CSV, XLSX or XLS catalog file.": "CSV، XLSX یا XLS کیٹلاگ فائل منتخب کریں۔",
+  "Excel file is too large. Maximum 1 MB.": "ایکسل فائل بہت بڑی ہے۔ زیادہ سے زیادہ 1 MB۔",
+  "Upload UTF-8 CSV or a single-sheet XLSX/XLS workbook, up to 200 rows. Existing products are never overwritten in create mode. All rows succeed together or none are added.": "UTF-8 CSV یا ایک شیٹ والی XLSX/XLS ورک بک اپ لوڈ کریں، زیادہ سے زیادہ 200 قطاریں۔ تخلیق کے موڈ میں موجودہ مصنوعات تبدیل نہیں ہوتیں۔ تمام قطاریں ایک ساتھ شامل ہوتی ہیں یا کوئی بھی شامل نہیں ہوتی۔"
 }
