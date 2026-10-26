@@ -146,3 +146,8 @@ Create buy-2-Tea/get-1-Milk, then edit and verify product roles persist. Add two
 ## 1.17 per-customer promotion limits
 
 Create an offer with per-customer cap 1 and verify it persists after editing. Applying its code without a registered customer must fail. Complete a sale for customer A: subsequent uses, including stale quotes, must fail; B remains eligible. Retry the first request and verify no second redemption. Return the invoice and verify A remains exhausted. Failed checkout must not consume usage; global caps still apply. Sales-only staff can select customers without viewing credit data. Check Urdu/mobile and HTTP UUID fallback.
+
+
+## 1.18 automatic promotions
+
+Mark two offers automatic; verify edit retains the flag. Enable automatic selection in POS and verify the lowest final tax-inclusive total wins. Hold/resume preserves the choice. Complete checkout and inspect the selected offer on the receipt. Exhaust the winner and verify the next eligible offer wins. A stale quote must fail; retrying the successful request must not consume another redemption. Check exact-total ties, no eligible offers, schedules, minimums, registered-customer limits, mixed taxes, Urdu/mobile and HTTP UUID fallback.

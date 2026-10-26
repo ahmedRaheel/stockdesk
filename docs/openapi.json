@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StockDesk Inventory & POS",
-    "version": "1.17.0"
+    "version": "1.18.0"
   },
   "paths": {
     "/api/health": {
@@ -7205,6 +7205,11 @@
       },
       "Checkout": {
         "properties": {
+          "auto_promotion": {
+            "type": "boolean",
+            "title": "Auto Promotion",
+            "default": false
+          },
           "promotion_code": {
             "type": "string",
             "maxLength": 40,
@@ -7544,6 +7549,11 @@
       },
       "HoldBill": {
         "properties": {
+          "auto_promotion": {
+            "type": "boolean",
+            "title": "Auto Promotion",
+            "default": false
+          },
           "promotion_code": {
             "type": "string",
             "maxLength": 40,
@@ -8481,6 +8491,11 @@
             ],
             "title": "Per Customer Limit"
           },
+          "automatic": {
+            "type": "boolean",
+            "title": "Automatic",
+            "default": false
+          },
           "active": {
             "type": "boolean",
             "title": "Active",
@@ -8582,6 +8597,11 @@
       },
       "Quote": {
         "properties": {
+          "auto_promotion": {
+            "type": "boolean",
+            "title": "Auto Promotion",
+            "default": false
+          },
           "customer_id": {
             "anyOf": [
               {
@@ -9783,6 +9803,11 @@
               }
             ],
             "title": "Per Customer Limit"
+          },
+          "automatic": {
+            "type": "boolean",
+            "title": "Automatic",
+            "default": false
           },
           "active": {
             "type": "boolean",

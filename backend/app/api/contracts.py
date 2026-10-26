@@ -76,6 +76,7 @@ class Tender(Contract):
 
 
 class Checkout(Contract):
+    auto_promotion: bool = Field(default=False, strict=True)
     promotion_code: str = Field(default="", max_length=40)
     tenders: list[Tender] | None = Field(default=None, min_length=1, max_length=10)
     quote_token: str | None = None

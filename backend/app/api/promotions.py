@@ -45,6 +45,7 @@ class Promotion(Contract):
     per_customer_limit: int | None = Field(
         default=None, strict=True, ge=1, le=1_000_000_000
     )
+    automatic: bool = Field(default=False, strict=True)
     active: bool = Field(default=True, strict=True)
     components: list[Component] = Field(default_factory=list, max_length=20)
 
@@ -170,6 +171,16 @@ async def save(tenant, payload, request, user, identifier=None):
                     fail("Usage limit cannot be less than existing redemptions.")
             else:
                 identifier = service.uid()
+            if payload.active and payload.automatic:
+                count = await c.fetchval(
+                    "SELECT count(*) FROM promotions WHERE tenant=$1 AND active AND automatic AND id<>$2",
+                    tenant,
+                    identifier,
+                )
+                if count >= 100:
+                    fail(
+                        "At most 100 active automatic promotions are allowed. Disable an existing offer first."
+                    )
             if payload.per_customer_limit is not None:
                 highest = await c.fetchval(
                     "SELECT COALESCE(MAX(n),0) FROM (SELECT count(*) n FROM promotion_redemptions WHERE tenant=$1 AND promotion=$2 AND customer IS NOT NULL GROUP BY customer) counts",

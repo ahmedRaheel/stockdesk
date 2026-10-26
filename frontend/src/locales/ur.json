@@ -1045,5 +1045,11 @@
   "Select a registered customer for this promotion.": "اس پروموشن کے لیے رجسٹرڈ گاہک منتخب کریں۔",
   "Choose an active customer from this business.": "اس کاروبار کا فعال گاہک منتخب کریں۔",
   "This customer has reached the promotion redemption limit.": "یہ گاہک پروموشن کے استعمال کی حد تک پہنچ چکا ہے۔",
-  "Per-customer limit cannot be less than existing customer redemptions.": "فی گاہک حد پہلے سے استعمال شدہ تعداد سے کم نہیں ہو سکتی۔"
+  "Per-customer limit cannot be less than existing customer redemptions.": "فی گاہک حد پہلے سے استعمال شدہ تعداد سے کم نہیں ہو سکتی۔",
+  "Available for automatic selection": "خودکار انتخاب کے لیے دستیاب",
+  "Automatically select an offer": "آفر خودکار منتخب کریں",
+  "Selects one eligible offer with the lowest total including tax. Offers are not combined.": "ٹیکس سمیت کم ترین کل رقم والی ایک اہل آفر منتخب ہوگی۔ آفرز یکجا نہیں ہوں گی۔",
+  "Automatic offers cannot be combined with a code or manual discount.": "خودکار آفر کو کوڈ یا دستی رعایت کے ساتھ یکجا نہیں کیا جا سکتا۔",
+  "At most 100 active automatic promotions are allowed. Disable an existing offer first.": "زیادہ سے زیادہ 100 فعال خودکار پروموشنز کی اجازت ہے۔ پہلے موجودہ آفر غیر فعال کریں۔",
+  "One promotion per sale. Manual discounts cannot be combined. Automatic offers and entered codes are checked again at checkout.": "فی فروخت ایک پروموشن۔ دستی رعایت یکجا نہیں کی جا سکتی۔ خودکار آفرز اور درج کردہ کوڈز کی ادائیگی کے وقت دوبارہ جانچ ہوتی ہے۔"
 }

@@ -226,3 +226,8 @@ Promotion create/update now accepts `kind="cross_bogo"` and `reward_product`, wi
 ## 1.17 per-customer promotion limits
 
 Promotion create/update adds nullable `per_customer_limit`. Sales quotes accept `customer_id`; limited quotes and checkout require an active tenant customer. Sale-authorized `/sale-customers` list/detail endpoints expose only ID/name/phone. See [1.17 contracts](RELEASE-1.17.md).
+
+
+## 1.18 automatic promotions
+
+Promotion bodies add `automatic`; quote, checkout and held-bill bodies add `auto_promotion`. Both default false. Automatic mode selects one eligible offer with the lowest final total including tax, requires a fresh checkout quote, and excludes manual/code discounts. See [1.18 contracts and bounds](RELEASE-1.18.md).

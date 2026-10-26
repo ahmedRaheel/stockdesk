@@ -1,4 +1,4 @@
-# Consolidated implementation checklist — 1.17
+# Consolidated implementation checklist — 1.18
 
 “Implemented” describes the bounded behavior below, not every requested variant. Code is delivered; production deployment and physical/provider acceptance are separate.
 
@@ -7,7 +7,7 @@
 | POS entry | Keyboard-mode barcode/SKU reader, manual catalog/code entry, weighted quantities, F2/F4/F8, hold/resume | Camera QR decoding, hardware SDKs, scale/drawer control |
 | Sales and payments | Cash/external payment recording, split tenders, khata balances, cash received/change displayed and printed, invoice/receipt PDF | Payment gateway charging/settlement, FX conversion, partial khata adjustments and original-tender refund allocation |
 | Returns | Selected-quantity returns/exchanges for fully paid invoices; expired/damaged/incorrect/opened reasons; non-sellable write-off or verified safe restock; original-price credit and current-price replacements; net cash collection/refund and change; immutable original/before-revision snapshots, revised receipt/PDF and audit history. Existing full khata return remains | Partial khata adjustments, gateway/original-tender allocation, statutory credit notes/general ledger, individual batch picker, reversal of an adjustment |
-| Discounts and promotions | Fixed manual invoice discount; explicit-code fixed/percentage coupons, same-product and cross-product BOGO with frozen reward allocation and whole-pair returns, multi-product bundle pricing, effective dates, selected weekdays and same-day/overnight happy-hour windows, minimum spend, discount caps, global and registered-customer lifetime redemption limits | Automatic offer selection, stacking, independent discount/void approvals |
+| Discounts and promotions | Fixed manual invoice discount; explicit-code fixed/percentage coupons, same-product and cross-product BOGO with frozen reward allocation and whole-pair returns, multi-product bundle pricing, effective dates, selected weekdays and same-day/overnight happy-hour windows, minimum spend, discount caps, global and registered-customer lifetime redemption limits; opt-in automatic lowest-final-total offer selection | Stacking, independent discount/void approvals |
 | Tax | Tenant-configured profiles, inclusive/exclusive, effective dates, product override, frozen invoice tax | Compound/geographic/withholding tax, statutory filing/FBR/e-invoicing |
 | Offline | Online operation; no claim of offline committed sales | Device identity, offline database, conflict policy, reliable auto-sync |
 | Catalog | SKU/barcode, unit lookup, weighted units, categories, aliases, atomic CSV/XLSX create and existing-SKU update imports, changed-field preview with stale-edit protection, editable Excel export and templates | Variants, serials, pack conversion, legacy XLS, recipes/BOM |

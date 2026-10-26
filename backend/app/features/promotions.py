@@ -175,3 +175,56 @@ async def resolve(c, tenant, code, products, manual_discount, customer_id=None):
         ),
         **customer_details,
     }
+
+
+async def automatic_candidates(c, tenant, products, customer_id=None):
+    """Bounded eligible offers; caller compares final tax-inclusive totals."""
+    from fastapi import HTTPException
+
+    rules = await c.fetch(
+        "SELECT p.*,(SELECT count(*) FROM promotion_redemptions r WHERE r.tenant=p.tenant AND r.promotion=p.id) used,(SELECT count(*) FROM promotion_redemptions r WHERE r.tenant=p.tenant AND r.promotion=p.id AND r.customer=$2) customer_used FROM promotions p WHERE tenant=$1 AND active AND automatic ORDER BY code,id LIMIT 101",
+        tenant,
+        customer_id,
+    )
+    if len(rules) > 100:
+        fail(
+            "At most 100 active automatic promotions are allowed. Disable an existing offer first.",
+            409,
+        )
+    components = await c.fetch(
+        "SELECT promotion,product,quantity FROM promotion_items WHERE tenant=$1 AND promotion=ANY($2::text[]) ORDER BY product",
+        tenant,
+        [r["id"] for r in rules],
+    )
+    active_customer = bool(customer_id) and await c.fetchval(
+        "SELECT 1 FROM customers WHERE tenant=$1 AND id=$2 AND active=true",
+        tenant,
+        customer_id,
+    )
+    now = datetime.now(ZoneInfo("Asia/Karachi"))
+    candidates = []
+    for rule in rules:
+        details = {}
+        if rule["per_customer_limit"] is not None:
+            if (
+                not active_customer
+                or rule["customer_used"] >= rule["per_customer_limit"]
+            ):
+                continue
+            details = dict(
+                customer_id=customer_id, per_customer_limit=rule["per_customer_limit"]
+            )
+        try:
+            result = evaluate(
+                rule,
+                [x for x in components if x["promotion"] == rule["id"]],
+                products,
+                now,
+                rule["used"],
+            )
+        except HTTPException as exc:
+            if exc.status_code not in (400, 409):
+                raise
+            continue
+        candidates.append({**result, **details})
+    return candidates

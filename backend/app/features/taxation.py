@@ -85,9 +85,19 @@ def calculate(lines, discount, mode, manual_bps=0, line_discounts=None):
 
 
 async def quote(
-    c, tenant, products, discount, manual_bps=0, promotion_code="", customer_id=None
+    c,
+    tenant,
+    products,
+    discount,
+    manual_bps=0,
+    promotion_code="",
+    customer_id=None,
+    auto_promotion=False,
 ):
-    from .promotions import resolve
+    from .promotions import resolve, automatic_candidates
+
+    if auto_promotion and (promotion_code or discount):
+        fail("Automatic offers cannot be combined with a code or manual discount.")
 
     promotion = await resolve(
         c, tenant, promotion_code, products, discount, customer_id
@@ -128,6 +138,28 @@ async def quote(
             )
         lines.append(item)
     result = calculate(lines, discount, mode, manual_bps, deductions)
+    if auto_promotion:
+        candidates = await automatic_candidates(c, tenant, products, customer_id)
+        choices = [
+            (
+                calculate(
+                    lines,
+                    candidate["discount"],
+                    mode,
+                    manual_bps,
+                    [x["discount"] for x in candidate["line_discounts"]],
+                ),
+                candidate,
+            )
+            for candidate in candidates
+        ]
+        if choices:
+            result, promotion = min(
+                choices,
+                key=lambda pair: (pair[0]["total"], pair[1]["code"], pair[1]["id"]),
+            )
+            promotion = {**promotion, "automatic": True}
+        result["auto_promotion"] = True
     if promotion:
         result["promotion"] = promotion
     result["quote_token"] = hashlib.sha256(
@@ -169,4 +201,5 @@ async def preview(c, tenant, body):
         body.get("tax_bps", 0),
         body.get("promotion_code", ""),
         body.get("customer_id"),
+        body.get("auto_promotion", False),
     )

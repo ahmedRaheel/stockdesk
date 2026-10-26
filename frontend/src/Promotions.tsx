@@ -113,6 +113,7 @@ export default function Promotions({
         ? Number(text("per_customer_limit"))
         : null,
       active: f.has("active"),
+      automatic: f.has("automatic"),
       components: parts.map((p) => ({
         product: p.product,
         quantity: isBogo ? "1" : p.quantity,
@@ -161,7 +162,7 @@ export default function Promotions({
         <h2>{tr(selected ? "Edit promotion" : "New promotion")}</h2>
         <p>
           {tr(
-            "One promotion per sale. Manual discounts cannot be combined. Cashiers select or enter a code; eligibility and usage are checked again at checkout.",
+            "One promotion per sale. Manual discounts cannot be combined. Automatic offers and entered codes are checked again at checkout.",
           )}
         </p>
         <form key={`${selected?.id || "new"}-${revision}`} onSubmit={save}>
@@ -278,6 +279,14 @@ export default function Promotions({
                 selected?.per_customer_limit,
                 { min: 1, max: 1000000000, step: 1 },
               )}
+              <label className="check">
+                <input
+                  name="automatic"
+                  type="checkbox"
+                  defaultChecked={selected?.automatic ?? false}
+                />
+                {tr("Available for automatic selection")}
+              </label>
               <label className="check">
                 <input
                   name="active"

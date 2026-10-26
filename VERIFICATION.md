@@ -1,4 +1,13 @@
-# Verification record — StockDesk 1.17
+# Verification record — StockDesk 1.18
+
+## Release 1.18 checks
+
+- Full backend regression: **71 passed, 1 skipped** in 113.62 seconds using PGlite. The skipped test requires real PostgreSQL multiprocess concurrency. Focused promotion regression: **9 passed** in 17.94 seconds.
+- Automatic-selection coverage includes tax-inclusive final-total comparison (a smaller pretax discount can win), deterministic ties, inactive/future/minimum-spend exclusion, explicit-only exclusion, customer/global caps, failed checkout rollback, duplicate request replay, stale quotes, return history, no eligible offer, held-bill persistence and the 100-active-offer bound.
+- Chromium against actual React/FastAPI passed manager create/edit, POS selection, hold/resume, cash checkout, receipt and exhausted-offer fallback. Urdu/mobile and desktop screenshots reviewed; no JavaScript page errors. Native randomUUID was unavailable throughout the browser flow, exercising the HTTP-compatible helper.
+- TypeScript/Vite build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.18. Migration 023 is new; migrations 001–022 unchanged. No dependencies added.
+- Tests use the existing PGlite harness; browser pooling is test-only. No live EC2/Docker deployment, real PostgreSQL multiprocess/load or hardware/provider certification is claimed. The broader checklist remains open as documented.
+
 
 ## Release 1.17 checks
 

@@ -202,9 +202,11 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
         items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
         customer_id: customerId || null,
         promotion_code: promotionCode,
+        auto_promotion: autoPromotion,
       });
       setCart([]);
       setPromotionCode("");
+      setAutoPromotion(false);
       setHeldId("");
       await refreshHeld();
     } catch (e: any) {
@@ -223,6 +225,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     });
     setCart(lines);
     setPromotionCode(bill.payload.promotion_code || "");
+    setAutoPromotion(bill.payload.auto_promotion ?? false);
     setHeldId(id);
     setCustomerId(bill.payload.customer_id || "");
     setCreditMode(false);
@@ -256,6 +259,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     localStorage.setItem("stockdesk-language", language);
   }, [language]);
   const [promotionCode, setPromotionCode] = useState("");
+  const [autoPromotion, setAutoPromotion] = useState(false);
   const [discount, setDiscount] = useState("0"),
     [taxRate, setTaxRate] = useState("0");
   const [density, setDensity] = useState<"comfortable" | "compact">(() =>
@@ -328,6 +332,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     if (busy) return;
     setCart([]);
     setPromotionCode("");
+    setAutoPromotion(false);
     setDiscount("0");
     setCustomerId("");
     setSplit(false);
@@ -492,6 +497,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
   }, [tenant, data.tenant]);
   const quoteBody = JSON.stringify({
     promotion_code: promotionCode,
+    auto_promotion: autoPromotion,
     customer_id: customerId || null,
     items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
     discount: Math.round(Number(discount || 0) * 100),
@@ -617,6 +623,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     const payload = {
       quote_token: quote.quote_token,
       promotion_code: promotionCode,
+      auto_promotion: autoPromotion,
       items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
       customer,
       held_bill_id: heldId || null,
@@ -663,6 +670,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
       setPaidNow("0");
       setDiscount("0");
       setPromotionCode("");
+      setAutoPromotion(false);
       setTaxRate("0");
       pending.current = null;
       setToast("Sale completed. Stock updated.");
@@ -1600,6 +1608,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         onClick={() => {
                           setCart([]);
                           setPromotionCode("");
+                          setAutoPromotion(false);
                           setDiscount("0");
                           setHeldId("");
                         }}
@@ -1724,10 +1733,32 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       <span>{tr("Subtotal")}</span>
                       <b>{money(subtotal)}</b>
                     </div>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={autoPromotion}
+                        disabled={busy}
+                        onChange={(e) => {
+                          setAutoPromotion(e.target.checked);
+                          if (e.target.checked) {
+                            setPromotionCode("");
+                            setDiscount("0");
+                          }
+                        }}
+                      />
+                      {tr("Automatically select an offer")}
+                    </label>
+                    {autoPromotion && (
+                      <p className="hint">
+                        {tr(
+                          "Selects one eligible offer with the lowest total including tax. Offers are not combined.",
+                        )}
+                      </p>
+                    )}
                     <PromotionPicker
                       tenant={tenant}
                       value={promotionCode}
-                      disabled={busy}
+                      disabled={busy || autoPromotion}
                       onChange={(code) => {
                         setPromotionCode(code);
                         if (code) setDiscount("0");
@@ -1756,7 +1787,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                           step="0.01"
                           max={subtotal / 100}
                           value={discount}
-                          disabled={busy || !!promotionCode}
+                          disabled={busy || !!promotionCode || autoPromotion}
                           onChange={(e) => setDiscount(e.target.value)}
                         />
                       </label>
