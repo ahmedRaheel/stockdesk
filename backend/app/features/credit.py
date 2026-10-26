@@ -72,7 +72,7 @@ async def overdue(c, tenant, customer):
         """SELECT EXISTS(
       SELECT 1 FROM receivables r WHERE r.tenant=$1 AND r.customer=$2 AND r.status='open' AND
       ((NOT EXISTS(SELECT 1 FROM installment_plans p WHERE p.tenant=r.tenant AND p.receivable=r.id) AND r.due_date<(now() AT TIME ZONE 'Asia/Karachi')::date)
-      OR EXISTS(SELECT 1 FROM installment_plans p JOIN installment_schedule s ON s.tenant=p.tenant AND s.plan=p.id WHERE p.tenant=r.tenant AND p.receivable=r.id AND s.due_date<(now() AT TIME ZONE 'Asia/Karachi')::date AND s.paid<s.amount)))""",
+      OR EXISTS(SELECT 1 FROM installment_plans p JOIN installment_schedule s ON s.tenant=p.tenant AND s.plan=p.id WHERE p.tenant=r.tenant AND p.receivable=r.id AND s.due_date<(now() AT TIME ZONE 'Asia/Karachi')::date AND s.paid+s.credited<s.amount)))""",
         tenant,
         customer,
     )
@@ -184,12 +184,12 @@ async def recover(c, u, tenant, b):
         )
         remainder = allocation
         installments = await c.fetch(
-            "SELECT s.* FROM installment_schedule s JOIN installment_plans p ON p.tenant=s.tenant AND p.id=s.plan WHERE p.tenant=$1 AND p.receivable=$2 AND s.paid<s.amount ORDER BY s.sequence FOR UPDATE OF s",
+            "SELECT s.* FROM installment_schedule s JOIN installment_plans p ON p.tenant=s.tenant AND p.id=s.plan WHERE p.tenant=$1 AND p.receivable=$2 AND s.paid+s.credited<s.amount ORDER BY s.sequence FOR UPDATE OF s",
             tenant,
             document["id"],
         )
         for installment in installments:
-            applied = min(remainder, installment["amount"] - installment["paid"])
+            applied = min(remainder, installment["amount"] - installment["paid"] - installment["credited"])
             await c.execute(
                 "UPDATE installment_schedule SET paid=paid+$1 WHERE id=$2",
                 applied,
@@ -335,3 +335,30 @@ async def reverse_credit_sale(c, u, tenant, sale):
     )
     # Paid cash is not automatically moved. The audited amount is due for external refund.
     return sale["paid_now"] + paid
+
+
+async def apply_return_credit(c, user, tenant, sale, adjustment, quote):
+    """Credit only this invoice. Reduce the latest unpaid installments first.
+
+    Original plan amounts, dates and actual paid amounts remain immutable evidence.
+    Fully returned invoices waive any residual financing balance explicitly.
+    """
+    reduction = quote["debt_credit"] + quote["debt_waiver"]
+    if not reduction:
+        return
+    document = await c.fetchrow("SELECT * FROM receivables WHERE tenant=$1 AND sale=$2 FOR UPDATE", tenant, sale)
+    for kind, amount in (("return", quote["debt_credit"]), ("waiver", quote["debt_waiver"])):
+        await ledger(c, tenant, document["customer"], document["id"], kind, -amount, "Adjustment " + adjustment, user["email"])
+    schedules = await c.fetch(
+        "SELECT s.* FROM installment_schedule s JOIN installment_plans p ON p.tenant=s.tenant AND p.id=s.plan WHERE p.tenant=$1 AND p.receivable=$2 ORDER BY s.sequence DESC FOR UPDATE OF s",
+        tenant, document["id"])
+    remaining = reduction
+    for row in schedules:
+        take = min(remaining, row["amount"]-row["paid"]-row["credited"])
+        if take:
+            await c.execute("UPDATE installment_schedule SET credited=credited+$1 WHERE tenant=$2 AND id=$3", take, tenant, row["id"])
+            remaining -= take
+    if schedules and remaining:
+        fail("Installment reconciliation failed. No adjustment was posted.", 409)
+    if quote["outstanding_after"] == 0:
+        await c.execute("UPDATE receivables SET status='settled' WHERE tenant=$1 AND id=$2", tenant, document["id"])

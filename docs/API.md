@@ -216,3 +216,40 @@ See [release contract and accounting behavior](RELEASE-1.14.md). Preview/commit/
 ## Catalog updates and promotion schedules (1.15)
 
 See [1.15 contracts and boundaries](RELEASE-1.15.md). Catalog preview/commit accept explicit `mode=update`, requiring a reviewed state token; editable exports are at `/catalog-imports/export.xlsx`. Promotion bodies accept `weekdays` (Monday=0 through Sunday=6) and overnight windows. Effective dates and weekdays anchor to the window start day.
+
+
+## 1.16 cross-product BOGO
+
+Promotion create/update now accepts `kind="cross_bogo"` and `reward_product`, with two distinct whole-unit component products. Checkout freezes reward allocation and the paired-return policy; receipt responses expose `return_pair_products`. See [contracts and boundaries](RELEASE-1.16.md).
+
+
+## 1.17 per-customer promotion limits
+
+Promotion create/update adds nullable `per_customer_limit`. Sales quotes accept `customer_id`; limited quotes and checkout require an active tenant customer. Sale-authorized `/sale-customers` list/detail endpoints expose only ID/name/phone. See [1.17 contracts](RELEASE-1.17.md).
+
+
+## 1.18 automatic promotions
+
+Promotion bodies add `automatic`; quote, checkout and held-bill bodies add `auto_promotion`. Both default false. Automatic mode selects one eligible offer with the lowest final total including tax, requires a fresh checkout quote, and excludes manual/code discounts. See [1.18 contracts and bounds](RELEASE-1.18.md).
+
+
+## 1.19 alert escalation
+
+Inventory alert rules accept nullable `escalate_after_minutes` (1–10080, noncritical rules only). Inbox supports `escalated_only`; events retain prior severity, timestamp and threshold. Evaluate adds an `escalated` count. See [1.19 behavior and contracts](RELEASE-1.19.md).
+
+
+## 1.20 quiet hours and customer feedback
+
+Alert rule bodies add `quiet_start`/`quiet_end`; evaluation adds `deferred`. New `/feedback` list/create and `/{id}` update endpoints require feedback permission. See [1.20 contracts](RELEASE-1.20.md).
+
+## 1.21 transaction controls
+
+See [RELEASE-1.21.md](RELEASE-1.21.md) for approval policy/request/decision routes, `approval_id` fields, batch selection and khata quote fields. The generated OpenAPI schema includes all request models. Installment schedule responses add `credited`; remaining due is `amount - paid - credited`.
+
+## 1.22 catalog and assembly
+
+See [RELEASE-1.22.md](RELEASE-1.22.md) for family/variant CRUD, pack/BOM recipes, previews, atomic jobs and paginated history. Product list/workspace responses add `variant_label`; product records add `variant_revision`. No existing write contract requires new fields.
+
+## 1.23 combined promotions
+
+Promotion create/update accepts `stackable` (boolean, default false). Sales quote, checkout and held bills accept up to 240 characters in `promotion_code`, containing up to five comma-separated codes. Single-code snapshots are unchanged; a stack snapshot has `kind: stack`, `offers`, `application_policy` and aggregate `line_discounts`. Each offer has its own frozen applied discount.

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StockDesk Inventory & POS",
-    "version": "1.15.0"
+    "version": "1.23.0"
   },
   "paths": {
     "/api/health": {
@@ -2823,6 +2823,147 @@
         }
       }
     },
+    "/api/v1/tenants/{tenant}/sale-customers": {
+      "get": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Sale Customers",
+        "description": "Minimal active-customer picker for sales; no financial data.",
+        "operationId": "sale_customers_api_v1_tenants__tenant__sale_customers_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/sale-customers/{customer}": {
+      "get": {
+        "tags": [
+          "Retail credit and reference data"
+        ],
+        "summary": "Sale Customer",
+        "operationId": "sale_customer_api_v1_tenants__tenant__sale_customers__customer__get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Customer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tenants/{tenant}/tax-settings": {
       "get": {
         "tags": [
@@ -5598,7 +5739,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Policy"
+                "$ref": "#/components/schemas/app__api__procurement__Policy"
               }
             }
           }
@@ -6471,6 +6612,16 @@
             }
           },
           {
+            "name": "escalated_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Escalated Only"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -6561,6 +6712,63 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/sales/{sale_id}/adjustments/batches": {
+      "get": {
+        "tags": [
+          "Invoice adjustments"
+        ],
+        "summary": "Return Batches",
+        "operationId": "return_batches_api_v1_tenants__tenant__sales__sale_id__adjustments_batches_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "sale_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sale Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -6828,6 +7036,1426 @@
           }
         }
       }
+    },
+    "/api/v1/tenants/{tenant}/feedback": {
+      "get": {
+        "tags": [
+          "Customer feedback"
+        ],
+        "summary": "Listing",
+        "operationId": "listing_api_v1_tenants__tenant__feedback_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "open",
+                "resolved"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Customer feedback"
+        ],
+        "summary": "Submit",
+        "operationId": "submit_api_v1_tenants__tenant__feedback_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Submit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/feedback/{identifier}": {
+      "put": {
+        "tags": [
+          "Customer feedback"
+        ],
+        "summary": "Resolve",
+        "operationId": "resolve_api_v1_tenants__tenant__feedback__identifier__put",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Resolve"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/transaction-approvals/policy": {
+      "get": {
+        "tags": [
+          "Transaction approvals"
+        ],
+        "summary": "Policy",
+        "operationId": "policy_api_v1_tenants__tenant__transaction_approvals_policy_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Transaction approvals"
+        ],
+        "summary": "Save Policy",
+        "operationId": "save_policy_api_v1_tenants__tenant__transaction_approvals_policy_put",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__api__transaction_approvals__Policy"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/transaction-approvals": {
+      "get": {
+        "tags": [
+          "Transaction approvals"
+        ],
+        "summary": "Listing",
+        "operationId": "listing_api_v1_tenants__tenant__transaction_approvals_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Transaction approvals"
+        ],
+        "summary": "Submit",
+        "operationId": "submit_api_v1_tenants__tenant__transaction_approvals_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Submission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/transaction-approvals/{identifier}/decision": {
+      "post": {
+        "tags": [
+          "Transaction approvals"
+        ],
+        "summary": "Decide",
+        "operationId": "decide_api_v1_tenants__tenant__transaction_approvals__identifier__decision_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__api__transaction_approvals__Decision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/catalog-tools/families": {
+      "get": {
+        "tags": [
+          "Catalog and assembly"
+        ],
+        "summary": "Families",
+        "operationId": "families_api_v1_tenants__tenant__catalog_tools_families_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Catalog and assembly"
+        ],
+        "summary": "Create Family",
+        "operationId": "create_family_api_v1_tenants__tenant__catalog_tools_families_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/catalog-tools/families/{identifier}": {
+      "put": {
+        "tags": [
+          "Catalog and assembly"
+        ],
+        "summary": "Update Family",
+        "operationId": "update_family_api_v1_tenants__tenant__catalog_tools_families__identifier__put",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Catalog and assembly"
+        ],
+        "summary": "Family Detail",
+        "operationId": "family_detail_api_v1_tenants__tenant__catalog_tools_families__identifier__get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/catalog-tools/families/{identifier}/variants/{product}": {
+      "put": {
+        "tags": [
+          "Catalog and assembly"
+        ],
+        "summary": "Assign Variant",
+        "operationId": "assign_variant_api_v1_tenants__tenant__catalog_tools_families__identifier__variants__product__put",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          },
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Product"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Variant"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Catalog and assembly"
+        ],
+        "summary": "Remove Variant",
+        "operationId": "remove_variant_api_v1_tenants__tenant__catalog_tools_families__identifier__variants__product__delete",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          },
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Product"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/catalog-tools/recipes": {
+      "get": {
+        "tags": [
+          "Catalog and assembly"
+        ],
+        "summary": "Recipes",
+        "operationId": "recipes_api_v1_tenants__tenant__catalog_tools_recipes_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Catalog and assembly"
+        ],
+        "summary": "Create Recipe",
+        "operationId": "create_recipe_api_v1_tenants__tenant__catalog_tools_recipes_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/catalog-tools/recipes/{identifier}": {
+      "get": {
+        "tags": [
+          "Catalog and assembly"
+        ],
+        "summary": "Recipe Detail",
+        "operationId": "recipe_detail_api_v1_tenants__tenant__catalog_tools_recipes__identifier__get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Catalog and assembly"
+        ],
+        "summary": "Update Recipe",
+        "operationId": "update_recipe_api_v1_tenants__tenant__catalog_tools_recipes__identifier__put",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/catalog-tools/recipes/{identifier}/preview": {
+      "post": {
+        "tags": [
+          "Catalog and assembly"
+        ],
+        "summary": "Preview Job",
+        "operationId": "preview_job_api_v1_tenants__tenant__catalog_tools_recipes__identifier__preview_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobPreview"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/catalog-tools/recipes/{identifier}/jobs": {
+      "post": {
+        "tags": [
+          "Catalog and assembly"
+        ],
+        "summary": "Commit Job",
+        "operationId": "commit_job_api_v1_tenants__tenant__catalog_tools_recipes__identifier__jobs_post",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobCommit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/catalog-tools/jobs": {
+      "get": {
+        "tags": [
+          "Catalog and assembly"
+        ],
+        "summary": "Jobs",
+        "operationId": "jobs_api_v1_tenants__tenant__catalog_tools_jobs_get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant}/catalog-tools/variants/{product}": {
+      "get": {
+        "tags": [
+          "Catalog and assembly"
+        ],
+        "summary": "Variant Assignment",
+        "operationId": "variant_assignment_api_v1_tenants__tenant__catalog_tools_variants__product__get",
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Product"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7064,9 +8692,27 @@
       },
       "Checkout": {
         "properties": {
+          "approval_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Id"
+          },
+          "auto_promotion": {
+            "type": "boolean",
+            "title": "Auto Promotion",
+            "default": false
+          },
           "promotion_code": {
             "type": "string",
-            "maxLength": 40,
+            "maxLength": 240,
             "title": "Promotion Code",
             "default": ""
           },
@@ -7388,6 +9034,66 @@
         ],
         "title": "ExcelUpload"
       },
+      "FamilyCreate": {
+        "properties": {
+          "request": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Request"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "axes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 6,
+            "minItems": 1,
+            "title": "Axes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "request",
+          "name",
+          "axes"
+        ],
+        "title": "FamilyCreate"
+      },
+      "FamilyUpdate": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "name",
+          "active"
+        ],
+        "title": "FamilyUpdate"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -7403,9 +9109,14 @@
       },
       "HoldBill": {
         "properties": {
+          "auto_promotion": {
+            "type": "boolean",
+            "title": "Auto Promotion",
+            "default": false
+          },
           "promotion_code": {
             "type": "string",
-            "maxLength": 40,
+            "maxLength": 240,
             "title": "Promotion Code",
             "default": ""
           },
@@ -7450,6 +9161,148 @@
           "items"
         ],
         "title": "HoldBill"
+      },
+      "JobCommit": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "build",
+              "unpack"
+            ],
+            "title": "Direction",
+            "default": "build"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "lot": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Lot"
+          },
+          "expires": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Note"
+          },
+          "request": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Request"
+          },
+          "quote_token": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Quote Token"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "quantity",
+          "lot",
+          "note",
+          "request",
+          "quote_token"
+        ],
+        "title": "JobCommit"
+      },
+      "JobPreview": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "build",
+              "unpack"
+            ],
+            "title": "Direction",
+            "default": "build"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "lot": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Lot"
+          },
+          "expires": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "quantity",
+          "lot",
+          "note"
+        ],
+        "title": "JobPreview"
       },
       "LookupWrite": {
         "properties": {
@@ -7788,33 +9641,6 @@
           "first_due"
         ],
         "title": "Plan"
-      },
-      "Policy": {
-        "properties": {
-          "enabled": {
-            "type": "boolean",
-            "title": "Enabled"
-          },
-          "threshold": {
-            "type": "integer",
-            "maximum": 100000000000.0,
-            "minimum": 0.0,
-            "title": "Threshold"
-          },
-          "version": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Version"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "enabled",
-          "threshold",
-          "version"
-        ],
-        "title": "Policy"
       },
       "ProductCreate": {
         "properties": {
@@ -8194,9 +10020,23 @@
               "fixed",
               "percentage",
               "bogo",
-              "bundle"
+              "bundle",
+              "cross_bogo"
             ],
             "title": "Kind"
+          },
+          "reward_product": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reward Product"
           },
           "value": {
             "type": "integer",
@@ -8313,6 +10153,29 @@
             ],
             "title": "Usage Limit"
           },
+          "per_customer_limit": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Customer Limit"
+          },
+          "stackable": {
+            "type": "boolean",
+            "title": "Stackable",
+            "default": false
+          },
+          "automatic": {
+            "type": "boolean",
+            "title": "Automatic",
+            "default": false
+          },
           "active": {
             "type": "boolean",
             "title": "Active",
@@ -8414,9 +10277,27 @@
       },
       "Quote": {
         "properties": {
+          "auto_promotion": {
+            "type": "boolean",
+            "title": "Auto Promotion",
+            "default": false
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
           "promotion_code": {
             "type": "string",
-            "maxLength": 40,
+            "maxLength": 240,
             "title": "Promotion Code",
             "default": ""
           },
@@ -8525,6 +10406,113 @@
         ],
         "title": "ReceivePurchase"
       },
+      "RecipeCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "bom",
+              "pack"
+            ],
+            "title": "Kind"
+          },
+          "output": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Output"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/Component"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Components"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active",
+            "default": true
+          },
+          "request": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Request"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "output",
+          "components",
+          "request"
+        ],
+        "title": "RecipeCreate"
+      },
+      "RecipeUpdate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "bom",
+              "pack"
+            ],
+            "title": "Kind"
+          },
+          "output": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Output"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/Component"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Components"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active",
+            "default": true
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "output",
+          "components",
+          "version"
+        ],
+        "title": "RecipeUpdate"
+      },
       "Record": {
         "properties": {
           "lines": {
@@ -8630,6 +10618,37 @@
         ],
         "title": "Refund"
       },
+      "Resolve": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "resolved"
+            ],
+            "title": "Status"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "status",
+          "note"
+        ],
+        "title": "Resolve"
+      },
       "Return": {
         "properties": {
           "request": {
@@ -8690,8 +10709,51 @@
         ],
         "title": "Return"
       },
+      "ReturnBatch": {
+        "properties": {
+          "batch": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Batch"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "batch",
+          "quantity"
+        ],
+        "title": "ReturnBatch"
+      },
       "ReturnSale": {
         "properties": {
+          "approval_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Id"
+          },
           "reason_id": {
             "anyOf": [
               {
@@ -8752,6 +10814,14 @@
             "type": "boolean",
             "title": "Restock",
             "default": false
+          },
+          "batches": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnBatch"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Batches"
           }
         },
         "additionalProperties": false,
@@ -8826,6 +10896,45 @@
             "title": "Severity",
             "default": "warning"
           },
+          "escalate_after_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10080.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalate After Minutes"
+          },
+          "quiet_start": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1439.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet Start"
+          },
+          "quiet_end": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1440.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet End"
+          },
           "active": {
             "type": "boolean",
             "title": "Active",
@@ -8899,6 +11008,87 @@
           "mode"
         ],
         "title": "Settings"
+      },
+      "Submission": {
+        "properties": {
+          "request": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Request"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "discount",
+              "return",
+              "adjustment"
+            ],
+            "title": "Kind"
+          },
+          "sale": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sale"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "request",
+          "kind",
+          "payload"
+        ],
+        "title": "Submission"
+      },
+      "Submit": {
+        "properties": {
+          "request": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Request"
+          },
+          "invoice_number": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Invoice Number",
+            "default": ""
+          },
+          "rating": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Rating"
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Comment"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "request",
+          "rating",
+          "comment"
+        ],
+        "title": "Submit"
       },
       "SupplierCreate": {
         "properties": {
@@ -8991,6 +11181,31 @@
         ],
         "title": "ValidationError"
       },
+      "Variant": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Version"
+          },
+          "attributes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "maxProperties": 6,
+            "minProperties": 1,
+            "title": "Attributes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "attributes"
+        ],
+        "title": "Variant"
+      },
       "Void": {
         "properties": {
           "reason": {
@@ -9069,6 +11284,45 @@
             ],
             "title": "Severity",
             "default": "warning"
+          },
+          "escalate_after_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10080.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalate After Minutes"
+          },
+          "quiet_start": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1439.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet Start"
+          },
+          "quiet_end": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1440.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet End"
           },
           "active": {
             "type": "boolean",
@@ -9207,6 +11461,19 @@
             "maxLength": 150,
             "title": "Prescription Reference",
             "default": ""
+          },
+          "approval_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Id"
           },
           "request": {
             "type": "string",
@@ -9430,6 +11697,33 @@
         ],
         "title": "Decision"
       },
+      "app__api__procurement__Policy": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "threshold": {
+            "type": "integer",
+            "maximum": 100000000000.0,
+            "minimum": 0.0,
+            "title": "Threshold"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "enabled",
+          "threshold",
+          "version"
+        ],
+        "title": "Policy"
+      },
       "app__api__promotions__Update": {
         "properties": {
           "code": {
@@ -9457,9 +11751,23 @@
               "fixed",
               "percentage",
               "bogo",
-              "bundle"
+              "bundle",
+              "cross_bogo"
             ],
             "title": "Kind"
+          },
+          "reward_product": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reward Product"
           },
           "value": {
             "type": "integer",
@@ -9575,6 +11883,29 @@
               }
             ],
             "title": "Usage Limit"
+          },
+          "per_customer_limit": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Customer Limit"
+          },
+          "stackable": {
+            "type": "boolean",
+            "title": "Stackable",
+            "default": false
+          },
+          "automatic": {
+            "type": "boolean",
+            "title": "Automatic",
+            "default": false
           },
           "active": {
             "type": "boolean",
@@ -9734,6 +12065,56 @@
           "quantity"
         ],
         "title": "Line"
+      },
+      "app__api__transaction_approvals__Decision": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected"
+            ],
+            "title": "Decision"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "decision",
+          "note"
+        ],
+        "title": "Decision"
+      },
+      "app__api__transaction_approvals__Policy": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "discount_required": {
+            "type": "boolean",
+            "title": "Discount Required"
+          },
+          "void_required": {
+            "type": "boolean",
+            "title": "Void Required"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "discount_required",
+          "void_required"
+        ],
+        "title": "Policy"
       }
     },
     "securitySchemes": {

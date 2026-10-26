@@ -2774,3 +2774,10 @@ html[dir="rtl"] body {
 .invoice-adjustment > .secondary {
   margin-inline-end: 8px;
 }
+
+/* Catalog production forms retain the workspace's spacing and input treatment. */
+.catalog-tools .panel { padding: 24px; margin-block: 16px; }
+.catalog-tools fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.catalog-tools h2, .catalog-tools h3, .catalog-tools h4 { margin-block: 16px 12px; }
+.catalog-tools p small { display: block; margin-block-start: 4px; }
+.catalog-tools .cart-math input { font: inherit; padding: 10px; max-width: 140px; min-width: 0; border: 1px solid #cbd5e1; border-radius: 6px; }

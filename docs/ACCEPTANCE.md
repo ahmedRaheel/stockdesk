@@ -136,3 +136,46 @@ Exercise an expired/damaged/opened return (no sellable stock increase), an inspe
 ## 1.15 acceptance
 
 Export a filtered editable workbook; retain leading-zero barcodes and literal text. Re-upload in update mode, review old/new values and apply. Check whole-file rollback, duplicate/missing SKU rejection, unit/opening-stock guards, stale preview protection, stock/metadata preservation, retry deduplication, role/tenant boundaries and 200-row export limits. Configure Sunday 22:00–02:00; verify Sunday 22:00 and Monday 01:59 qualify while Monday 02:00 and Sunday 01:00 do not. Verify effective end dates anchor to the start day. Check migrated promotions still select all days.
+
+
+## 1.16 cross-product BOGO
+
+Create buy-2-Tea/get-1-Milk, then edit and verify product roles persist. Add two Tea and two Milk to POS: only one Milk is discounted. Complete cash payment and verify change and receipt/PDF policy. Reject a partial promotional-product return; select all promotional items and complete the net cash refund. Return unrelated lines independently, edit the live promotion, and verify original policy and credits remain unchanged. Repeat with native randomUUID unavailable; check Urdu/mobile rendering.
+
+
+## 1.17 per-customer promotion limits
+
+Create an offer with per-customer cap 1 and verify it persists after editing. Applying its code without a registered customer must fail. Complete a sale for customer A: subsequent uses, including stale quotes, must fail; B remains eligible. Retry the first request and verify no second redemption. Return the invoice and verify A remains exhausted. Failed checkout must not consume usage; global caps still apply. Sales-only staff can select customers without viewing credit data. Check Urdu/mobile and HTTP UUID fallback.
+
+
+## 1.18 automatic promotions
+
+Mark two offers automatic; verify edit retains the flag. Enable automatic selection in POS and verify the lowest final tax-inclusive total wins. Hold/resume preserves the choice. Complete checkout and inspect the selected offer on the receipt. Exhaust the winner and verify the next eligible offer wins. A stale quote must fail; retrying the successful request must not consume another redemption. Check exact-total ties, no eligible offers, schedules, minimums, registered-customer limits, mixed taxes, Urdu/mobile and HTTP UUID fallback.
+
+
+## 1.19 alert escalation
+
+Create a warning/info low-stock rule with a one-minute escalation threshold and verify edit persistence. Open an alert, leave it unacknowledged, and evaluate after the deadline: it becomes critical once. Filter escalated alerts, acknowledge it, replenish stock and evaluate again: resolution retains escalation history. Acknowledging before the deadline or clearing stock before evaluation must prevent escalation. Verify recurrence starts a new timer, critical rules reject escalation configuration, and Urdu/mobile displays the history.
+
+
+## 1.20 quiet hours and customer feedback
+
+Configure all-day quiet hours and verify a low-stock match does not open an alert; clear quiet hours and evaluate to open it. Existing acknowledged/cleared episodes must continue to behave correctly. Test overnight boundaries and deferred escalation. Record rated feedback with an optional invoice, retry it without duplication, resolve and reopen with notes, reject stale versions and foreign invoices, and confirm unauthorized roles cannot read or mutate feedback. Check Urdu/mobile and HTTP UUID fallback.
+
+## 1.21 transaction controls
+
+- Enable both approval policies as Owner; another Manager approves a discounted POS order. Verify self-approval, changed data, revoked approver and expired requests fail; unchanged checkout retries create one sale.
+- Sell from two batches, explicitly return the later batch, then return the earlier batch. Verify lot stock and remaining sold quantities; reject unknown, duplicate, expired-restock and excessive quantities.
+- Make an installment khata sale with markup, record a recovery, partially return an item and inspect separate paid/credited schedule values. A recovery after preview must invalidate confirmation. Fully return remaining goods and reconcile debt, explicit waiver if any, refund and till movement.
+- Request approval for a partial return; approve from a separate user and confirm. Verify legacy full-return API also requires approval when enabled.
+
+## 1.22 catalog and assembly
+
+- Create a size/color family and assign SKUs. Reject duplicate combinations, missing axes, stale versions and foreign tenant SKUs. Detach/reassign and verify old versions remain invalid. Search the family in POS and sell the intended SKU.
+- Define a six-unit pack, build two packs from 12 units, then unpack one pack into six units. Verify product totals, batch quantities and job history; unchanged retries must not post twice.
+- Assemble a BOM with two components. Reject a dependency cycle, missing stock, fractional whole units and unpacking of a BOM. Require a new output SKU/recipe to change a used conversion.
+- Consume dated stock: reject missing/later output expiry and expired components. Preview, change component stock, then reject stale confirmation. Verify a failed output write leaves all component stock and job records unchanged.
+
+## 1.23 combined promotions
+
+Enable stacking on two offers, enter both codes in POS, verify sequential discounts and tax, tender cash and inspect per-offer receipt/PDF. Confirm non-stackable/duplicate/unknown codes fail, caps apply independently, retries create one sale, held bills preserve codes, and paired-item returns retain original discounted credit.

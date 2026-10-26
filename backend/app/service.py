@@ -98,6 +98,20 @@ async def get_receipt(c, u, tenant, sale_id):
             sale_id,
         )
     )
+    original = sale["original_snapshot"] or {}
+    if isinstance(original, str):
+        original = json.loads(original)
+    saved_promotion = (original.get("sale") or sale).get("promotion_snapshot") or {}
+    if isinstance(saved_promotion, str):
+        saved_promotion = json.loads(saved_promotion)
+    from .features.promotions import return_groups
+
+    pair = sorted(
+        {product for group in return_groups(saved_promotion) for product in group}
+    )
+    result["sale"]["return_pair_products"] = (
+        pair if any(i["product"] in pair for i in result["items"]) else []
+    )
     result["sale"].pop("original_snapshot", None)
     result["sale"]["adjustments"] = [
         json.loads(r["result"]) if isinstance(r["result"], str) else r["result"]
@@ -142,7 +156,10 @@ async def snapshot(c, u, tenant):
     perms = grants(role)
     out.update(tenant=dict(t), role=role, permissions=sorted(perms))
     out["products"] = rows(
-        await c.fetch("SELECT * FROM products WHERE tenant=$1 ORDER BY name", tenant)
+        await c.fetch(
+            "SELECT p.*,COALESCE(v.label,'') AS variant_label FROM products p LEFT JOIN product_variant_labels v ON v.tenant=p.tenant AND v.product=p.id WHERE p.tenant=$1 ORDER BY p.name",
+            tenant,
+        )
     )
     out["movements"] = rows(
         await c.fetch(

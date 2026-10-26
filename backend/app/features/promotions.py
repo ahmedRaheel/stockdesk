@@ -40,6 +40,7 @@ def evaluate(rule, components, products, now, used=0):
     weights = [p["line_total"] for p in products]
     by_id = {p["id"]: p for p in products}
     kind = rule["kind"]
+    reward_details = {}
     if kind == "fixed":
         discount = min(rule["value"], subtotal)
     elif kind == "percentage":
@@ -58,6 +59,33 @@ def evaluate(rule, components, products, now, used=0):
             line_amount(p["price"], Decimal(groups * rule["free_quantity"])) if p else 0
         )
         weights = [p["line_total"] if p["id"] == c["product"] else 0 for p in products]
+    elif kind == "cross_bogo":
+        reward_id = rule["reward_product"]
+        buy_id = next(c["product"] for c in components if c["product"] != reward_id)
+        buy, reward = by_id.get(buy_id), by_id.get(reward_id)
+        for item in (buy, reward):
+            if (
+                item
+                and Decimal(item["quantity"])
+                != Decimal(item["quantity"]).to_integral_value()
+            ):
+                fail("Cross-product BOGO requires whole product quantities.")
+        groups = int(Decimal(buy["quantity"]) // rule["buy_quantity"]) if buy else 0
+        free = (
+            min(int(Decimal(reward["quantity"])), groups * rule["free_quantity"])
+            if reward
+            else 0
+        )
+        discount = line_amount(reward["price"], Decimal(free)) if reward else 0
+        weights = [p["line_total"] if p["id"] == reward_id else 0 for p in products]
+        reward_details = dict(
+            buy_product=buy_id,
+            reward_product=reward_id,
+            buy_quantity=rule["buy_quantity"],
+            free_quantity=rule["free_quantity"],
+            reward_units=free,
+            return_policy="paired_cross_bogo",
+        )
     else:  # Bundle: all components must be present in the cart; no implicit stock lines.
         groups = min(
             (
@@ -85,6 +113,7 @@ def evaluate(rule, components, products, now, used=0):
     discount = min(discount, sum(weights))
     deductions = allocate_discount(weights, discount)
     return dict(
+        **reward_details,
         id=rule["id"],
         code=rule["code"],
         name=rule["name"],
@@ -98,7 +127,7 @@ def evaluate(rule, components, products, now, used=0):
     )
 
 
-async def resolve(c, tenant, code, products, manual_discount):
+async def resolve_single(c, tenant, code, products, manual_discount, customer_id=None):
     code = clean(code or "", "Promotion code", 40, True).upper()
     if not code:
         return None
@@ -109,6 +138,27 @@ async def resolve(c, tenant, code, products, manual_discount):
     )
     if not rule:
         fail("Promotion code not found.", 404)
+    customer_details = {}
+    if rule["per_customer_limit"] is not None:
+        if not customer_id:
+            fail("Select a registered customer for this promotion.")
+        if not await c.fetchval(
+            "SELECT 1 FROM customers WHERE tenant=$1 AND id=$2 AND active=true",
+            tenant,
+            customer_id,
+        ):
+            fail("Choose an active customer from this business.")
+        customer_used = await c.fetchval(
+            "SELECT count(*) FROM promotion_redemptions WHERE tenant=$1 AND promotion=$2 AND customer=$3",
+            tenant,
+            rule["id"],
+            customer_id,
+        )
+        if customer_used >= rule["per_customer_limit"]:
+            fail("This customer has reached the promotion redemption limit.", 409)
+        customer_details = dict(
+            customer_id=customer_id, per_customer_limit=rule["per_customer_limit"]
+        )
     components = await c.fetch(
         "SELECT product,quantity FROM promotion_items WHERE tenant=$1 AND promotion=$2 ORDER BY product",
         tenant,
@@ -119,6 +169,160 @@ async def resolve(c, tenant, code, products, manual_discount):
         tenant,
         rule["id"],
     )
-    return evaluate(
-        rule, components, products, datetime.now(ZoneInfo("Asia/Karachi")), used
+    return {
+        **evaluate(
+            rule, components, products, datetime.now(ZoneInfo("Asia/Karachi")), used
+        ),
+        **customer_details,
+    }
+
+
+async def automatic_candidates(c, tenant, products, customer_id=None):
+    """Bounded eligible offers; caller compares final tax-inclusive totals."""
+    from fastapi import HTTPException
+
+    rules = await c.fetch(
+        "SELECT p.*,(SELECT count(*) FROM promotion_redemptions r WHERE r.tenant=p.tenant AND r.promotion=p.id) used,(SELECT count(*) FROM promotion_redemptions r WHERE r.tenant=p.tenant AND r.promotion=p.id AND r.customer=$2) customer_used FROM promotions p WHERE tenant=$1 AND active AND automatic ORDER BY code,id LIMIT 101",
+        tenant,
+        customer_id,
     )
+    if len(rules) > 100:
+        fail(
+            "At most 100 active automatic promotions are allowed. Disable an existing offer first.",
+            409,
+        )
+    components = await c.fetch(
+        "SELECT promotion,product,quantity FROM promotion_items WHERE tenant=$1 AND promotion=ANY($2::text[]) ORDER BY product",
+        tenant,
+        [r["id"] for r in rules],
+    )
+    active_customer = bool(customer_id) and await c.fetchval(
+        "SELECT 1 FROM customers WHERE tenant=$1 AND id=$2 AND active=true",
+        tenant,
+        customer_id,
+    )
+    now = datetime.now(ZoneInfo("Asia/Karachi"))
+    candidates = []
+    for rule in rules:
+        details = {}
+        if rule["per_customer_limit"] is not None:
+            if (
+                not active_customer
+                or rule["customer_used"] >= rule["per_customer_limit"]
+            ):
+                continue
+            details = dict(
+                customer_id=customer_id, per_customer_limit=rule["per_customer_limit"]
+            )
+        try:
+            result = evaluate(
+                rule,
+                [x for x in components if x["promotion"] == rule["id"]],
+                products,
+                now,
+                rule["used"],
+            )
+        except HTTPException as exc:
+            if exc.status_code not in (400, 409):
+                raise
+            continue
+        candidates.append({**result, **details})
+    return candidates
+
+
+def return_groups(promotion):
+    """Merge overlapping cross-BOGO pairs; unrelated pairs stay independent."""
+    offers = promotion.get("offers", [promotion])
+    groups = []
+    for offer in offers:
+        if offer.get("kind") != "cross_bogo":
+            continue
+        group = {offer["buy_product"], offer["reward_product"]}
+        changed = True
+        while changed:
+            changed = False
+            for existing in groups[:]:
+                if existing & group:
+                    group |= existing
+                    groups.remove(existing)
+                    changed = True
+        groups.append(group)
+    return [sorted(g) for g in groups]
+
+
+async def resolve(c, tenant, code, products, manual_discount, customer_id=None):
+    code = clean(code or "", "Promotion codes", 240, True).upper()
+    if not code or "," not in code:
+        return await resolve_single(
+            c, tenant, code, products, manual_discount, customer_id
+        )
+    codes = [x.strip() for x in code.split(",")]
+    if (
+        not 2 <= len(codes) <= 5
+        or any(not x or len(x) > 40 for x in codes)
+        or len(set(codes)) != len(codes)
+    ):
+        fail("Enter two to five distinct promotion codes separated by commas.")
+    if manual_discount:
+        fail("Manual and promotional discounts cannot be combined.")
+    rules = await c.fetch(
+        "SELECT * FROM promotions WHERE tenant=$1 AND code=ANY($2::text[])",
+        tenant,
+        codes,
+    )
+    if len(rules) != len(codes):
+        fail("Promotion code not found.", 404)
+    if any(not rule["stackable"] for rule in rules):
+        fail("Every combined offer must allow stacking.", 409)
+    # Stable application order: product offers, fixed invoice discounts, then
+    # sequential percentages. Code order resolves ties independent of typing order.
+    priority = {"bogo": 0, "cross_bogo": 0, "bundle": 0, "fixed": 1, "percentage": 2}
+    rules = sorted(rules, key=lambda rule: (priority[rule["kind"]], rule["code"]))
+    remaining = [p["line_total"] for p in products]
+    offers = []
+    for rule in rules:
+        offer = await resolve_single(c, tenant, rule["code"], products, 0, customer_id)
+        if rule["kind"] == "percentage":
+            amount = (sum(remaining) * rule["value"] + 5000) // 10000
+            if rule["maximum_discount"] is not None:
+                amount = min(amount, rule["maximum_discount"])
+            deductions = allocate_discount(remaining, min(amount, sum(remaining)))
+        elif rule["kind"] == "fixed":
+            deductions = allocate_discount(
+                remaining, min(offer["discount"], sum(remaining))
+            )
+        else:
+            deductions = [
+                min(left, line["discount"])
+                for left, line in zip(remaining, offer["line_discounts"])
+            ]
+        amount = sum(deductions)
+        if not amount:
+            fail(
+                "A combined offer adds no further discount. Remove it and review again.",
+                409,
+            )
+        remaining = [left - d for left, d in zip(remaining, deductions)]
+        offers.append(
+            {
+                **offer,
+                "discount": amount,
+                "line_discounts": [
+                    {"product": p["id"], "discount": d}
+                    for p, d in zip(products, deductions)
+                ],
+            }
+        )
+    deductions = [p["line_total"] - left for p, left in zip(products, remaining)]
+    return {
+        "kind": "stack",
+        "code": " + ".join(x["code"] for x in offers),
+        "name": "Combined offers",
+        "name_ur": "مشترکہ پیشکشیں",
+        "discount": sum(deductions),
+        "offers": offers,
+        "application_policy": "product_then_fixed_then_percentage",
+        "line_discounts": [
+            {"product": p["id"], "discount": d} for p, d in zip(products, deductions)
+        ],
+    }

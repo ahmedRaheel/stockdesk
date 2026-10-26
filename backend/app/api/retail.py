@@ -466,7 +466,7 @@ async def overview(tenant: str, user: User):
           FROM receivables r JOIN customers c ON c.tenant=r.tenant AND c.id=r.customer WHERE r.tenant=$1 AND r.status='open')
           SELECT b.customer,b.name,b.phone,b.id AS receivable,b.due_date,b.balance AS amount FROM balances b
           WHERE b.balance>0 AND NOT EXISTS(SELECT 1 FROM installment_plans p WHERE p.tenant=b.tenant AND p.receivable=b.id)
-          UNION ALL SELECT b.customer,b.name,b.phone,b.id,s.due_date,s.amount-s.paid FROM balances b JOIN installment_plans p ON p.tenant=b.tenant AND p.receivable=b.id JOIN installment_schedule s ON s.tenant=p.tenant AND s.plan=p.id WHERE s.amount>s.paid ORDER BY due_date""",
+          UNION ALL SELECT b.customer,b.name,b.phone,b.id,s.due_date,s.amount-s.paid-s.credited FROM balances b JOIN installment_plans p ON p.tenant=b.tenant AND p.receivable=b.id JOIN installment_schedule s ON s.tenant=p.tenant AND s.plan=p.id WHERE s.amount>s.paid+s.credited ORDER BY due_date""",
                 tenant,
             )
         )
@@ -581,7 +581,8 @@ from .contracts import SaleLine
 
 
 class HoldBill(Contract):
-    promotion_code: str = Field(default="", max_length=40)
+    auto_promotion: bool = Field(default=False, strict=True)
+    promotion_code: str = Field(default="", max_length=240)
     id: Identifier
     label: str = Field(min_length=1, max_length=100)
     items: list[SaleLine] = Field(min_length=1, max_length=100)
@@ -634,7 +635,12 @@ async def hold_bill(tenant: str, payload: HoldBill, request: Request, user: User
             if prior:
                 if (
                     prior["actor"] != user["id"]
-                    or {"promotion_code": "", **json.loads(prior["payload"])} != value
+                    or {
+                        "promotion_code": "",
+                        "auto_promotion": False,
+                        **json.loads(prior["payload"]),
+                    }
+                    != value
                 ):
                     fail("Held bill identifier already used.", 409)
                 return {"id": payload.id}
@@ -882,3 +888,38 @@ async def get_customer(tenant: str, identifier: str, user: User):
         if not record:
             fail("Customer not found.", 404)
     return dict(record)
+
+
+@router.get("/sale-customers")
+async def sale_customers(
+    tenant: str,
+    user: User,
+    q: str = Query("", max_length=100),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=1000000),
+):
+    """Minimal active-customer picker for sales; no financial data."""
+    async with db.pool.acquire() as c:
+        await service.authorize(c, user, tenant, "sale")
+        items = await c.fetch(
+            "SELECT id,name,phone FROM customers WHERE tenant=$1 AND active=true AND ($2='' OR strpos(lower(name||' '||phone||' '||search_aliases),lower($2))>0) ORDER BY name,id LIMIT $3 OFFSET $4",
+            tenant,
+            q,
+            limit,
+            offset,
+        )
+    return dict(items=service.rows(items), limit=limit, offset=offset)
+
+
+@router.get("/sale-customers/{customer}")
+async def sale_customer(tenant: str, customer: str, user: User):
+    async with db.pool.acquire() as c:
+        await service.authorize(c, user, tenant, "sale")
+        item = await c.fetchrow(
+            "SELECT id,name,phone FROM customers WHERE tenant=$1 AND id=$2 AND active=true",
+            tenant,
+            customer,
+        )
+        if not item:
+            fail("Customer not found.", 404)
+    return dict(item)

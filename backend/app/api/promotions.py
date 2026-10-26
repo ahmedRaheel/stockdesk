@@ -25,7 +25,8 @@ class Promotion(Contract):
     code: str = Field(min_length=1, max_length=40, pattern=r"^[A-Z0-9_-]+$")
     name: str = Field(min_length=1, max_length=150)
     name_ur: str = Field(default="", max_length=150)
-    kind: Literal["fixed", "percentage", "bogo", "bundle"]
+    kind: Literal["fixed", "percentage", "bogo", "bundle", "cross_bogo"]
+    reward_product: Identifier | None = None
     value: Money = 0
     minimum_subtotal: Money = 0
     maximum_discount: int | None = Field(
@@ -41,6 +42,11 @@ class Promotion(Contract):
     starts_minute: int | None = Field(default=None, strict=True, ge=0, le=1439)
     ends_minute: int | None = Field(default=None, strict=True, ge=1, le=1440)
     usage_limit: int | None = Field(default=None, strict=True, ge=1, le=1_000_000_000)
+    per_customer_limit: int | None = Field(
+        default=None, strict=True, ge=1, le=1_000_000_000
+    )
+    stackable: bool = Field(default=False, strict=True)
+    automatic: bool = Field(default=False, strict=True)
     active: bool = Field(default=True, strict=True)
     components: list[Component] = Field(default_factory=list, max_length=20)
 
@@ -72,6 +78,18 @@ class Promotion(Contract):
             raise ValueError(
                 "BOGO requires one product, component quantity 1 and value 0."
             )
+        if self.kind == "cross_bogo":
+            if (
+                len(self.components) != 2
+                or any(c.quantity != 1 for c in self.components)
+                or self.value != 0
+                or self.reward_product not in {c.product for c in self.components}
+            ):
+                raise ValueError(
+                    "Cross-product BOGO requires two distinct products, component quantity 1, a selected reward product and value 0."
+                )
+        elif self.reward_product is not None:
+            raise ValueError("Reward product applies only to cross-product BOGO.")
         if self.kind == "bundle" and len(self.components) < 2:
             raise ValueError("A bundle requires at least two distinct products.")
         return self
@@ -154,18 +172,38 @@ async def save(tenant, payload, request, user, identifier=None):
                     fail("Usage limit cannot be less than existing redemptions.")
             else:
                 identifier = service.uid()
+            if payload.active and payload.automatic:
+                count = await c.fetchval(
+                    "SELECT count(*) FROM promotions WHERE tenant=$1 AND active AND automatic AND id<>$2",
+                    tenant,
+                    identifier,
+                )
+                if count >= 100:
+                    fail(
+                        "At most 100 active automatic promotions are allowed. Disable an existing offer first."
+                    )
+            if payload.per_customer_limit is not None:
+                highest = await c.fetchval(
+                    "SELECT COALESCE(MAX(n),0) FROM (SELECT count(*) n FROM promotion_redemptions WHERE tenant=$1 AND promotion=$2 AND customer IS NOT NULL GROUP BY customer) counts",
+                    tenant,
+                    identifier,
+                )
+                if payload.per_customer_limit < highest:
+                    fail(
+                        "Per-customer limit cannot be less than existing customer redemptions."
+                    )
             for item in payload.components:
                 p = await c.fetchrow(
                     "SELECT p.active,l.fractional FROM products p JOIN lookups l ON l.tenant=p.tenant AND l.id=p.unit_id WHERE p.tenant=$1 AND p.id=$2",
                     tenant,
                     item.product,
                 )
-                if not p or not p["active"]:
+                if not p or (payload.active and not p["active"]):
                     fail("Choose active component products from this business.")
                 if (
                     not p["fractional"]
                     and item.quantity != item.quantity.to_integral_value()
-                ) or (payload.kind == "bogo" and p["fractional"]):
+                ) or (payload.kind in {"bogo", "cross_bogo"} and p["fractional"]):
                     fail(
                         "BOGO requires a whole-unit product; component quantities must respect product units."
                     )

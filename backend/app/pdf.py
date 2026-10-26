@@ -33,6 +33,9 @@ def invoice_pdf(sale, items, language="en", tenders=None):
         "Original collection": "اصل وصولی",
         "Invoice revision": "رسید کی ترمیم",
         "Retained payment": "باقی اشیاء کی ادا شدہ رقم",
+        "Khata debt reduction": "کھاتے کے قرض میں کمی",
+        "Financing balance waived": "معاف کردہ فنانسنگ بقایا",
+        "Remaining invoice debt": "بل کا باقی قرض",
         "Return credit": "واپسی کی قیمت",
         "Collected from customer": "گاہک سے وصول شدہ",
         "Refunded to customer": "گاہک کو واپس کردہ",
@@ -47,6 +50,7 @@ def invoice_pdf(sale, items, language="en", tenders=None):
         "Cash received": "وصول شدہ نقد رقم",
         "Change returned": "گاہک کو واپس کی گئی رقم",
         "Promotion": "رعایتی پیشکش",
+        "Return all remaining qualifying and reward product quantities together for this cross-product offer.": "اس مختلف مصنوعات کی پیشکش میں خریدی گئی اور انعامی مصنوعات کی تمام باقی مقدار ایک ساتھ واپس کریں۔",
         "Split payment": "مختلف طریقوں سے ادائیگی",
         "cash": "نقد",
         "external": "بیرونی ادائیگی",
@@ -241,6 +245,13 @@ def invoice_pdf(sale, items, language="en", tenders=None):
                     )
                 )
             story.append(p(label("Return credit") + ": " + money(adjustment["credit"])))
+            if adjustment.get("outstanding_before", 0):
+                for caption, key in (
+                    ("Khata debt reduction", "debt_credit"),
+                    ("Financing balance waived", "debt_waiver"),
+                    ("Remaining invoice debt", "outstanding_after"),
+                ):
+                    story.append(p(label(caption) + ": " + money(adjustment[key])))
             caption = (
                 "Collected from customer"
                 if adjustment["net"] > 0
@@ -326,6 +337,25 @@ def invoice_pdf(sale, items, language="en", tenders=None):
                 + promotion["code"]
                 + " / "
                 + (name or promotion.get("name", ""))
+            )
+        )
+    for offer in promotion.get("offers", []):
+        name = offer.get("name_ur") if language == "ur" else offer.get("name")
+        story.append(
+            p(
+                offer["code"]
+                + " / "
+                + (name or offer.get("name", ""))
+                + ": -"
+                + money(offer["discount"])
+            )
+        )
+    if promotion.get("kind") == "cross_bogo" or sale.get("return_pair_products"):
+        story.append(
+            p(
+                label(
+                    "Return all remaining qualifying and reward product quantities together for this cross-product offer."
+                )
             )
         )
     for part in tenders or []:

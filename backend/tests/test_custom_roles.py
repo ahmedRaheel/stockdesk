@@ -105,6 +105,11 @@ async def test_custom_permissions_revocation_and_escalation():
                     path + "/assignments", json={"member": member, "role_id": rid}
                 )
             ).status_code == 200
+            customer = await owner.post(
+                base + "/customers", json={"name": "Sale picker customer"}
+            )
+            assert customer.status_code == 201, customer.text
+            customer_id = customer.json()["id"]
             async with httpx.AsyncClient(
                 transport=transport,
                 base_url="http://testserver",
@@ -118,6 +123,17 @@ async def test_custom_permissions_revocation_and_escalation():
                 ).json()
                 assert snapshot["role"] == "Counter operator"
                 assert snapshot["permissions"] == ["read", "sale"]
+                selected = await staff.get(base + "/sale-customers/" + customer_id)
+                assert selected.status_code == 200
+                assert set(selected.json()) == {"id", "name", "phone"}
+                assert (await staff.get(base + "/sale-customers?q=picker")).json()[
+                    "items"
+                ][0]["id"] == customer_id
+                assert (await staff.get(base + "/customers")).status_code == 403
+                assert (
+                    await staff.get(base + "/customers/" + customer_id)
+                ).status_code == 403
+
                 assert "cost" not in snapshot["products"][0]
                 assert (
                     "cost"

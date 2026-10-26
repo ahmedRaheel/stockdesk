@@ -76,7 +76,9 @@ class Tender(Contract):
 
 
 class Checkout(Contract):
-    promotion_code: str = Field(default="", max_length=40)
+    approval_id: Identifier | None = None
+    auto_promotion: bool = Field(default=False, strict=True)
+    promotion_code: str = Field(default="", max_length=240)
     tenders: list[Tender] | None = Field(default=None, min_length=1, max_length=10)
     quote_token: str | None = None
     held_bill_id: str | None = None
@@ -96,6 +98,7 @@ class Checkout(Contract):
 
 
 class ReturnSale(Contract):
+    approval_id: Identifier | None = None
     reason_id: str | None = None
     reason: str = Field(min_length=1, max_length=500)
 

@@ -3,7 +3,7 @@
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Frontend hotfix 1.15.1** fixes `crypto.randomUUID is not a function` on EC2/LAN HTTP URLs across POS and other write flows. See [patch instructions](docs/RELEASE-1.15.1.md) to fix an existing installation without upgrading other modules. The full package retains [1.15 features](docs/RELEASE-1.15.md) and the [remaining checklist](docs/CHECKLIST.md).
+**Release 1.23** adds opt-in combining of up to five promotional offers, with deterministic pricing, individual redemption limits and frozen return allocations. See [release notes](docs/RELEASE-1.23.md), the [remaining checklist](docs/CHECKLIST.md), and [completion roadmap](docs/COMPLETION-ROADMAP.md). The full enterprise scope is not complete.
 
 ## Upgrade your existing deployment
 

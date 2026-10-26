@@ -117,14 +117,15 @@ async def products(
         async with connection.transaction(isolation="repeatable_read", readonly=True):
             _business, role = await service.authorize(connection, user, tenant)
             # strpos treats percent/underscore as literal search characters.
-            clause = "tenant=$1 AND ($2='' OR strpos(lower(name||' '||sku||' '||COALESCE(barcode,'')||' '||search_aliases),lower($2))>0)"
+            clause = "p.tenant=$1 AND ($2='' OR strpos(lower(p.name||' '||p.sku||' '||COALESCE(p.barcode,'')||' '||p.search_aliases||' '||COALESCE(v.label,'')),lower($2))>0)"
+            source = " FROM products p LEFT JOIN product_variant_labels v ON v.tenant=p.tenant AND v.product=p.id WHERE "
             total = await connection.fetchval(
-                "SELECT COUNT(*) FROM products WHERE " + clause, tenant, q
+                "SELECT COUNT(*)" + source + clause, tenant, q
             )
             items = await connection.fetch(
-                "SELECT * FROM products WHERE "
+                "SELECT p.*,COALESCE(v.label,'') AS variant_label" + source
                 + clause
-                + " ORDER BY name,id LIMIT $3 OFFSET $4",
+                + " ORDER BY p.name,p.id LIMIT $3 OFFSET $4",
                 tenant,
                 q,
                 limit,

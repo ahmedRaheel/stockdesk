@@ -43,14 +43,22 @@ export default function Promotions({
       c.abort();
     };
   }, [base, q, page, revision]);
+  const isBogo = kind === "bogo" || kind === "cross_bogo";
   function edit(row: any) {
     setSelected(row);
     setKind(row?.kind || "percentage");
     setParts(
-      (row?.components || []).map((p: any) => ({
-        ...p,
-        quantity: String(p.quantity),
-      })),
+      [...(row?.components || [])]
+        .sort((a: any, b: any) =>
+          row?.kind === "cross_bogo"
+            ? Number(a.product === row.reward_product) -
+              Number(b.product === row.reward_product)
+            : 0,
+        )
+        .map((p: any) => ({
+          ...p,
+          quantity: String(p.quantity),
+        })),
     );
     setError("");
     setNotice("");
@@ -60,7 +68,7 @@ export default function Promotions({
     setParts(
       value === "bogo"
         ? [{ product: "", quantity: "1", name: "" }]
-        : value === "bundle"
+        : value === "bundle" || value === "cross_bogo"
           ? [
               { product: "", quantity: "1", name: "" },
               { product: "", quantity: "1", name: "" },
@@ -87,23 +95,29 @@ export default function Promotions({
       name: text("name"),
       name_ur: text("name_ur"),
       kind,
-      value: kind === "bogo" ? 0 : amount("value"),
+      reward_product: kind === "cross_bogo" ? parts[1]?.product || null : null,
+      value: isBogo ? 0 : amount("value"),
       minimum_subtotal: amount("minimum_subtotal"),
       maximum_discount: text("maximum_discount")
         ? amount("maximum_discount")
         : null,
-      buy_quantity: kind === "bogo" ? Number(text("buy_quantity")) : 1,
-      free_quantity: kind === "bogo" ? Number(text("free_quantity")) : 1,
+      buy_quantity: isBogo ? Number(text("buy_quantity")) : 1,
+      free_quantity: isBogo ? Number(text("free_quantity")) : 1,
       weekdays: f.getAll("weekdays").map(Number),
       starts_on: text("starts_on") || null,
       ends_on: text("ends_on") || null,
       starts_minute: minute("starts_minute"),
       ends_minute: minute("ends_minute", true),
       usage_limit: text("usage_limit") ? Number(text("usage_limit")) : null,
+      per_customer_limit: text("per_customer_limit")
+        ? Number(text("per_customer_limit"))
+        : null,
       active: f.has("active"),
+      stackable: f.has("stackable"),
+      automatic: f.has("automatic"),
       components: parts.map((p) => ({
         product: p.product,
-        quantity: kind === "bogo" ? "1" : p.quantity,
+        quantity: isBogo ? "1" : p.quantity,
       })),
       ...(selected ? { version: selected.version } : {}),
     };
@@ -149,7 +163,7 @@ export default function Promotions({
         <h2>{tr(selected ? "Edit promotion" : "New promotion")}</h2>
         <p>
           {tr(
-            "One promotion per sale. Manual discounts cannot be combined. Cashiers select or enter a code; eligibility and usage are checked again at checkout.",
+            "Combine up to five offers when every offer allows stacking. Product offers apply first, then fixed discounts, then percentages. Manual discounts and automatic selection cannot be combined with a stack.",
           )}
         </p>
         <form key={`${selected?.id || "new"}-${revision}`} onSubmit={save}>
@@ -161,7 +175,7 @@ export default function Promotions({
               {field("Promotion code", "code", "text", selected?.code, {
                 required: true,
                 maxLength: 40,
-                pattern: "[A-Za-z0-9_-]+",
+                pattern: "[A-Za-z0-9_\\-]+",
                 readOnly: !!selected,
               })}
               {field("Promotion name", "name", "text", selected?.name, {
@@ -181,10 +195,13 @@ export default function Promotions({
                   <option value="percentage">{tr("Percentage coupon")}</option>
                   <option value="fixed">{tr("Fixed coupon")}</option>
                   <option value="bogo">{tr("Buy X get Y free")}</option>
+                  <option value="cross_bogo">
+                    {tr("Buy one product, get another free")}
+                  </option>
                   <option value="bundle">{tr("Bundle price")}</option>
                 </select>
               </label>
-              {kind !== "bogo" &&
+              {!isBogo &&
                 field(
                   kind === "percentage"
                     ? "Percentage (%)"
@@ -201,7 +218,7 @@ export default function Promotions({
                     step: 0.01,
                   },
                 )}
-              {kind === "bogo" && (
+              {isBogo && (
                 <>
                   {field(
                     "Buy quantity",
@@ -256,6 +273,29 @@ export default function Promotions({
                 selected?.usage_limit,
                 { min: 1, max: 1000000000, step: 1 },
               )}
+              {field(
+                "Per-customer redemption limit (optional)",
+                "per_customer_limit",
+                "number",
+                selected?.per_customer_limit,
+                { min: 1, max: 1000000000, step: 1 },
+              )}
+              <label className="check">
+                <input
+                  name="automatic"
+                  type="checkbox"
+                  defaultChecked={selected?.automatic ?? false}
+                />
+                {tr("Available for automatic selection")}
+              </label>
+              <label className="check">
+                <input
+                  name="stackable"
+                  type="checkbox"
+                  defaultChecked={selected?.stackable ?? false}
+                />
+                {tr("Allow combining with other offers")}
+              </label>
               <label className="check">
                 <input
                   name="active"
@@ -265,6 +305,11 @@ export default function Promotions({
                 {tr("Active promotion")}
               </label>
             </div>
+            <p className="hint">
+              {tr(
+                "Limited offers require a registered customer. Returns do not restore redemptions; leave blank for no per-customer cap.",
+              )}
+            </p>
             <fieldset
               style={{
                 border: "1px solid #dbe2ea",
@@ -310,9 +355,16 @@ export default function Promotions({
                 "Dates and daily times use Asia/Karachi. End date is inclusive; end time is exclusive. End time 00:00 means the end of that day. Leave both times empty for all day.",
               )}
             </p>
-            {(kind === "bogo" || kind === "bundle") && (
+            {(isBogo || kind === "bundle") && (
               <>
                 <h3>{tr("Promotion products")}</h3>
+                {kind === "cross_bogo" && (
+                  <p className="hint">
+                    {tr(
+                      "Only reward units already in the cart are discounted. Extra reward units remain paid. Qualifying and reward products must be distinct whole-unit products.",
+                    )}
+                  </p>
+                )}
                 <p>
                   {tr(
                     "Add all required products, including free units, to the cart. BOGO accepts whole-unit products. Bundle quantities follow the product unit.",
@@ -320,6 +372,15 @@ export default function Promotions({
                 </p>
                 {parts.map((part, i) => (
                   <div className="form-grid" key={i}>
+                    {kind === "cross_bogo" && (
+                      <h4 style={{ gridColumn: "1 / -1" }}>
+                        {tr(
+                          i === 0
+                            ? "Qualifying product (buy)"
+                            : "Reward product (free)",
+                        )}
+                      </h4>
+                    )}
                     <PurchaseLookup
                       tenant={tenant}
                       kind="products"
@@ -468,6 +529,7 @@ export default function Promotions({
                               percentage: "Percentage coupon",
                               fixed: "Fixed coupon",
                               bogo: "Buy X get Y free",
+                              cross_bogo: "Buy one product, get another free",
                               bundle: "Bundle price",
                             } as any
                           )[p.kind],
@@ -538,7 +600,7 @@ export function PromotionPicker({
     const timer = setTimeout(
       () =>
         api<any>(
-          `/api/v1/tenants/${tenant}/promotions?q=${encodeURIComponent(value)}`,
+          `/api/v1/tenants/${tenant}/promotions?q=${encodeURIComponent(value.split(",").at(-1)?.trim() || "")}`,
           { signal: c.signal },
         )
           .then((r) => {
@@ -562,18 +624,30 @@ export function PromotionPicker({
         aria-label={tr("Promotion / coupon code")}
         list="pos-promotion-codes"
         value={value}
-        maxLength={40}
+        maxLength={240}
         disabled={disabled}
         placeholder={tr("Optional promotion code")}
         onChange={(e) => onChange(e.target.value.toUpperCase())}
       />
       <datalist id="pos-promotion-codes">
         {items.map((p) => (
-          <option key={p.id} value={p.code}>
+          <option
+            key={p.id}
+            value={
+              value.includes(",")
+                ? value.slice(0, value.lastIndexOf(",") + 1) + p.code
+                : p.code
+            }
+          >
             {language === "ur" ? p.name_ur || p.name : p.name}
           </option>
         ))}
       </datalist>
+      <small>
+        {tr(
+          "Enter up to five comma-separated codes. Every combined offer must allow stacking.",
+        )}
+      </small>
       {error && <small role="alert">{tr(error)}</small>}
     </label>
   );

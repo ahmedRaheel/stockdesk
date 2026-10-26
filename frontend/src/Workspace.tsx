@@ -1,3 +1,5 @@
+import CatalogTools from "./CatalogTools";
+import TransactionApprovals from "./TransactionApprovals";
 import { newRequestId } from "./requestId";
 import InvoiceAdjustment from "./InvoiceAdjustment";
 import { t as tr } from "./i18n";
@@ -45,6 +47,7 @@ import Payables from "./Payables";
 import Promotions, { PromotionPicker } from "./Promotions";
 import ManagementReport from "./ManagementReport";
 import InventoryAlerts from "./InventoryAlerts";
+import Feedback from "./Feedback";
 import StockCounts from "./StockCounts";
 import PosEntry from "./PosEntry";
 import SplitPayments, { PaymentRow } from "./SplitPayments";
@@ -55,6 +58,15 @@ import LookupSelect from "./LookupSelect";
 import CustomerSelect from "./CustomerSelect";
 import { api, send } from "./api";
 const titles: any = {
+  catalogtools: [
+    "Variants, recipes and packs",
+    "Manage SKU families and stock conversions.",
+  ],
+  approvals: [
+    "Transaction approvals",
+    "Independent discount and return decisions.",
+  ],
+  feedback: ["Customer feedback", "Ratings, comments and resolution tracking."],
   alerts: [
     "Inventory alerts",
     "Rules, acknowledgements and resolution history.",
@@ -122,6 +134,9 @@ const titles: any = {
   ],
 };
 const icons: any = {
+  catalogtools: Package,
+  approvals: ShieldCheck,
+  feedback: SlidersHorizontal,
   alerts: SlidersHorizontal,
   promotions: SlidersHorizontal,
   roles: ShieldCheck,
@@ -202,9 +217,11 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
         items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
         customer_id: customerId || null,
         promotion_code: promotionCode,
+        auto_promotion: autoPromotion,
       });
       setCart([]);
       setPromotionCode("");
+      setAutoPromotion(false);
       setHeldId("");
       await refreshHeld();
     } catch (e: any) {
@@ -223,6 +240,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     });
     setCart(lines);
     setPromotionCode(bill.payload.promotion_code || "");
+    setAutoPromotion(bill.payload.auto_promotion ?? false);
     setHeldId(id);
     setCustomerId(bill.payload.customer_id || "");
     setCreditMode(false);
@@ -256,6 +274,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     localStorage.setItem("stockdesk-language", language);
   }, [language]);
   const [promotionCode, setPromotionCode] = useState("");
+  const [autoPromotion, setAutoPromotion] = useState(false);
   const [discount, setDiscount] = useState("0"),
     [taxRate, setTaxRate] = useState("0");
   const [density, setDensity] = useState<"comfortable" | "compact">(() =>
@@ -328,6 +347,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     if (busy) return;
     setCart([]);
     setPromotionCode("");
+    setAutoPromotion(false);
     setDiscount("0");
     setCustomerId("");
     setSplit(false);
@@ -465,7 +485,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
         " " +
         (p.barcode || "") +
         " " +
-        (p.search_aliases || "")
+        (p.search_aliases || "") +
+        " " +
+        (p.variant_label || "")
       )
         .toLowerCase()
         .includes(search.toLowerCase()) &&
@@ -492,6 +514,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
   }, [tenant, data.tenant]);
   const quoteBody = JSON.stringify({
     promotion_code: promotionCode,
+    auto_promotion: autoPromotion,
+    customer_id: customerId || null,
     items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
     discount: Math.round(Number(discount || 0) * 100),
     tax_bps: Math.round(Number(taxRate || 0) * 100),
@@ -609,13 +633,21 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
   }, [view, modal, receipt]);
-  async function checkout() {
+  const approvalRequest = useRef<{ signature: string; id: string } | undefined>(
+    undefined,
+  );
+  const [discountApproval, setDiscountApproval] = useState<{
+    signature: string;
+    id: string;
+  }>();
+  async function checkout(requestApproval = false) {
     if (!cart.length || busy || !quoteReady) return;
     setBusy(true);
     setError("");
     const payload = {
       quote_token: quote.quote_token,
       promotion_code: promotionCode,
+      auto_promotion: autoPromotion,
       items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
       customer,
       held_bill_id: heldId || null,
@@ -645,10 +677,29 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     try {
       if (pending.current?.signature !== signature)
         pending.current = { signature, id: newRequestId() };
+      if (requestApproval) {
+        if (approvalRequest.current?.signature !== signature)
+          approvalRequest.current = { signature, id: newRequestId() };
+        const approval: any = await send(
+          `/api/v1/tenants/${tenant}/transaction-approvals`,
+          { request: approvalRequest.current.id, kind: "discount", payload },
+        );
+        approvalRequest.current = undefined;
+        setDiscountApproval({ signature, id: approval.id });
+        setToast(
+          "Approval requested. Another authorized user must approve it in Transaction approvals before you complete the unchanged sale.",
+        );
+        return;
+      }
       const result = await post("checkout", {
         ...payload,
         request: pending.current.id,
+        approval_id:
+          discountApproval?.signature === signature
+            ? discountApproval.id
+            : null,
       });
+      setDiscountApproval(undefined);
       setCart([]);
       setSplit(false);
       setPaymentRows([]);
@@ -662,6 +713,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
       setPaidNow("0");
       setDiscount("0");
       setPromotionCode("");
+      setAutoPromotion(false);
       setTaxRate("0");
       pending.current = null;
       setToast("Sale completed. Stock updated.");
@@ -756,16 +808,18 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     "dashboard",
     ...(can("forecast") ? ["forecasts"] : []),
     "products",
-    ...(can("sale") ? ["pos", "sales", "tills"] : []),
+    ...(can("sale") ? ["pos", "sales", "tills", "approvals"] : []),
     "movements",
     ...(can("stock") ? ["purchasing", "batches", "counts"] : []),
     ...(can("credit") ? ["khata"] : []),
     ...(can("settings") ? ["lookups", "taxes"] : []),
     ...(can("alerts") ? ["alerts"] : []),
+    ...(can("feedback") ? ["feedback"] : []),
     ...(can("promotions") ? ["promotions"] : []),
     ...(can("cost") ? ["reports"] : []),
     ...(can("finance") ? ["payables"] : []),
     ...(can("product") ? ["imports"] : []),
+    ...(can("product") || can("stock") ? ["catalogtools"] : []),
     ...(can("team") ? ["team"] : []),
     ...(can("audit") ? ["audit"] : []),
     ...(can("roles") ? ["roles"] : []),
@@ -1313,6 +1367,16 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               {view === "roles" && can("roles") && (
                 <RoleManagement key={tenant} tenant={tenant} />
               )}
+              {view === "catalogtools" && (can("product") || can("stock")) && (
+                <CatalogTools
+                  key={tenant}
+                  tenant={tenant}
+                  canProduct={can("product")}
+                  canStock={can("stock")}
+                  onChanged={() => load()}
+                  money={money}
+                />
+              )}
               {view === "imports" && can("product") && (
                 <CatalogImport
                   canUpdate={can("cost")}
@@ -1328,6 +1392,19 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   currency={currency}
                   canReturn={can("supplier_return")}
                 />
+              )}
+              {view === "approvals" && can("sale") && (
+                <TransactionApprovals
+                  tenant={tenant}
+                  owner={can("roles")}
+                  discountApprover={can("discount_approve")}
+                  voidApprover={can("void_approve")}
+                  email={data.user?.email || ""}
+                  money={money}
+                />
+              )}
+              {view === "feedback" && can("feedback") && (
+                <Feedback key={tenant} tenant={tenant} />
               )}
               {view === "alerts" && can("alerts") && (
                 <InventoryAlerts key={tenant} tenant={tenant} />
@@ -1562,6 +1639,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                             <div className="product-info">
                               <small>{p.sku}</small>
                               <h3>{p.name}</h3>
+                              {p.variant_label && (
+                                <small>{p.variant_label}</small>
+                              )}
                               <div>
                                 <b>{money(p.price)}</b>
                                 <span
@@ -1599,6 +1679,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         onClick={() => {
                           setCart([]);
                           setPromotionCode("");
+                          setAutoPromotion(false);
                           setDiscount("0");
                           setHeldId("");
                         }}
@@ -1648,8 +1729,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         onChange={(e) => setCustomer(e.target.value)}
                       />
                     </label>
-                    {can("credit") && (
+                    {can("sale") && (
                       <CustomerSelect
+                        sales
                         tenant={tenant}
                         value={customerId}
                         onChange={(id, c) => {
@@ -1722,10 +1804,32 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       <span>{tr("Subtotal")}</span>
                       <b>{money(subtotal)}</b>
                     </div>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={autoPromotion}
+                        disabled={busy}
+                        onChange={(e) => {
+                          setAutoPromotion(e.target.checked);
+                          if (e.target.checked) {
+                            setPromotionCode("");
+                            setDiscount("0");
+                          }
+                        }}
+                      />
+                      {tr("Automatically select an offer")}
+                    </label>
+                    {autoPromotion && (
+                      <p className="hint">
+                        {tr(
+                          "Selects one eligible offer with the lowest total including tax. Offers are not combined.",
+                        )}
+                      </p>
+                    )}
                     <PromotionPicker
                       tenant={tenant}
                       value={promotionCode}
-                      disabled={busy}
+                      disabled={busy || autoPromotion}
                       onChange={(code) => {
                         setPromotionCode(code);
                         if (code) setDiscount("0");
@@ -1742,6 +1846,18 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         <b>−{money(quote.discount)}</b>
                       </div>
                     )}
+                    {quoteReady &&
+                      quote.promotion?.offers?.map((offer: any) => (
+                        <div className="cart-math" key={offer.id}>
+                          <span>
+                            {offer.code} ·{" "}
+                            {language === "ur"
+                              ? offer.name_ur || offer.name
+                              : offer.name}
+                          </span>
+                          <b>−{money(offer.discount)}</b>
+                        </div>
+                      ))}
                     <div className="form-grid">
                       <label className="field">
                         <span>
@@ -1754,7 +1870,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                           step="0.01"
                           max={subtotal / 100}
                           value={discount}
-                          disabled={busy || !!promotionCode}
+                          disabled={busy || !!promotionCode || autoPromotion}
                           onChange={(e) => setDiscount(e.target.value)}
                         />
                       </label>
@@ -1966,6 +2082,22 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         )}{" "}
                       </p>
                     )}
+                    {discountCents > 0 && (
+                      <>
+                        <button
+                          className="secondary"
+                          disabled={busy || !quoteReady}
+                          onClick={() => checkout(true)}
+                        >
+                          {tr("Request discount approval")}
+                        </button>
+                        {discountApproval && (
+                          <p className="hint">
+                            {tr("Approval reference")}: {discountApproval.id}
+                          </p>
+                        )}
+                      </>
+                    )}
                     <button
                       className="primary checkout"
                       disabled={
@@ -1991,7 +2123,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                 Number(r.amount) <= 0,
                             )))
                       }
-                      onClick={checkout}
+                      onClick={() => checkout()}
                     >
                       {busy ? (
                         <Loader2 className="spin" size={17} />
@@ -2062,14 +2194,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                                     s.status === "completed" && (
                                       <button
                                         className="mini"
-                                        onClick={() =>
-                                          open(
-                                            s.credit_amount
-                                              ? "return"
-                                              : "adjust",
-                                            s,
-                                          )
-                                        }
+                                        onClick={() => open("adjust", s)}
                                       >
                                         {" "}
                                         {tr("Return / exchange")}{" "}
@@ -2897,13 +3022,31 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   ? JSON.parse(receipt.sale.promotion_snapshot)
                   : receipt.sale.promotion_snapshot;
               return p?.code ? (
-                <p>
-                  {tr("Promotion")}: {p.code} ·{" "}
-                  {language === "ur" ? p.name_ur || p.name : p.name}
-                </p>
+                <>
+                  <p>
+                    {tr("Promotion")}: {p.code} ·{" "}
+                    {language === "ur" ? p.name_ur || p.name : p.name}
+                  </p>
+                  {p.offers?.map((offer: any) => (
+                    <p key={offer.id}>
+                      {offer.code} ·{" "}
+                      {language === "ur"
+                        ? offer.name_ur || offer.name
+                        : offer.name}
+                      : −{money(offer.discount)}
+                    </p>
+                  ))}
+                </>
               ) : null;
             })()}
 
+            {receipt.sale.return_pair_products?.length > 0 && (
+              <p className="hint">
+                {tr(
+                  "Return all remaining qualifying and reward product quantities together for this cross-product offer.",
+                )}
+              </p>
+            )}
             <div className="cart-math">
               <span>{tr("Tax added")}</span>
               <b>
@@ -2988,6 +3131,14 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                       )}
                       : {money(Math.abs(a.net))}
                     </p>
+                    {a.outstanding_before > 0 && (
+                      <p>
+                        {tr("Khata debt reduction")}: {money(a.debt_credit)} ·{" "}
+                        {tr("Financing balance waived")}: {money(a.debt_waiver)}{" "}
+                        · {tr("Remaining invoice debt")}:{" "}
+                        {money(a.outstanding_after)}
+                      </p>
+                    )}
                     {a.returns?.map((r: any) => (
                       <p key={r.item}>
                         {r.name} · {r.quantity} ·{" "}

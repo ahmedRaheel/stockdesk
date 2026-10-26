@@ -1,4 +1,78 @@
-# Verification record — StockDesk frontend 1.15.1
+# Verification record — StockDesk 1.23
+
+## Release 1.23 checks
+
+- Full backend regression: **81 passed, 1 skipped** in 146.92 seconds under PGlite. The skipped test requires real PostgreSQL multiprocess concurrency. Focused stacking tests passed (2/2), and existing promotion/cross-BOGO tests passed (8/8).
+- Coverage includes sequential percentage rounding, deterministic code order, line caps, opt-in eligibility, duplicate/unknown/too-many codes, manual/automatic incompatibility, redemption limits per customer and globally, held bills, insufficient-cash rollback, checkout replay, stale promotion changes, frozen receipt/PDF snapshots and paired returns. The first focused run exposed an incorrect held-bill test payload; it was corrected to the existing API contract before passing.
+- Chromium verified the stackable setting, multi-code POS quote, checkout, individual offer receipt lines and exact persisted totals with native randomUUID disabled. English receipt and Urdu/mobile screens were reviewed. No JavaScript page errors.
+- TypeScript/Vite build, literal Urdu coverage, formatting checks and four request-ID tests passed. OpenAPI regenerated for 1.23. Migrations 001–028 are byte-identical to the saved 1.22 ZIP; migration 029 is new. No previous source files were removed, dependencies added or deployment settings changed.
+- PGlite and browser checks do not establish live EC2/Docker deployment, production PostgreSQL concurrency/load or regulatory acceptance. Automatic offer selection remains single-offer. The full enterprise checklist is not complete.
+
+
+## Release 1.22 checks
+
+- Final full backend regression: **79 passed, 1 skipped** in 142.32 seconds under PGlite. The earlier run also passed 79/1 in 142.75 seconds. The skipped test requires real PostgreSQL multiprocess concurrency. Focused catalog tests passed after the persistent variant revision and single-query assignment read changes (2 passed in 6.81 seconds).
+- Variant tests cover normalized axes, duplicate combinations, missing attributes, stale updates, family deactivation, product search labels, detach/reassign stale-request protection, tenant references, role restrictions and CSRF.
+- Assembly tests cover build/unpack stock reconciliation, idempotent jobs and conflicting requests, frozen used conversion factors, version/stock changes after preview, multi-component BOM, dependency cycles, insufficient/expired input stock, output expiry limits, whole-unit constraints and immutable history evidence. A forced database output-write failure verifies rollback of earlier input debits and job records.
+- Chromium against React/FastAPI passed family creation and SKU assignment, recipe creation, building two packs and unpacking one, exact stock assertions, searching variants by family in POS, selling the resulting pack, and job history. Native randomUUID was disabled throughout the browser context. No JavaScript page errors. English desktop and Urdu/mobile screens were reviewed; selectors received explicit accessible labels, source batch details render separately from quantities, and history timestamps use display formatting.
+- TypeScript/Vite build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.22. Existing files and migrations 001–027 compared with the delivered 1.21 ZIP; no existing migration changed or source file disappeared. New migration 028 adds the catalog/assembly tables and search view. No dependencies, database containers or Docker/network configuration changes.
+- These checks use PGlite/test-only pooling, not live EC2/Docker or production PostgreSQL concurrency/load. No regulatory or physical hardware acceptance is claimed. Current-catalog cost estimates are not receipt-layer costing; the enterprise checklist remains partially implemented.
+
+
+## Release 1.21 checks
+
+- Full backend regression: **77 passed, 1 skipped** in 139.30 seconds under PGlite. After adding disabled-approver-account enforcement, the two transaction-control integration tests passed again in 12.34 seconds. The skipped test still requires real PostgreSQL multiprocess concurrency.
+- Batch/khata coverage includes explicit lot allocation across successive returns, invalid/duplicate/excess allocations, original stock reconciliation, installment paid-versus-credited values, latest-installment-first credits, recovery-after-preview rejection, final refunds, full-return markup waiver and idempotent adjustment retries. Existing exchange, cash, tax, promotions, role and credit suites also pass.
+- Approval coverage includes separate policy switches and stale versions, owner-only configuration, mandatory enforcement on checkout/full returns/partial adjustments, self-approval denial, changed transaction/other actor denial, one-time use with safe checkout replay, expiration, rejection, disabled accounts, membership revocation, tenant isolation, malformed nested payloads and CSRF.
+- Chromium against React/FastAPI passed Owner policy setup, POS discount request, separate Manager approval, unchanged checkout, selected-batch refund approval/confirmation, khata return approval/zero-cash debt credit, and Urdu/mobile review. Native randomUUID was disabled in the cashier browser; no JavaScript page errors. The test uses separate browser processes because this Chromium build shares session state across contexts in a single process. Earlier test selectors were corrected for combined status text and duplicate Refresh controls.
+- TypeScript/Vite build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.21. Migrations 001–025 compared byte-for-byte with the saved 1.20 archive and remain unchanged. New migrations 026–027 add schedule credits and transaction approvals; no dependencies or deployment configuration changes.
+- Tests use PGlite with a test-only single-connection pool. No live EC2/Docker deployment, real PostgreSQL multiprocess/load, hardware or regulatory acceptance is claimed. This release delivers the three documented transaction-control features; the other enterprise modules remain open and the latest exclusions are recorded in the checklist.
+
+
+## Release 1.20 checks
+
+- Full backend regression: **75 passed, 1 skipped** in 123.92 seconds under PGlite. The skipped test still requires real PostgreSQL multiprocess concurrency. Quiet-hours/feedback/alerts focused tests: **6 passed** in 17.66 seconds.
+- Quiet-hour tests cover overnight start/end boundaries, all-day windows, invalid endpoints, deferral without replaying cleared conditions, existing-alert resolution and escalation suppression. Feedback tests cover strict rating/note contracts, invoice linkage and tenant isolation, duplicate retries/conflicts, status filters/summary, stale updates, resolve/reopen audit, unauthorized Cashier access and CSRF.
+- Chromium against React/FastAPI passed quiet-hour create/edit/defer/release and feedback record/resolve/reopen with native randomUUID unavailable. Desktop and Urdu/mobile screens reviewed. Rating fractions use explicit left-to-right isolation in RTL; textareas provide three lines. No JavaScript page errors.
+- TypeScript/Vite build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.20. Migrations 001–024 were checked against the authoritative 1.19 archive and are unchanged; migration 025 is new. No dependencies added. An initial TypeScript check caught a time-string conversion in the severity change handler; it was restricted to payload serialization.
+- Existing deployment/network configuration is unchanged. PGlite tests are not production PostgreSQL concurrency/load, AWS/Docker, hardware or regulatory acceptance. Full enterprise completion is not claimed; docs/COMPLETION-ROADMAP.md orders outstanding work.
+
+
+## Release 1.19 checks
+
+- Full backend regression: **73 passed, 1 skipped** in 119.30 seconds under PGlite. The skipped test requires real PostgreSQL multiprocess concurrency. Focused alerts suite: **4 passed** in 12.19 seconds.
+- New coverage includes strict escalation bounds, critical-rule rejection, before/at-deadline behavior, one-time escalation/audit, acknowledged-alert suppression, resolution-before-escalation, recurrence, rule edits, worker evaluation, tenant isolation, escalated filtering and retained history. Initial tests caught and corrected an extra argument in the product validation query.
+- Chromium against React/FastAPI passed rule create/edit, overdue critical status, escalated-only filtering, acknowledgement and replenishment/resolution with retained escalation history. Desktop/Urdu mobile screenshots reviewed; no JavaScript page errors. Browser native randomUUID was unavailable throughout, preserving the EC2 HTTP fallback check.
+- TypeScript/Vite production build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.19. Migration 024 is new; migrations 001–023 are unchanged. No dependencies added.
+- Full tests and browser use PGlite; production pool settings are unchanged. Real PostgreSQL multiprocess/load, live EC2/Docker deployment, hardware/provider acceptance and the broader enterprise checklist remain unverified or outstanding.
+
+
+## Release 1.18 checks
+
+- Full backend regression: **71 passed, 1 skipped** in 113.62 seconds using PGlite. The skipped test requires real PostgreSQL multiprocess concurrency. Focused promotion regression: **9 passed** in 17.94 seconds.
+- Automatic-selection coverage includes tax-inclusive final-total comparison (a smaller pretax discount can win), deterministic ties, inactive/future/minimum-spend exclusion, explicit-only exclusion, customer/global caps, failed checkout rollback, duplicate request replay, stale quotes, return history, no eligible offer, held-bill persistence and the 100-active-offer bound.
+- Chromium against actual React/FastAPI passed manager create/edit, POS selection, hold/resume, cash checkout, receipt and exhausted-offer fallback. Urdu/mobile and desktop screenshots reviewed; no JavaScript page errors. Native randomUUID was unavailable throughout the browser flow, exercising the HTTP-compatible helper.
+- TypeScript/Vite build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.18. Migration 023 is new; migrations 001–022 unchanged. No dependencies added.
+- Tests use the existing PGlite harness; browser pooling is test-only. No live EC2/Docker deployment, real PostgreSQL multiprocess/load or hardware/provider certification is claimed. The broader checklist remains open as documented.
+
+
+## Release 1.17 checks
+
+- Full backend regression: **70 passed, 1 skipped** in 107.71 seconds under PGlite. The skipped test requires real PostgreSQL multiprocess concurrency. Promotion-focused tests: **10 passed** in 18.13 seconds.
+- New coverage includes strict cap validation, active/tenant customer boundaries, customer-bound quote tokens, failed-payment rollback, exhausted-cap/stale-quote rejection, idempotent replay, returns preserving usage, cap increases/decreases, unlimited-period history and independent global caps. Sales-only custom-role tests verify customer selection without financial fields or credit endpoint access.
+- Chromium against React/FastAPI passed cap creation/edit, required-customer errors, successful cash checkout, exhausted-customer rejection, switching to an eligible customer, Urdu/mobile and HTTP UUID fallback. No JavaScript page errors. Desktop and mobile screenshots reviewed. The browser uses a test-only single-connection PGlite pool; production settings are unchanged.
+- TypeScript/Vite build, literal Urdu coverage and four request-ID tests passed. OpenAPI regenerated for 1.17. Migration 022 adds caps and customer redemption attribution; migrations 001–021 unchanged. No new dependencies.
+- No live EC2/Docker deployment, real PostgreSQL multiprocess/load or hardware/provider acceptance is claimed. This completes per-customer promotion limits; other gaps remain in docs/CHECKLIST.md.
+
+
+## Release 1.16 checks
+
+- Full backend regression: **68 passed, 1 skipped** in 103.37 seconds under PGlite. The skipped test requires real PostgreSQL multiprocess concurrency. Final cross-product suite: **2 passed** in 6.61 seconds after the inactive-component disable/reactivate safeguard.
+- Coverage includes role/order independence, whole-unit validation, discount caps, mixed inclusive/exclusive tax, tenant boundaries, checkout replay, frozen original promotion after live edits, unrelated returns, partial-pair rejection, full-pair refunds, restored stock and unchanged redemption count.
+- Chromium against React/FastAPI passed promotion creation/edit, POS quote/checkout, receipt/PDF download, rejected partial-pair return, full-pair cash refund and Urdu/mobile checks with crypto.randomUUID unavailable. No JavaScript page errors. Mobile screenshot and rendered PDF reviewed.
+- TypeScript/Vite production build, literal Urdu coverage and four request-ID tests pass. OpenAPI regenerated for 1.16. Migrations 001–020 remain unchanged; migration 021 is new. No dependencies added.
+- Real PostgreSQL multiprocess/load, live EC2/Docker deployment and hardware/provider acceptance remain unverified. This completes the bounded cross-product BOGO checklist item; broader enterprise gaps remain in docs/CHECKLIST.md.
+
 
 
 ## Frontend hotfix 1.15.1
