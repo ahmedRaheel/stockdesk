@@ -582,7 +582,7 @@ from .contracts import SaleLine
 
 class HoldBill(Contract):
     auto_promotion: bool = Field(default=False, strict=True)
-    promotion_code: str = Field(default="", max_length=40)
+    promotion_code: str = Field(default="", max_length=240)
     id: Identifier
     label: str = Field(min_length=1, max_length=100)
     items: list[SaleLine] = Field(min_length=1, max_length=100)

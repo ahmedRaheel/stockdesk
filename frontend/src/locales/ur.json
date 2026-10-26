@@ -1181,5 +1181,12 @@
   "Component stock or recipe changed. Review a fresh preview.": "اجزا کا اسٹاک یا ترکیب تبدیل ہو گئی۔ نیا پیش نظارہ دیکھیں۔",
   "Output expiry must not exceed the earliest consumed batch expiry.": "تیار شے کی میعاد استعمال شدہ بیچ کی پہلی میعاد سے زیادہ نہیں ہونی چاہیے۔",
   "This variant combination already belongs to another SKU.": "یہ خصوصیات پہلے ہی کسی دوسری شے کی ہیں۔",
-  "Variant assignment changed. Reload before saving.": "قسم کا تعلق تبدیل ہو گیا۔ محفوظ کرنے سے پہلے دوبارہ لوڈ کریں۔"
+  "Variant assignment changed. Reload before saving.": "قسم کا تعلق تبدیل ہو گیا۔ محفوظ کرنے سے پہلے دوبارہ لوڈ کریں۔",
+  "Combine up to five offers when every offer allows stacking. Product offers apply first, then fixed discounts, then percentages. Manual discounts and automatic selection cannot be combined with a stack.": "پانچ تک پیشکشیں ملائیں، بشرطیکہ ہر پیشکش اجازت دے۔ پہلے اشیا کی پیشکشیں، پھر مقررہ رعایتیں اور آخر میں فیصد لگتے ہیں۔ دستی رعایت یا خودکار انتخاب مشترکہ پیشکش کے ساتھ نہیں ہو سکتا۔",
+  "Allow combining with other offers": "دوسری پیشکشوں کے ساتھ ملانے کی اجازت دیں",
+  "Enter up to five comma-separated codes. Every combined offer must allow stacking.": "کاما سے الگ پانچ تک کوڈ درج کریں۔ ہر مشترکہ پیشکش میں ملانے کی اجازت ہونا ضروری ہے۔",
+  "Combined offers": "مشترکہ پیشکشیں",
+  "Every combined offer must allow stacking.": "ہر مشترکہ پیشکش میں ملانے کی اجازت ہونا ضروری ہے۔",
+  "Enter two to five distinct promotion codes separated by commas.": "کاما سے الگ دو سے پانچ مختلف پیشکشوں کے کوڈ درج کریں۔",
+  "A combined offer adds no further discount. Remove it and review again.": "ایک مشترکہ پیشکش مزید رعایت نہیں دیتی۔ اسے ہٹا کر دوبارہ جائزہ لیں۔"
 }

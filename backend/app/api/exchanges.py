@@ -121,8 +121,10 @@ async def prepare(c, tenant, sale_id, body):
     ):
         fail("Choose each available invoice item only once.")
     promotion = obj(old.get("promotion_snapshot")) or frozen.get("promotion", {})
-    if promotion.get("kind") == "cross_bogo":
-        pair = {promotion["buy_product"], promotion["reward_product"]}
+    from ..features.promotions import return_groups
+
+    for group in return_groups(promotion):
+        pair = set(group)
         pair_items = [i for i in current if i["product"] in pair]
         if any(i["id"] in requests for i in pair_items) and any(
             i["id"] not in requests
@@ -152,7 +154,10 @@ async def prepare(c, tenant, sale_id, body):
                 tenant,
                 item["product"],
             )
-            if not unit and (r.quantity != r.quantity.to_integral_value() or any(b.quantity != b.quantity.to_integral_value() for b in r.batches)):
+            if not unit and (
+                r.quantity != r.quantity.to_integral_value()
+                or any(b.quantity != b.quantity.to_integral_value() for b in r.batches)
+            ):
                 fail("This product requires whole quantities.")
             returns.append(
                 {
@@ -214,7 +219,9 @@ async def prepare(c, tenant, sale_id, body):
     document = await c.fetchrow(
         "SELECT * FROM receivables WHERE tenant=$1 AND sale=$2", tenant, sale_id
     )
-    outstanding = await khata.document_balance(c, tenant, document["id"]) if document else 0
+    outstanding = (
+        await khata.document_balance(c, tenant, document["id"]) if document else 0
+    )
     debt_credit = min(credit, max(0, outstanding))
     waiver = max(0, outstanding - debt_credit) if not remaining_items else 0
     available_credit = credit - debt_credit
@@ -223,7 +230,7 @@ async def prepare(c, tenant, sale_id, body):
         debt_credit=debt_credit,
         debt_waiver=waiver,
         outstanding_before=outstanding,
-        outstanding_after=outstanding-debt_credit-waiver,
+        outstanding_after=outstanding - debt_credit - waiver,
         available_credit=available_credit,
         replacement_total=replacement["total"],
         net=replacement["total"] - available_credit,
@@ -260,11 +267,11 @@ async def prepare(c, tenant, sale_id, body):
     )
 
 
-
 async def available_batches(c, tenant, sale, product):
     # Use actual previous batch movements, not an assumed FEFO offset. This also
     # supports adjustments recorded before explicit batch selection existed.
-    return await c.fetch("""
+    return await c.fetch(
+        """
         SELECT b.id AS batch,b.lot,b.expires,
           SUM(-a.quantity) - COALESCE((SELECT SUM(r.quantity) FROM movements r
             JOIN sale_adjustments j ON j.tenant=r.tenant AND r.notes='Adjustment ' || j.id
@@ -273,11 +280,17 @@ async def available_batches(c, tenant, sale, product):
         JOIN stock_batches b ON b.id=a.batch AND b.tenant=a.tenant
         WHERE m.tenant=$1 AND m.product=$2 AND m.type='SALE' AND m.notes=$3
         GROUP BY b.id,b.lot,b.expires ORDER BY b.expires NULLS LAST,b.id
-    """, tenant, product, sale["invoice_number"], sale["id"])
+    """,
+        tenant,
+        product,
+        sale["invoice_number"],
+        sale["id"],
+    )
 
 
 def select_batches(batches, line):
     from ..rules import business_date
+
     available = {b["batch"]: b for b in batches if b["available"] > 0}
     if line.batches:
         if len({b.batch for b in line.batches}) != len(line.batches):
@@ -288,11 +301,20 @@ def select_batches(batches, line):
         for part in line.batches:
             batch = available.get(part.batch)
             if not batch or part.quantity > batch["available"]:
-                fail("Selected batch is unavailable or exceeds its remaining sold quantity.", 409)
+                fail(
+                    "Selected batch is unavailable or exceeds its remaining sold quantity.",
+                    409,
+                )
             selected.append((batch, part.quantity))
     else:
-        if line.restock and len(available) > 1 and line.quantity != sum(b["available"] for b in available.values()):
-            fail("Select the returned batches for a partial return from multiple original batches.")
+        if (
+            line.restock
+            and len(available) > 1
+            and line.quantity != sum(b["available"] for b in available.values())
+        ):
+            fail(
+                "Select the returned batches for a partial return from multiple original batches."
+            )
         remaining, selected = line.quantity, []
         for batch in available.values():
             take = min(remaining, batch["available"])
@@ -300,8 +322,13 @@ def select_batches(batches, line):
                 selected.append((batch, take))
                 remaining -= take
         if remaining:
-            fail("Original batch allocation is unavailable; adjustment was not posted.", 409)
-    if line.restock and any(b["expires"] and b["expires"] < business_date() for b, _ in selected):
+            fail(
+                "Original batch allocation is unavailable; adjustment was not posted.",
+                409,
+            )
+    if line.restock and any(
+        b["expires"] and b["expires"] < business_date() for b, _ in selected
+    ):
         fail("Expired batches cannot return to sellable stock.")
     return selected
 
@@ -311,14 +338,28 @@ async def return_batches(tenant: str, sale_id: str, user: User):
     async with db.pool.acquire() as c:
         async with c.transaction(isolation="repeatable_read", readonly=True):
             await service.authorize(c, user, tenant, "return")
-            sale = await c.fetchrow("SELECT * FROM sales WHERE tenant=$1 AND id=$2", tenant, sale_id)
+            sale = await c.fetchrow(
+                "SELECT * FROM sales WHERE tenant=$1 AND id=$2", tenant, sale_id
+            )
             if not sale:
                 fail("Invoice not found.", 404)
-            items = await c.fetch("SELECT id,product FROM sale_items WHERE tenant=$1 AND sale=$2", tenant, sale_id)
-            return {"revision": sale["revision"], "items": [
-                {"item": i["id"], "batches": service.rows(await available_batches(c, tenant, sale, i["product"]))}
-                for i in items
-            ]}
+            items = await c.fetch(
+                "SELECT id,product FROM sale_items WHERE tenant=$1 AND sale=$2",
+                tenant,
+                sale_id,
+            )
+            return {
+                "revision": sale["revision"],
+                "items": [
+                    {
+                        "item": i["id"],
+                        "batches": service.rows(
+                            await available_batches(c, tenant, sale, i["product"])
+                        ),
+                    }
+                    for i in items
+                ],
+            }
 
 
 @router.post("/preview")
@@ -380,7 +421,10 @@ async def commit(tenant: str, sale_id: str, body: Commit, request: Request, user
             if quote["quote_token"] != body.quote_token:
                 fail("Prices or invoice changed. Review a fresh preview.", 409)
             from ..features.transaction_approvals import consume
-            await consume(c, user, tenant, "adjustment", body.model_dump(mode="json"), sale_id)
+
+            await consume(
+                c, user, tenant, "adjustment", body.model_dump(mode="json"), sale_id
+            )
             net = quote["net"]
             if body.settlement == "cash" and body.tendered < max(0, net):
                 fail("Cash received is less than the amount to collect.")
@@ -414,7 +458,12 @@ async def commit(tenant: str, sale_id: str, body: Commit, request: Request, user
                 item = next(i for i in before["items"] if i["id"] == r.item)
                 batches = await available_batches(c, tenant, sale, item["product"])
                 allocation = select_batches(batches, r)
-                next(line for line in quote["returns"] if line["item"] == r.item)["allocated_batches"] = [{"batch": b["batch"], "lot": b["lot"], "quantity": str(q)} for b, q in allocation]
+                next(line for line in quote["returns"] if line["item"] == r.item)[
+                    "allocated_batches"
+                ] = [
+                    {"batch": b["batch"], "lot": b["lot"], "quantity": str(q)}
+                    for b, q in allocation
+                ]
                 for batch, take in allocation:
                     mid = service.uid()
                     await c.execute(
@@ -589,10 +638,10 @@ async def original_receipt(tenant: str, sale_id: str, user: User):
         result = obj(saved)
         result["sale"].pop("original_snapshot", None)
         promo = obj(result["sale"].get("promotion_snapshot")) or {}
-        result["sale"]["return_pair_products"] = (
-            [promo["buy_product"], promo["reward_product"]]
-            if promo.get("kind") == "cross_bogo"
-            else []
+        from ..features.promotions import return_groups
+
+        result["sale"]["return_pair_products"] = sorted(
+            {product for group in return_groups(promo) for product in group}
         )
 
         result["tenders"] = service.rows(

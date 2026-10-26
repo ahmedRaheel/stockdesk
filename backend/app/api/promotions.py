@@ -45,6 +45,7 @@ class Promotion(Contract):
     per_customer_limit: int | None = Field(
         default=None, strict=True, ge=1, le=1_000_000_000
     )
+    stackable: bool = Field(default=False, strict=True)
     automatic: bool = Field(default=False, strict=True)
     active: bool = Field(default=True, strict=True)
     components: list[Component] = Field(default_factory=list, max_length=20)

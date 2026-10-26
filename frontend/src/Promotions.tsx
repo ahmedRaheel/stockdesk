@@ -113,6 +113,7 @@ export default function Promotions({
         ? Number(text("per_customer_limit"))
         : null,
       active: f.has("active"),
+      stackable: f.has("stackable"),
       automatic: f.has("automatic"),
       components: parts.map((p) => ({
         product: p.product,
@@ -162,7 +163,7 @@ export default function Promotions({
         <h2>{tr(selected ? "Edit promotion" : "New promotion")}</h2>
         <p>
           {tr(
-            "One promotion per sale. Manual discounts cannot be combined. Automatic offers and entered codes are checked again at checkout.",
+            "Combine up to five offers when every offer allows stacking. Product offers apply first, then fixed discounts, then percentages. Manual discounts and automatic selection cannot be combined with a stack.",
           )}
         </p>
         <form key={`${selected?.id || "new"}-${revision}`} onSubmit={save}>
@@ -286,6 +287,14 @@ export default function Promotions({
                   defaultChecked={selected?.automatic ?? false}
                 />
                 {tr("Available for automatic selection")}
+              </label>
+              <label className="check">
+                <input
+                  name="stackable"
+                  type="checkbox"
+                  defaultChecked={selected?.stackable ?? false}
+                />
+                {tr("Allow combining with other offers")}
               </label>
               <label className="check">
                 <input
@@ -591,7 +600,7 @@ export function PromotionPicker({
     const timer = setTimeout(
       () =>
         api<any>(
-          `/api/v1/tenants/${tenant}/promotions?q=${encodeURIComponent(value)}`,
+          `/api/v1/tenants/${tenant}/promotions?q=${encodeURIComponent(value.split(",").at(-1)?.trim() || "")}`,
           { signal: c.signal },
         )
           .then((r) => {
@@ -615,18 +624,30 @@ export function PromotionPicker({
         aria-label={tr("Promotion / coupon code")}
         list="pos-promotion-codes"
         value={value}
-        maxLength={40}
+        maxLength={240}
         disabled={disabled}
         placeholder={tr("Optional promotion code")}
         onChange={(e) => onChange(e.target.value.toUpperCase())}
       />
       <datalist id="pos-promotion-codes">
         {items.map((p) => (
-          <option key={p.id} value={p.code}>
+          <option
+            key={p.id}
+            value={
+              value.includes(",")
+                ? value.slice(0, value.lastIndexOf(",") + 1) + p.code
+                : p.code
+            }
+          >
             {language === "ur" ? p.name_ur || p.name : p.name}
           </option>
         ))}
       </datalist>
+      <small>
+        {tr(
+          "Enter up to five comma-separated codes. Every combined offer must allow stacking.",
+        )}
+      </small>
       {error && <small role="alert">{tr(error)}</small>}
     </label>
   );

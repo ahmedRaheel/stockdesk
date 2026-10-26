@@ -1,8 +1,8 @@
-# Remaining completion roadmap after 1.22
+# Remaining completion roadmap after 1.23
 
 The requested full enterprise scope is not complete. The checklist's missing column is authoritative. The following is dependency order, not a promise that these modules exist or a calendar estimate.
 
-1. **Transaction controls:** safe promotion stacking, original-tender refund allocation and adjustment reversal. Version 1.21 delivers independent manual-discount/return approvals, partial khata adjustments and batch-specific returns. Acceptance must cover retries, concurrent approvals, rounding, tax and stock/ledger invariants.
+1. **Transaction controls:** original-tender refund allocation and adjustment reversal. Version 1.23 adds explicit-code promotion stacking. Version 1.21 delivers independent manual-discount/return approvals, partial khata adjustments and batch-specific returns. Acceptance must cover retries, concurrent approvals, rounding, tax and stock/ledger invariants.
 2. **Catalog and inventory foundations:** serials, locations, transfer lifecycle, warehouse permissions and receipt-layer costing/landed costs. Version 1.22 delivers SKU variant families, explicit pack/unpack and stocked-output BOM assembly. Existing tenant-wide stock requires a migration and reconciliation plan before store-level operations.
 3. **Multi-store and offline:** store hierarchy, local pricing/tax, cashier/device identity, offline data storage, idempotent sync protocol and explicit conflicts/oversell rules. Requires failure/reconnect and multi-device acceptance, not just a browser cache.
 4. **Finance and CRM:** statutory credit-note/general ledger model, supplier advances/bank reconciliation/approvals, loyalty/wallet/gift-card liabilities, memberships/campaigns, khata reminders and recovery workflows. Local tax and credit policies must be confirmed before claiming regulatory behavior.

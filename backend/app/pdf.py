@@ -246,7 +246,11 @@ def invoice_pdf(sale, items, language="en", tenders=None):
                 )
             story.append(p(label("Return credit") + ": " + money(adjustment["credit"])))
             if adjustment.get("outstanding_before", 0):
-                for caption, key in (("Khata debt reduction", "debt_credit"), ("Financing balance waived", "debt_waiver"), ("Remaining invoice debt", "outstanding_after")):
+                for caption, key in (
+                    ("Khata debt reduction", "debt_credit"),
+                    ("Financing balance waived", "debt_waiver"),
+                    ("Remaining invoice debt", "outstanding_after"),
+                ):
                     story.append(p(label(caption) + ": " + money(adjustment[key])))
             caption = (
                 "Collected from customer"
@@ -333,6 +337,17 @@ def invoice_pdf(sale, items, language="en", tenders=None):
                 + promotion["code"]
                 + " / "
                 + (name or promotion.get("name", ""))
+            )
+        )
+    for offer in promotion.get("offers", []):
+        name = offer.get("name_ur") if language == "ur" else offer.get("name")
+        story.append(
+            p(
+                offer["code"]
+                + " / "
+                + (name or offer.get("name", ""))
+                + ": -"
+                + money(offer["discount"])
             )
         )
     if promotion.get("kind") == "cross_bogo" or sale.get("return_pair_products"):

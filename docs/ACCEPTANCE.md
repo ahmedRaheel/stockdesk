@@ -175,3 +175,7 @@ Configure all-day quiet hours and verify a low-stock match does not open an aler
 - Define a six-unit pack, build two packs from 12 units, then unpack one pack into six units. Verify product totals, batch quantities and job history; unchanged retries must not post twice.
 - Assemble a BOM with two components. Reject a dependency cycle, missing stock, fractional whole units and unpacking of a BOM. Require a new output SKU/recipe to change a used conversion.
 - Consume dated stock: reject missing/later output expiry and expired components. Preview, change component stock, then reject stale confirmation. Verify a failed output write leaves all component stock and job records unchanged.
+
+## 1.23 combined promotions
+
+Enable stacking on two offers, enter both codes in POS, verify sequential discounts and tax, tender cash and inspect per-offer receipt/PDF. Confirm non-stackable/duplicate/unknown codes fail, caps apply independently, retries create one sale, held bills preserve codes, and paired-item returns retain original discounted credit.

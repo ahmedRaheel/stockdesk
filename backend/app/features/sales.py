@@ -31,7 +31,7 @@ async def checkout(c, u, b, t=None):
     )
     held_id = b.get("held_bill_id")
     promotion_code = clean(
-        b.get("promotion_code") or "", "Promotion code", 40, True
+        b.get("promotion_code") or "", "Promotion code", 240, True
     ).upper()
     auto_promotion = b.get("auto_promotion", False)
     if not isinstance(auto_promotion, bool):
@@ -87,6 +87,7 @@ async def checkout(c, u, b, t=None):
             "credit_amount": prior["credit_amount"],
         }
     from .transaction_approvals import consume
+
     await consume(c, u, tenant, "discount", b)
     if held_id:
         held = await c.fetchrow(
@@ -270,14 +271,15 @@ async def checkout(c, u, b, t=None):
             tenant,
             sid,
         )
-        await c.execute(
-            "INSERT INTO promotion_redemptions(tenant,promotion,sale,discount,customer) VALUES($1,$2,$3,$4,$5)",
-            tenant,
-            promotion["id"],
-            sid,
-            discount,
-            customer_id,
-        )
+        for applied in promotion.get("offers", [promotion]):
+            await c.execute(
+                "INSERT INTO promotion_redemptions(tenant,promotion,sale,discount,customer) VALUES($1,$2,$3,$4,$5)",
+                tenant,
+                applied["id"],
+                sid,
+                applied["discount"],
+                customer_id,
+            )
     if credit_amount:
         await credit.create_receivable(
             c, tenant, customer_id, sid, credit_amount, due, u["email"], inv
@@ -379,6 +381,7 @@ async def return_sale(c, u, b, t=None):
     if sale["status"] == "returned":
         return {"ok": True}
     from .transaction_approvals import consume
+
     await consume(c, u, tenant, "return", b, sid)
     reason_id = b.get("reason_id") or None
     if reason_id:

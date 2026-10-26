@@ -249,3 +249,7 @@ See [RELEASE-1.21.md](RELEASE-1.21.md) for approval policy/request/decision rout
 ## 1.22 catalog and assembly
 
 See [RELEASE-1.22.md](RELEASE-1.22.md) for family/variant CRUD, pack/BOM recipes, previews, atomic jobs and paginated history. Product list/workspace responses add `variant_label`; product records add `variant_revision`. No existing write contract requires new fields.
+
+## 1.23 combined promotions
+
+Promotion create/update accepts `stackable` (boolean, default false). Sales quote, checkout and held bills accept up to 240 characters in `promotion_code`, containing up to five comma-separated codes. Single-code snapshots are unchanged; a stack snapshot has `kind: stack`, `offers`, `application_policy` and aggregate `line_discounts`. Each offer has its own frozen applied discount.

@@ -41,7 +41,7 @@ class Settings(Contract):
 class Quote(Contract):
     auto_promotion: bool = Field(default=False, strict=True)
     customer_id: Identifier | None = None
-    promotion_code: str = Field(default="", max_length=40)
+    promotion_code: str = Field(default="", max_length=240)
     items: list[SaleLine] = Field(min_length=1, max_length=100)
     discount: Money = 0
     tax_bps: int = Field(default=0, strict=True, ge=0, le=10000)

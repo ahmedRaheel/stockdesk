@@ -104,10 +104,10 @@ async def get_receipt(c, u, tenant, sale_id):
     saved_promotion = (original.get("sale") or sale).get("promotion_snapshot") or {}
     if isinstance(saved_promotion, str):
         saved_promotion = json.loads(saved_promotion)
-    pair = (
-        [saved_promotion["buy_product"], saved_promotion["reward_product"]]
-        if saved_promotion.get("kind") == "cross_bogo"
-        else []
+    from .features.promotions import return_groups
+
+    pair = sorted(
+        {product for group in return_groups(saved_promotion) for product in group}
     )
     result["sale"]["return_pair_products"] = (
         pair if any(i["product"] in pair for i in result["items"]) else []
@@ -156,7 +156,10 @@ async def snapshot(c, u, tenant):
     perms = grants(role)
     out.update(tenant=dict(t), role=role, permissions=sorted(perms))
     out["products"] = rows(
-        await c.fetch("SELECT p.*,COALESCE(v.label,'') AS variant_label FROM products p LEFT JOIN product_variant_labels v ON v.tenant=p.tenant AND v.product=p.id WHERE p.tenant=$1 ORDER BY p.name", tenant)
+        await c.fetch(
+            "SELECT p.*,COALESCE(v.label,'') AS variant_label FROM products p LEFT JOIN product_variant_labels v ON v.tenant=p.tenant AND v.product=p.id WHERE p.tenant=$1 ORDER BY p.name",
+            tenant,
+        )
     )
     out["movements"] = rows(
         await c.fetch(

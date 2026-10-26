@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StockDesk Inventory & POS",
-    "version": "1.22.0"
+    "version": "1.23.0"
   },
   "paths": {
     "/api/health": {
@@ -8712,7 +8712,7 @@
           },
           "promotion_code": {
             "type": "string",
-            "maxLength": 40,
+            "maxLength": 240,
             "title": "Promotion Code",
             "default": ""
           },
@@ -9116,7 +9116,7 @@
           },
           "promotion_code": {
             "type": "string",
-            "maxLength": 40,
+            "maxLength": 240,
             "title": "Promotion Code",
             "default": ""
           },
@@ -10166,6 +10166,11 @@
             ],
             "title": "Per Customer Limit"
           },
+          "stackable": {
+            "type": "boolean",
+            "title": "Stackable",
+            "default": false
+          },
           "automatic": {
             "type": "boolean",
             "title": "Automatic",
@@ -10292,7 +10297,7 @@
           },
           "promotion_code": {
             "type": "string",
-            "maxLength": 40,
+            "maxLength": 240,
             "title": "Promotion Code",
             "default": ""
           },
@@ -11891,6 +11896,11 @@
               }
             ],
             "title": "Per Customer Limit"
+          },
+          "stackable": {
+            "type": "boolean",
+            "title": "Stackable",
+            "default": false
           },
           "automatic": {
             "type": "boolean",

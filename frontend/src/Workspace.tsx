@@ -1846,6 +1846,18 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         <b>−{money(quote.discount)}</b>
                       </div>
                     )}
+                    {quoteReady &&
+                      quote.promotion?.offers?.map((offer: any) => (
+                        <div className="cart-math" key={offer.id}>
+                          <span>
+                            {offer.code} ·{" "}
+                            {language === "ur"
+                              ? offer.name_ur || offer.name
+                              : offer.name}
+                          </span>
+                          <b>−{money(offer.discount)}</b>
+                        </div>
+                      ))}
                     <div className="form-grid">
                       <label className="field">
                         <span>
@@ -3010,10 +3022,21 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   ? JSON.parse(receipt.sale.promotion_snapshot)
                   : receipt.sale.promotion_snapshot;
               return p?.code ? (
-                <p>
-                  {tr("Promotion")}: {p.code} ·{" "}
-                  {language === "ur" ? p.name_ur || p.name : p.name}
-                </p>
+                <>
+                  <p>
+                    {tr("Promotion")}: {p.code} ·{" "}
+                    {language === "ur" ? p.name_ur || p.name : p.name}
+                  </p>
+                  {p.offers?.map((offer: any) => (
+                    <p key={offer.id}>
+                      {offer.code} ·{" "}
+                      {language === "ur"
+                        ? offer.name_ur || offer.name
+                        : offer.name}
+                      : −{money(offer.discount)}
+                    </p>
+                  ))}
+                </>
               ) : null;
             })()}
 

@@ -127,7 +127,7 @@ def evaluate(rule, components, products, now, used=0):
     )
 
 
-async def resolve(c, tenant, code, products, manual_discount, customer_id=None):
+async def resolve_single(c, tenant, code, products, manual_discount, customer_id=None):
     code = clean(code or "", "Promotion code", 40, True).upper()
     if not code:
         return None
@@ -228,3 +228,101 @@ async def automatic_candidates(c, tenant, products, customer_id=None):
             continue
         candidates.append({**result, **details})
     return candidates
+
+
+def return_groups(promotion):
+    """Merge overlapping cross-BOGO pairs; unrelated pairs stay independent."""
+    offers = promotion.get("offers", [promotion])
+    groups = []
+    for offer in offers:
+        if offer.get("kind") != "cross_bogo":
+            continue
+        group = {offer["buy_product"], offer["reward_product"]}
+        changed = True
+        while changed:
+            changed = False
+            for existing in groups[:]:
+                if existing & group:
+                    group |= existing
+                    groups.remove(existing)
+                    changed = True
+        groups.append(group)
+    return [sorted(g) for g in groups]
+
+
+async def resolve(c, tenant, code, products, manual_discount, customer_id=None):
+    code = clean(code or "", "Promotion codes", 240, True).upper()
+    if not code or "," not in code:
+        return await resolve_single(
+            c, tenant, code, products, manual_discount, customer_id
+        )
+    codes = [x.strip() for x in code.split(",")]
+    if (
+        not 2 <= len(codes) <= 5
+        or any(not x or len(x) > 40 for x in codes)
+        or len(set(codes)) != len(codes)
+    ):
+        fail("Enter two to five distinct promotion codes separated by commas.")
+    if manual_discount:
+        fail("Manual and promotional discounts cannot be combined.")
+    rules = await c.fetch(
+        "SELECT * FROM promotions WHERE tenant=$1 AND code=ANY($2::text[])",
+        tenant,
+        codes,
+    )
+    if len(rules) != len(codes):
+        fail("Promotion code not found.", 404)
+    if any(not rule["stackable"] for rule in rules):
+        fail("Every combined offer must allow stacking.", 409)
+    # Stable application order: product offers, fixed invoice discounts, then
+    # sequential percentages. Code order resolves ties independent of typing order.
+    priority = {"bogo": 0, "cross_bogo": 0, "bundle": 0, "fixed": 1, "percentage": 2}
+    rules = sorted(rules, key=lambda rule: (priority[rule["kind"]], rule["code"]))
+    remaining = [p["line_total"] for p in products]
+    offers = []
+    for rule in rules:
+        offer = await resolve_single(c, tenant, rule["code"], products, 0, customer_id)
+        if rule["kind"] == "percentage":
+            amount = (sum(remaining) * rule["value"] + 5000) // 10000
+            if rule["maximum_discount"] is not None:
+                amount = min(amount, rule["maximum_discount"])
+            deductions = allocate_discount(remaining, min(amount, sum(remaining)))
+        elif rule["kind"] == "fixed":
+            deductions = allocate_discount(
+                remaining, min(offer["discount"], sum(remaining))
+            )
+        else:
+            deductions = [
+                min(left, line["discount"])
+                for left, line in zip(remaining, offer["line_discounts"])
+            ]
+        amount = sum(deductions)
+        if not amount:
+            fail(
+                "A combined offer adds no further discount. Remove it and review again.",
+                409,
+            )
+        remaining = [left - d for left, d in zip(remaining, deductions)]
+        offers.append(
+            {
+                **offer,
+                "discount": amount,
+                "line_discounts": [
+                    {"product": p["id"], "discount": d}
+                    for p, d in zip(products, deductions)
+                ],
+            }
+        )
+    deductions = [p["line_total"] - left for p, left in zip(products, remaining)]
+    return {
+        "kind": "stack",
+        "code": " + ".join(x["code"] for x in offers),
+        "name": "Combined offers",
+        "name_ur": "مشترکہ پیشکشیں",
+        "discount": sum(deductions),
+        "offers": offers,
+        "application_policy": "product_then_fixed_then_percentage",
+        "line_discounts": [
+            {"product": p["id"], "discount": d} for p, d in zip(products, deductions)
+        ],
+    }

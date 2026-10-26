@@ -1,4 +1,13 @@
-# Verification record — StockDesk 1.22
+# Verification record — StockDesk 1.23
+
+## Release 1.23 checks
+
+- Full backend regression: **81 passed, 1 skipped** in 146.92 seconds under PGlite. The skipped test requires real PostgreSQL multiprocess concurrency. Focused stacking tests passed (2/2), and existing promotion/cross-BOGO tests passed (8/8).
+- Coverage includes sequential percentage rounding, deterministic code order, line caps, opt-in eligibility, duplicate/unknown/too-many codes, manual/automatic incompatibility, redemption limits per customer and globally, held bills, insufficient-cash rollback, checkout replay, stale promotion changes, frozen receipt/PDF snapshots and paired returns. The first focused run exposed an incorrect held-bill test payload; it was corrected to the existing API contract before passing.
+- Chromium verified the stackable setting, multi-code POS quote, checkout, individual offer receipt lines and exact persisted totals with native randomUUID disabled. English receipt and Urdu/mobile screens were reviewed. No JavaScript page errors.
+- TypeScript/Vite build, literal Urdu coverage, formatting checks and four request-ID tests passed. OpenAPI regenerated for 1.23. Migrations 001–028 are byte-identical to the saved 1.22 ZIP; migration 029 is new. No previous source files were removed, dependencies added or deployment settings changed.
+- PGlite and browser checks do not establish live EC2/Docker deployment, production PostgreSQL concurrency/load or regulatory acceptance. Automatic offer selection remains single-offer. The full enterprise checklist is not complete.
+
 
 ## Release 1.22 checks
 
