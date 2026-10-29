@@ -69,7 +69,7 @@ const titles: any = {
   ],
   feedback: ["Customer feedback", "Ratings, comments and resolution tracking."],
   alerts: [
-    "Inventory alerts",
+    "Alert center",
     "Rules, acknowledgements and resolution history.",
   ],
   promotions: [

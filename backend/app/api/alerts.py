@@ -9,6 +9,7 @@ from .router import User, authenticated
 from .. import db, service, security, config
 from ..rules import fail
 from ..features.alerts import evaluate
+from ..features.finance_alerts import FINANCE_KINDS, allowed_kinds
 
 router = APIRouter(
     prefix="/api/v1/tenants/{tenant}/alert-center",
@@ -19,12 +20,15 @@ router = APIRouter(
 
 class Rule(Contract):
     name: str = Field(min_length=1, max_length=100)
-    kind: Literal["low_stock", "stock_out", "expiry"]
+    kind: Literal["low_stock", "stock_out", "expiry", "customer_overdue", "supplier_overdue", "cash_variance"]
     product: str | None = Field(default=None, min_length=1, max_length=100)
     threshold: Decimal | None = Field(
         default=None, ge=0, le=1_000_000_000, decimal_places=3
     )
     expiry_days: int = Field(default=30, strict=True, ge=0, le=365)
+    minimum_amount: Decimal = Field(default=Decimal(0), ge=0, le=1_000_000_000, decimal_places=2)
+    overdue_days: int = Field(default=0, strict=True, ge=0, le=3650)
+    lookback_days: int = Field(default=30, strict=True, ge=1, le=365)
     severity: Literal["info", "warning", "critical"] = "warning"
     escalate_after_minutes: int | None = Field(
         default=None, strict=True, ge=1, le=10080
@@ -35,6 +39,10 @@ class Rule(Contract):
 
     @model_validator(mode="after")
     def valid(self):
+        if self.kind in FINANCE_KINDS and self.product is not None:
+            raise ValueError("Financial rules cannot select a product.")
+        if self.kind not in FINANCE_KINDS and self.minimum_amount != 0:
+            raise ValueError("Only financial rules accept a minimum amount.")
         if self.kind != "low_stock" and self.threshold is not None:
             raise ValueError("Only low-stock rules accept a quantity threshold.")
         if self.severity == "critical" and self.escalate_after_minutes is not None:
@@ -57,13 +65,16 @@ class Acknowledge(Contract):
 @router.get("/rules")
 async def rules(tenant: str, user: User):
     async with db.pool.acquire() as c:
-        await service.authorize(c, user, tenant, "alerts")
+        business, role = await service.authorize(c, user, tenant, "alerts")
+        kinds = allowed_kinds(role)
         return dict(
+            allowed_kinds=kinds, currency=business["currency"],
             worker_enabled=config.ALERT_WORKER_ENABLED,
             items=service.rows(
                 await c.fetch(
-                    "SELECT r.*,p.name AS product_name,p.sku FROM inventory_alert_rules r LEFT JOIN products p ON p.tenant=r.tenant AND p.id=r.product WHERE r.tenant=$1 ORDER BY r.created,r.id",
+                    "SELECT r.*,p.name AS product_name,p.sku FROM inventory_alert_rules r LEFT JOIN products p ON p.tenant=r.tenant AND p.id=r.product WHERE r.tenant=$1 AND r.kind=ANY($2::text[]) ORDER BY r.created,r.id",
                     tenant,
+                    kinds,
                 )
             ),
         )
@@ -73,7 +84,14 @@ async def save(tenant, payload, request, user, id=None):
     security.csrf(request)
     async with db.pool.acquire() as c:
         async with c.transaction():
-            await service.authorize(c, user, tenant, "alerts", lock=True)
+            _, role = await service.authorize(c, user, tenant, "alerts", lock=True)
+            kinds = allowed_kinds(role)
+            if payload.kind not in kinds:
+                fail("Your role cannot manage this alert type.", 403)
+            if id:
+                existing_kind = await c.fetchval("SELECT kind FROM inventory_alert_rules WHERE tenant=$1 AND id=$2", tenant, id)
+                if existing_kind not in kinds:
+                    fail("Alert rule not found.", 404)
             if payload.product and not await c.fetchval(
                 "SELECT 1 FROM products WHERE tenant=$1 AND id=$2 AND ($3=false OR active)",
                 tenant,
@@ -99,6 +117,9 @@ async def save(tenant, payload, request, user, id=None):
                 payload.escalate_after_minutes,
                 payload.quiet_start,
                 payload.quiet_end,
+                payload.minimum_amount,
+                payload.overdue_days,
+                payload.lookback_days,
             ]
             if id:
                 old = await c.fetchrow(
@@ -111,7 +132,7 @@ async def save(tenant, payload, request, user, id=None):
                 if old["version"] != payload.version:
                     fail("Alert rule changed. Reload before saving.", 409)
                 await c.execute(
-                    "UPDATE inventory_alert_rules SET name=$1,kind=$2,product=$3,threshold=$4,expiry_days=$5,severity=$6,active=$7,escalate_after_minutes=$8,quiet_start=$9,quiet_end=$10,version=version+1,last_evaluated=NULL WHERE tenant=$11 AND id=$12",
+                    "UPDATE inventory_alert_rules SET name=$1,kind=$2,product=$3,threshold=$4,expiry_days=$5,severity=$6,active=$7,escalate_after_minutes=$8,quiet_start=$9,quiet_end=$10,minimum_amount=$11,overdue_days=$12,lookback_days=$13,version=version+1,last_evaluated=NULL WHERE tenant=$14 AND id=$15",
                     *values,
                     tenant,
                     id,
@@ -133,7 +154,7 @@ async def save(tenant, payload, request, user, id=None):
                     fail("Maximum 50 alert rules per business.", 422)
                 id = service.uid()
                 await c.execute(
-                    "INSERT INTO inventory_alert_rules(name,kind,product,threshold,expiry_days,severity,active,escalate_after_minutes,quiet_start,quiet_end,tenant,id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",
+                    "INSERT INTO inventory_alert_rules(name,kind,product,threshold,expiry_days,severity,active,escalate_after_minutes,quiet_start,quiet_end,minimum_amount,overdue_days,lookback_days,tenant,id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)",
                     *values,
                     tenant,
                     id,
@@ -163,8 +184,8 @@ async def refresh(tenant: str, request: Request, user: User):
     security.csrf(request)
     async with db.pool.acquire() as c:
         async with c.transaction():
-            await service.authorize(c, user, tenant, "alerts", lock=True)
-            return await evaluate(c, tenant, user)
+            _, role = await service.authorize(c, user, tenant, "alerts", lock=True)
+            return await evaluate(c, tenant, user, kinds=allowed_kinds(role))
 
 
 @router.get("")
@@ -178,22 +199,25 @@ async def inbox(
 ):
     async with db.pool.acquire() as c:
         async with c.transaction(isolation="repeatable_read", readonly=True):
-            await service.authorize(c, user, tenant, "alerts")
-            clause = "tenant=$1 AND ($2='all' OR status=$2) AND ($3=false OR escalated_at IS NOT NULL)"
+            _, role = await service.authorize(c, user, tenant, "alerts")
+            kinds = allowed_kinds(role)
+            clause = "tenant=$1 AND ($2='all' OR status=$2) AND ($3=false OR escalated_at IS NOT NULL) AND kind=ANY($4::text[])"
             total = await c.fetchval(
                 "SELECT count(*) FROM inventory_alerts WHERE " + clause,
                 tenant,
                 status,
                 escalated_only,
+                kinds,
             )
             rows = service.rows(
                 await c.fetch(
                     "SELECT * FROM inventory_alerts WHERE "
                     + clause
-                    + " ORDER BY opened DESC,id LIMIT $4 OFFSET $5",
+                    + " ORDER BY opened DESC,id LIMIT $5 OFFSET $6",
                     tenant,
                     status,
                     escalated_only,
+                    kinds,
                     limit,
                     offset,
                 )
@@ -208,11 +232,11 @@ async def acknowledge(
     security.csrf(request)
     async with db.pool.acquire() as c:
         async with c.transaction():
-            await service.authorize(c, user, tenant, "alerts", lock=True)
+            _, role = await service.authorize(c, user, tenant, "alerts", lock=True)
             old = await c.fetchrow(
                 "SELECT * FROM inventory_alerts WHERE tenant=$1 AND id=$2", tenant, id
             )
-            if not old:
+            if not old or old["kind"] not in allowed_kinds(role):
                 fail("Alert not found.", 404)
             if old["status"] == "resolved":
                 fail("This alert is already resolved.", 409)
