@@ -1,4 +1,14 @@
-# Verification record — StockDesk 1.26
+# Verification record — StockDesk 1.27
+
+## Release 1.27 checks
+
+- Chromium against React/FastAPI: rule creation, evaluation, signed cash variance, acknowledgement and status filtering passed with native randomUUID disabled. Desktop and 390px mobile/Urdu screens visually inspected; mobile heading overlap and horizontal overflow checked. A status-notice translation fix was applied after inspection.
+
+- Full backend regression suite: **103 passed, 1 skipped** in 178.97 seconds using the PostgreSQL-compatible PGlite harness. The real PostgreSQL multiprocess test remains skipped and requires production-like PostgreSQL execution.
+
+- Focused inventory and financial alert suites: 4 passed. Includes threshold/grace boundaries, positive/negative/zero/old till variances, payment and recovery updates, settlement resolution, worker evaluation, acknowledgement and escalation, stale edits, CSRF, tenant isolation, permission-filtered lists/counts/evaluation/edits and immediate role changes.
+- TypeScript/Vite production build, Urdu literal-label coverage and four request-ID tests pass.
+- Added migration 033; existing migrations 001–032 retained byte-for-byte. No runtime dependency or external PostgreSQL deployment configuration change.
 
 ## Release 1.26 checks
 

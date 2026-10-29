@@ -1,4 +1,4 @@
-# Remaining completion roadmap after 1.26
+# Remaining completion roadmap after 1.27
 
 The requested full enterprise scope is not complete. The checklist's missing column is authoritative. The following is dependency order, not a promise that these modules exist or a calendar estimate.
 

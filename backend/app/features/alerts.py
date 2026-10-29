@@ -7,6 +7,7 @@ from datetime import timedelta, datetime
 from zoneinfo import ZoneInfo
 from .. import db, service
 from ..rules import business_date, fail
+from .finance_alerts import FINANCE_KINDS, matches as finance_matches
 
 
 def quiet_now(rule, now):
@@ -18,17 +19,20 @@ def quiet_now(rule, now):
     return start <= minute < end if start < end else minute >= start or minute < end
 
 
-async def evaluate(c, tenant, user, due_only=False):
+async def evaluate(c, tenant, user, due_only=False, kinds=None):
     rules = await c.fetch(
-        "SELECT * FROM inventory_alert_rules WHERE tenant=$1 AND active=true AND ($2=false OR last_evaluated IS NULL OR last_evaluated<=now()-interval '60 seconds') ORDER BY id",
+        "SELECT * FROM inventory_alert_rules WHERE tenant=$1 AND active=true AND ($2=false OR last_evaluated IS NULL OR last_evaluated<=now()-interval '60 seconds') AND ($3::text[] IS NULL OR kind=ANY($3::text[])) ORDER BY id",
         tenant,
         due_only,
+        kinds,
     )
     opened = resolved = escalated = deferred = 0
     now = await c.fetchval("SELECT now()")
     for rule in rules:
         quiet = quiet_now(rule, now)
-        if rule["kind"] == "expiry":
+        if rule["kind"] in FINANCE_KINDS:
+            matches = await finance_matches(c, tenant, rule, now)
+        elif rule["kind"] == "expiry":
             matches = await c.fetch(
                 """SELECT b.id AS entity,p.id AS product,p.sku,p.name,b.lot,b.expires,b.stock,l.name AS unit
              FROM stock_batches b JOIN products p ON p.tenant=b.tenant AND p.id=b.product
@@ -54,7 +58,7 @@ async def evaluate(c, tenant, user, due_only=False):
             )
         if len(matches) > 5000:
             fail(
-                "Alert rule matches more than 5000 items. Narrow its product scope.",
+                "Alert rule matches more than 5000 records. Narrow its scope or increase its threshold.",
                 422,
             )
         existing = {

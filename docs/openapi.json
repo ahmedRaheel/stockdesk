@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StockDesk Inventory & POS",
-    "version": "1.26.0"
+    "version": "1.27.0"
   },
   "paths": {
     "/api/health": {
@@ -11258,7 +11258,10 @@
             "enum": [
               "low_stock",
               "stock_out",
-              "expiry"
+              "expiry",
+              "customer_overdue",
+              "supplier_overdue",
+              "cash_variance"
             ],
             "title": "Kind"
           },
@@ -11296,6 +11299,34 @@
             "maximum": 365.0,
             "minimum": 0.0,
             "title": "Expiry Days",
+            "default": 30
+          },
+          "minimum_amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Minimum Amount",
+            "default": "0"
+          },
+          "overdue_days": {
+            "type": "integer",
+            "maximum": 3650.0,
+            "minimum": 0.0,
+            "title": "Overdue Days",
+            "default": 0
+          },
+          "lookback_days": {
+            "type": "integer",
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Lookback Days",
             "default": 30
           },
           "severity": {
@@ -11647,7 +11678,10 @@
             "enum": [
               "low_stock",
               "stock_out",
-              "expiry"
+              "expiry",
+              "customer_overdue",
+              "supplier_overdue",
+              "cash_variance"
             ],
             "title": "Kind"
           },
@@ -11685,6 +11719,34 @@
             "maximum": 365.0,
             "minimum": 0.0,
             "title": "Expiry Days",
+            "default": 30
+          },
+          "minimum_amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Minimum Amount",
+            "default": "0"
+          },
+          "overdue_days": {
+            "type": "integer",
+            "maximum": 3650.0,
+            "minimum": 0.0,
+            "title": "Overdue Days",
+            "default": 0
+          },
+          "lookback_days": {
+            "type": "integer",
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Lookback Days",
             "default": 30
           },
           "severity": {
