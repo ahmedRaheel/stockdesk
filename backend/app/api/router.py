@@ -4,6 +4,7 @@ Reads are bounded. Mutations delegate to the same business rules used by POS,
 so alternate clients cannot bypass permissions, stock validation or audit trails.
 """
 
+import json
 from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.security import APIKeyCookie, HTTPBearer
@@ -245,6 +246,9 @@ async def purchases(
                     ids,
                 )
             )
+    for line in lines:
+        if isinstance(line.get("quote_snapshot"), str):
+            line["quote_snapshot"] = json.loads(line["quote_snapshot"])
     for order in orders:
         order.pop("signature", None)
         order["lines"] = [line for line in lines if line["purchase"] == order["id"]]

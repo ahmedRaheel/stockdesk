@@ -6,6 +6,8 @@ from fastapi import HTTPException
 
 ROLES = {
     "Owner": {
+        "memberships",
+        "campaigns",
         "discount_approve",
         "void_approve",
         "feedback",
@@ -30,6 +32,8 @@ ROLES = {
         "settings",
     },
     "Manager": {
+        "memberships",
+        "campaigns",
         "discount_approve",
         "void_approve",
         "feedback",

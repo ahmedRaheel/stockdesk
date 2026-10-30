@@ -1,0 +1,253 @@
+.feedback-links-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+  color: #385570;
+}
+.feedback-links-title h2 {
+  margin: 0 0 6px;
+}
+.feedback-links-title p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+.feedback-link-fields {
+  border: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  align-items: end;
+  gap: 16px;
+}
+.feedback-link-fields .field {
+  margin: 0;
+}
+.feedback-share {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #f0f6f8;
+  padding: 18px;
+  border-radius: 10px;
+  margin: 20px 0;
+}
+.feedback-share > div {
+  flex: 1;
+  min-width: 0;
+}
+.feedback-share .field {
+  margin: 0 0 6px;
+}
+.feedback-share small {
+  color: #617486;
+}
+.feedback-share button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-invitations {
+  display: grid;
+  gap: 8px;
+}
+.feedback-invitations article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid #e2e8f0;
+  padding: 14px 0;
+}
+.feedback-invitations article div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+}
+.feedback-invitations article span {
+  font-size: 12px;
+  background: #eef2f6;
+  padding: 4px 8px;
+  border-radius: 5px;
+}
+.feedback-invitations small {
+  flex-basis: 100%;
+  color: #64748b;
+}
+.customer-feedback-page {
+  min-height: 100vh;
+  background: #eef2f5;
+  padding: 36px 20px;
+  color: #203648;
+  display: block;
+}
+.customer-feedback-wrap {
+  max-width: 570px;
+  margin: 0 auto;
+}
+.customer-feedback-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 4px 28px;
+  font-size: 18px;
+  font-weight: 700;
+}
+.customer-feedback-brand button {
+  margin-inline-start: auto;
+}
+.customer-feedback-card {
+  background: #fff;
+  border: 1px solid #dce4eb;
+  border-radius: 16px;
+  padding: 36px;
+  box-shadow: 0 14px 45px #20354808;
+}
+.customer-feedback-card h1 {
+  font-size: 29px;
+  letter-spacing: -0.7px;
+  line-height: 1.3;
+  margin: 10px 0 12px;
+}
+.customer-feedback-card p {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #617387;
+}
+.customer-feedback-store {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 12px !important;
+}
+.customer-feedback-fields {
+  border: 0;
+  padding: 0;
+  margin-top: 26px;
+  min-width: 0;
+}
+.customer-feedback-fields legend {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  padding: 0;
+}
+.customer-rating {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 26px;
+}
+.customer-rating label {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #d8e1e9;
+  border-radius: 9px;
+  padding: 16px 5px;
+  color: #6b7d8e;
+  cursor: pointer;
+}
+.customer-rating input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.customer-rating label.selected {
+  background: #edf5f4;
+  border-color: #488b7b;
+  color: #246956;
+}
+.customer-rating label:focus-within {
+  outline: 3px solid #5c97b6;
+  outline-offset: 2px;
+}
+.customer-rating span {
+  font-size: 12px;
+}
+.customer-feedback-count {
+  text-align: end;
+  font-size: 12px;
+  color: #6c7f90;
+  margin-top: -8px;
+}
+.customer-feedback-fields > .primary {
+  width: 100%;
+  margin-top: 10px;
+  min-height: 46px;
+}
+.customer-feedback-thanks {
+  text-align: center;
+  padding: 25px 0;
+}
+.customer-feedback-thanks svg {
+  color: #368572;
+}
+.customer-feedback-footer {
+  text-align: center;
+  font-size: 12px;
+  color: #738495;
+  margin-top: 20px;
+}
+.customer-feedback-card textarea {
+  resize: vertical;
+  min-height: 130px;
+}
+.customer-feedback-card .form-error button {
+  display: block;
+  margin-top: 10px;
+}
+@media (max-width: 600px) {
+  .feedback-link-fields {
+    grid-template-columns: 1fr;
+  }
+  .feedback-share {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .feedback-share > div {
+    flex-basis: 80%;
+  }
+  .feedback-invitations article {
+    align-items: flex-start;
+  }
+  .customer-feedback-page {
+    padding: 22px 14px;
+  }
+  .customer-feedback-card {
+    padding: 24px 18px;
+  }
+  .customer-feedback-card h1 {
+    font-size: 25px;
+  }
+  .customer-rating {
+    gap: 5px;
+  }
+  .customer-rating label {
+    padding: 12px 3px;
+  }
+  .customer-feedback-brand {
+    font-size: 17px;
+  }
+}
+
+.customer-feedback-card textarea {
+  font: inherit;
+  line-height: 1.65;
+  color: inherit;
+  border: 1px solid #cad6df;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+  width: 100%;
+}
+.customer-feedback-card textarea:focus-visible {
+  outline: 3px solid #8db5c1;
+  outline-offset: 2px;
+}

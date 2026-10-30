@@ -29,7 +29,14 @@ class Decision(Contract):
     note: str = Field(min_length=1, max_length=500)
 
 
+class PriceTier(Contract):
+    minimum_quantity: Quantity
+    unit_cost: Money
+
+
 class Offer(Contract):
+    # Omission preserves existing tiers on updates for older clients. [] clears them.
+    tiers: list[PriceTier] | None = Field(default=None, max_length=20)
     supplier: Identifier
     product: Identifier
     unit_cost: Money
@@ -149,6 +156,28 @@ async def save_offer(c, user, tenant, payload, identifier=None):
         payload.minimum_quantity
     ):
         fail("This product requires whole quantities.")
+    tiers = payload.tiers
+    if tiers is None:
+        tiers = [
+            PriceTier(**dict(row))
+            for row in await c.fetch(
+                "SELECT minimum_quantity,unit_cost FROM supplier_offer_tiers WHERE tenant=$1 AND offer=$2 ORDER BY minimum_quantity",
+                tenant,
+                identifier or "",
+            )
+        ]
+    tiers = sorted(tiers, key=lambda tier: tier.minimum_quantity)
+    previous_quantity, previous_cost = payload.minimum_quantity, payload.unit_cost
+    for tier in tiers:
+        if tier.minimum_quantity <= previous_quantity:
+            fail("Price breaks must have unique quantities above the base minimum.")
+        if tier.unit_cost >= previous_cost:
+            fail("Each price break must reduce the preceding unit cost.")
+        if not product["fractional"] and tier.minimum_quantity != int(
+            tier.minimum_quantity
+        ):
+            fail("This product requires whole quantities.")
+        previous_quantity, previous_cost = tier.minimum_quantity, tier.unit_cost
     if identifier:
         old = await c.fetchrow(
             "SELECT * FROM supplier_offers WHERE tenant=$1 AND id=$2",
@@ -199,12 +228,29 @@ async def save_offer(c, user, tenant, payload, identifier=None):
             payload.active,
             payload.notes,
         )
+    await c.execute(
+        "DELETE FROM supplier_offer_tiers WHERE tenant=$1 AND offer=$2",
+        tenant,
+        identifier,
+    )
+    for tier in tiers:
+        await c.execute(
+            "INSERT INTO supplier_offer_tiers(tenant,offer,minimum_quantity,unit_cost) VALUES($1,$2,$3,$4)",
+            tenant,
+            identifier,
+            tier.minimum_quantity,
+            tier.unit_cost,
+        )
     await service.audit(
         c,
         tenant,
         user,
         "Supplier quote saved",
-        {"id": identifier, **payload.model_dump(mode="json")},
+        {
+            "id": identifier,
+            **payload.model_dump(mode="json"),
+            "tiers": [t.model_dump(mode="json") for t in tiers],
+        },
     )
     return {"id": identifier}
 
@@ -235,28 +281,51 @@ async def offers(
     user: User,
     q: str = Query("", max_length=100),
     product: str = "",
-    quantity: Decimal = Query(Decimal(1), gt=0, le=1_000_000),
+    supplier: str = "",
+    quantity: Decimal = Query(
+        Decimal(1), gt=0, le=1_000_000, max_digits=12, decimal_places=3
+    ),
     eligible: bool = False,
     offset: int = Query(0, ge=0),
 ):
     async with db.pool.acquire() as c:
-        await service.authorize(c, user, tenant, "stock")
-        rows = await c.fetch(
-            """SELECT o.*,s.name AS supplier_name,p.name AS product_name,p.sku,u.name AS unit_name,
-  (o.active AND p.active AND o.valid_from<=$5 AND (o.valid_until IS NULL OR o.valid_until>=$5) AND o.minimum_quantity<=$4) AS eligible
-  FROM supplier_offers o JOIN suppliers s ON s.tenant=o.tenant AND s.id=o.supplier JOIN products p ON p.tenant=o.tenant AND p.id=o.product JOIN lookups u ON u.tenant=p.tenant AND u.id=p.unit_id
-  WHERE o.tenant=$1 AND ($2='' OR o.product=$2) AND ($3='' OR strpos(lower(s.name||' '||p.name||' '||p.sku),lower($3))>0)
-  AND (NOT $6 OR (o.active AND p.active AND o.valid_from<=$5 AND (o.valid_until IS NULL OR o.valid_until>=$5) AND o.minimum_quantity<=$4))
-  ORDER BY p.sku,o.unit_cost,o.lead_days,s.name,o.id LIMIT 50 OFFSET $7""",
-            tenant,
-            product,
-            q,
-            quantity,
-            today(),
-            eligible,
-            offset,
-        )
-        return {"items": service.rows(rows), "as_of": today()}
+        async with c.transaction(isolation="repeatable_read", readonly=True):
+            await service.authorize(c, user, tenant, "stock")
+            rows = await c.fetch(
+                """SELECT o.*,s.name AS supplier_name,p.name AS product_name,p.sku,u.name AS unit_name,
+      COALESCE(tier.unit_cost,o.unit_cost) AS effective_unit_cost,
+      COALESCE(tier.minimum_quantity,o.minimum_quantity) AS applied_minimum_quantity,
+      CASE WHEN ROUND(COALESCE(tier.unit_cost,o.unit_cost)*$4)<=100000000000 THEN ROUND(COALESCE(tier.unit_cost,o.unit_cost)*$4)::bigint END AS estimated_total,
+      (o.active AND p.active AND o.valid_from<=$5 AND (o.valid_until IS NULL OR o.valid_until>=$5) AND o.minimum_quantity<=$4 AND (u.fractional OR trunc($4::numeric)=$4) AND ROUND(COALESCE(tier.unit_cost,o.unit_cost)*$4)<=100000000000) AS eligible
+      FROM supplier_offers o JOIN suppliers s ON s.tenant=o.tenant AND s.id=o.supplier JOIN products p ON p.tenant=o.tenant AND p.id=o.product JOIN lookups u ON u.tenant=p.tenant AND u.id=p.unit_id
+      LEFT JOIN LATERAL (SELECT t.unit_cost,t.minimum_quantity FROM supplier_offer_tiers t WHERE t.tenant=o.tenant AND t.offer=o.id AND t.minimum_quantity<=$4 ORDER BY t.minimum_quantity DESC LIMIT 1) tier ON true
+      WHERE o.tenant=$1 AND ($8='' OR o.supplier=$8) AND ($2='' OR o.product=$2) AND ($3='' OR strpos(lower(s.name||' '||p.name||' '||p.sku),lower($3))>0)
+      AND (NOT $6 OR (o.active AND p.active AND o.valid_from<=$5 AND (o.valid_until IS NULL OR o.valid_until>=$5) AND o.minimum_quantity<=$4 AND (u.fractional OR trunc($4::numeric)=$4) AND ROUND(COALESCE(tier.unit_cost,o.unit_cost)*$4)<=100000000000))
+      ORDER BY p.sku,effective_unit_cost,o.lead_days,s.name,o.id LIMIT 50 OFFSET $7""",
+                tenant,
+                product,
+                q,
+                quantity,
+                today(),
+                eligible,
+                offset,
+                supplier,
+            )
+            tier_rows = await c.fetch(
+                "SELECT offer,minimum_quantity,unit_cost FROM supplier_offer_tiers WHERE tenant=$1 AND offer=ANY($2::text[]) ORDER BY minimum_quantity",
+                tenant,
+                [r["id"] for r in rows],
+            )
+            items = service.rows(rows)
+            for item in items:
+                item["tiers"] = [
+                    dict(
+                        minimum_quantity=t["minimum_quantity"], unit_cost=t["unit_cost"]
+                    )
+                    for t in tier_rows
+                    if t["offer"] == item["id"]
+                ]
+            return {"items": items, "as_of": today(), "quantity": quantity}
 
 
 @router.get("/supplier-performance")

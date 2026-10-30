@@ -1,0 +1,154 @@
+.recovery-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.recovery-heading h2,
+.recovery-heading h3 {
+  margin: 0 0 8px;
+}
+.recovery-heading p {
+  margin: 0;
+  color: #64748b;
+  max-width: 640px;
+}
+.recovery-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 20px;
+}
+.recovery-filters b {
+  margin-inline-start: 6px;
+}
+.recovery-mine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.recovery-mine input {
+  width: auto;
+}
+.recovery-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 14px;
+  margin-block: 18px;
+}
+.recovery-card {
+  border: 1px solid #dbe4ee;
+  border-radius: 12px;
+  padding: 18px;
+  min-width: 0;
+  background: white;
+}
+.recovery-card p {
+  overflow-wrap: anywhere;
+  color: #64748b;
+}
+.recovery-badge {
+  font-size: 12px;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 5px 9px;
+  border-radius: 6px;
+}
+.recovery-due {
+  border-inline-start: 4px solid #b45309;
+}
+.recovery-due .recovery-badge {
+  color: #92400e;
+  background: #fffbeb;
+}
+.recovery-settled .recovery-badge {
+  color: #047857;
+  background: #ecfdf5;
+}
+.recovery-card dl {
+  margin-block: 16px;
+}
+.recovery-card dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-block: 10px;
+}
+.recovery-card dt {
+  color: #64748b;
+  font-size: 12px;
+}
+.recovery-card dd {
+  margin: 0;
+  text-align: end;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.recovery-card .actions {
+  flex-wrap: wrap;
+}
+.recovery-editor {
+  border: 1px solid #b8d5e6;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px;
+  margin-block: 20px;
+  scroll-margin-top: 80px;
+}
+.recovery-editor textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px;
+  font: inherit;
+}
+.recovery-editor .customer-select {
+  margin-bottom: 16px;
+}
+.recovery-history {
+  margin-top: 24px;
+  border-top: 1px solid #dbe4ee;
+  padding-top: 12px;
+}
+.recovery-history article {
+  border-inline-start: 2px solid #cbd5e1;
+  padding: 8px 14px;
+  margin-block: 12px;
+  background: white;
+  overflow-wrap: anywhere;
+}
+.recovery-history p {
+  white-space: pre-wrap;
+}
+.recovery-history small {
+  display: block;
+  color: #64748b;
+}
+@media (max-width: 600px) {
+  .recovery-editor {
+    padding: 12px;
+  }
+  .recovery-card {
+    padding: 14px;
+  }
+  .recovery-heading > .actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .recovery-card dl > div {
+    display: block;
+  }
+  .recovery-card dd {
+    text-align: start;
+    margin-top: 4px;
+  }
+}
+
+.recovery-editor fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}

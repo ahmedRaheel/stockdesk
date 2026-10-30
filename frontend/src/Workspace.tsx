@@ -49,6 +49,9 @@ import Promotions, { PromotionPicker } from "./Promotions";
 import ManagementReport from "./ManagementReport";
 import InventoryAlerts from "./InventoryAlerts";
 import Feedback from "./Feedback";
+import Memberships from "./Memberships";
+import Campaigns from "./Campaigns";
+import MembershipStatus from "./MembershipStatus";
 import StockCounts from "./StockCounts";
 import PosEntry from "./PosEntry";
 import SplitPayments, { PaymentRow } from "./SplitPayments";
@@ -67,11 +70,16 @@ const titles: any = {
     "Transaction approvals",
     "Independent discount and return decisions.",
   ],
-  feedback: ["Customer feedback", "Ratings, comments and resolution tracking."],
-  alerts: [
-    "Alert center",
-    "Rules, acknowledgements and resolution history.",
+  campaigns: [
+    "Customer campaigns",
+    "Audiences, contact outcomes and campaign history.",
   ],
+  memberships: [
+    "Customer memberships",
+    "Enrollment, renewals and membership history.",
+  ],
+  feedback: ["Customer feedback", "Ratings, comments and resolution tracking."],
+  alerts: ["Alert center", "Rules, acknowledgements and resolution history."],
   promotions: [
     "Promotions and coupons",
     "Scheduled discounts, BOGO offers and bundles.",
@@ -137,6 +145,8 @@ const titles: any = {
 const icons: any = {
   catalogtools: Package,
   approvals: ShieldCheck,
+  memberships: Users,
+  campaigns: Users,
   feedback: SlidersHorizontal,
   alerts: SlidersHorizontal,
   promotions: SlidersHorizontal,
@@ -816,6 +826,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     ...(can("credit") ? ["khata"] : []),
     ...(can("settings") ? ["lookups", "taxes"] : []),
     ...(can("alerts") ? ["alerts"] : []),
+    ...(can("memberships") ? ["memberships"] : []),
+    ...(can("campaigns") ? ["campaigns"] : []),
     ...(can("feedback") ? ["feedback"] : []),
     ...(can("promotions") ? ["promotions"] : []),
     ...(can("cost") ? ["reports"] : []),
@@ -1414,6 +1426,12 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   money={money}
                 />
               )}
+              {view === "campaigns" && can("campaigns") && (
+                <Campaigns key={tenant} tenant={tenant} />
+              )}
+              {view === "memberships" && can("memberships") && (
+                <Memberships key={tenant} tenant={tenant} />
+              )}
               {view === "feedback" && can("feedback") && (
                 <Feedback key={tenant} tenant={tenant} />
               )}
@@ -1751,6 +1769,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                           if (!id) setCreditMode(false);
                         }}
                       />
+                    )}
+                    {customerId && (
+                      <MembershipStatus tenant={tenant} customer={customerId} />
                     )}
                     <div className="cart-items">
                       {cart.length ? (

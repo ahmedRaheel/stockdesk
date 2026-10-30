@@ -35,6 +35,8 @@ async def lifespan(app):
     from .features.alerts import run_worker
     from contextlib import suppress
 
+    from .features.report_scheduler import run_worker as run_report_worker
+    report_worker = asyncio.create_task(run_report_worker()) if config.REPORT_WORKER_ENABLED else None
     worker = asyncio.create_task(run_worker()) if config.ALERT_WORKER_ENABLED else None
     try:
         yield
@@ -43,12 +45,16 @@ async def lifespan(app):
             worker.cancel()
             with suppress(asyncio.CancelledError):
                 await worker
+        if report_worker:
+            report_worker.cancel()
+            with suppress(asyncio.CancelledError):
+                await report_worker
         await db.close()
 
 
 app = FastAPI(
     title="StockDesk Inventory & POS",
-    version="1.27.0",
+    version="1.34.0",
     lifespan=lifespan,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
@@ -270,12 +276,17 @@ async def forecasts(
     lead: int = 7,
     cover: int = 30,
     safety: int = 20,
+    event_pct: int = 0,
+    event_start: int = 1,
+    event_days: int = 7,
 ):
     from .forecast import analyze, window
     from datetime import datetime, timezone
 
     if not 1 <= lead <= 90 or not 1 <= cover <= 90 or not 0 <= safety <= 100:
         fail("Lead/coverage must be 1–90 days; safety must be 0–100%.")
+    if not -100 <= event_pct <= 300 or not 1 <= event_start <= 30 or not 1 <= event_days <= 30 or event_start + event_days > 31:
+        fail("Demand event must fit within the next 30 days; adjustment must be -100% to 300%.")
     try:
         window(period, datetime.now(timezone.utc).date())
     except ValueError:
@@ -297,7 +308,8 @@ async def forecasts(
                 )
             )
     return await asyncio.to_thread(
-        analyze, products, daily, period, lead, cover, safety
+        analyze, products, daily, period, lead, cover, safety,
+        event_pct=event_pct, event_start=event_start, event_days=event_days
     )
 
 
@@ -409,3 +421,22 @@ app.include_router(cashiers_router)
 from .api.till_reports import router as till_reports_router
 
 app.include_router(till_reports_router)
+
+from .api.feedback_invitations import router as feedback_invitation_router, public_router as public_feedback_router
+app.include_router(feedback_invitation_router)
+app.include_router(public_feedback_router)
+
+from .api.recovery_tracking import router as recovery_tracking_router
+app.include_router(recovery_tracking_router)
+
+from .api.memberships import router as memberships_router
+app.include_router(memberships_router)
+
+from .api.campaigns import router as campaigns_router
+app.include_router(campaigns_router)
+
+from .api.report_builder import router as report_builder_router
+app.include_router(report_builder_router)
+
+from .api.report_schedules import router as report_schedules_router
+app.include_router(report_schedules_router)

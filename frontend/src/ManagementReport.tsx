@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
+import ScheduledReports from "./ScheduledReports";
+import ReportBuilder from "./ReportBuilder";
 import InventoryTurnover from "./InventoryTurnover";
 import ReportExports from "./ReportExports";
 import OperationalReports from "./OperationalReports";
+import { downloadCsv } from "./csv";
 import { api } from "./api";
 import { t as tr } from "./i18n";
 export default function ManagementReport({
@@ -11,6 +14,8 @@ export default function ManagementReport({
   tenant: string;
   currency: string;
 }) {
+  const [scheduled, setScheduled] = useState(false);
+  const [builder, setBuilder] = useState(false);
   const [operational, setOperational] = useState(false);
   const [turnover, setTurnover] = useState(false);
   const [days, setDays] = useState(30),
@@ -46,7 +51,7 @@ export default function ManagementReport({
         "XYZ",
         "CV",
         "Observed days",
-      ],
+      ].map(tr),
       ...data.products.map((p: any) => [
         p.sku,
         p.name,
@@ -55,28 +60,18 @@ export default function ManagementReport({
         p.profit,
         p.units,
         p.abc,
-        p.xyz,
+        tr(p.xyz),
         p.cv ?? "",
         p.observed_days,
       ]),
     ];
-    const cell = (x: any) =>
-      '"' +
-      String(x ?? "")
-        .replace(/^[=+@-]/, "'$&")
-        .replaceAll('"', '""') +
-      '"';
-    const blob = new Blob(
-      ["\uFEFF" + rows.map((r) => r.map(cell).join(",")).join("\r\n")],
-      { type: "text/csv;charset=utf-8" },
-    );
-    const url = URL.createObjectURL(blob),
-      a = document.createElement("a");
-    a.href = url;
-    a.download = "management-report.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv("management-report.csv", [
+      [tr("Period"), data.start, data.end, data.timezone],
+      [tr("Currency"), currency],
+      ...rows,
+    ]);
   }
+
   const table = (rows: any[], columns: [string, string][]) => (
     <div className="table-scroll">
       <table>
@@ -94,7 +89,9 @@ export default function ManagementReport({
                 <td key={key}>
                   {["net_sales", "cost", "profit"].includes(key)
                     ? money(r[key])
-                    : (r[key] ?? "—")}
+                    : key === "xyz"
+                      ? tr(r[key] ?? "—")
+                      : (r[key] ?? "—")}
                 </td>
               ))}
             </tr>
@@ -103,6 +100,24 @@ export default function ManagementReport({
       </table>
     </div>
   );
+  if (scheduled)
+    return (
+      <>
+        <button className="secondary" onClick={() => setScheduled(false)}>
+          {tr("Sales and margin reports")}
+        </button>
+        <ScheduledReports key={tenant} tenant={tenant} />
+      </>
+    );
+  if (builder)
+    return (
+      <>
+        <button className="secondary" onClick={() => setBuilder(false)}>
+          {tr("Sales and margin reports")}
+        </button>
+        <ReportBuilder tenant={tenant} />
+      </>
+    );
   if (turnover)
     return (
       <>
@@ -123,6 +138,12 @@ export default function ManagementReport({
     );
   return (
     <>
+      <button className="secondary" onClick={() => setScheduled(true)}>
+        {tr("Scheduled reports")}
+      </button>
+      <button className="secondary" onClick={() => setBuilder(true)}>
+        {tr("Custom report builder")}
+      </button>
       <button className="secondary" onClick={() => setTurnover(true)}>
         {tr("Inventory turnover")}
       </button>

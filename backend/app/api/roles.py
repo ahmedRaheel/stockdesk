@@ -14,6 +14,8 @@ router = APIRouter(
 )
 # Ownership, membership administration and role administration are not delegatable.
 PERMISSIONS = {
+    "memberships": "Manage customer memberships",
+    "campaigns": "Manage customer campaigns",
     "discount_approve": "Approve another user’s manual discount",
     "void_approve": "Approve another user’s return or exchange",
     "feedback": "Record and resolve customer feedback",
@@ -25,7 +27,7 @@ PERMISSIONS = {
     "sale": "Create sales and view receipts",
     "return": "Return and exchange sale items",
     "credit": "Manage customer credit activity",
-    "credit_approve": "Approve credit limits",
+    "credit_approve": "Approve credit limits and manage recovery cases",
     "cost": "View costs and management reports",
     "product": "Create and edit products",
     "stock": "Purchasing and stock operations",
@@ -36,6 +38,7 @@ PERMISSIONS = {
     "audit": "Read audit history",
 }
 DEPENDENCIES = {
+    "memberships": {"credit"},
     "discount_approve": {"sale"},
     "void_approve": {"sale", "return"},
     "purchase_approve": {"stock", "cost"},

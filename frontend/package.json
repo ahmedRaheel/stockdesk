@@ -1,6 +1,6 @@
 {
   "name": "stockdesk-ui",
-  "version": "1.27.0",
+  "version": "1.34.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,9 +10,11 @@
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "check:locales": "node scripts/check-locales.cjs",
-    "test:request-id": "node --test scripts/request-id.test.cjs"
+    "test:request-id": "node --test scripts/request-id.test.cjs",
+    "test:csv": "node --test scripts/csv.test.cjs"
   },
   "dependencies": {
+    "jsqr": "1.4.0",
     "lucide-react": "0.468.0",
     "plotly.js-dist-min": "3.1.0",
     "react": "19.2.0",

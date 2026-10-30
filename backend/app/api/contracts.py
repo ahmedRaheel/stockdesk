@@ -109,7 +109,13 @@ class SupplierCreate(Contract):
     lead_days: int = Field(default=7, strict=True, ge=0, le=365)
 
 
+class PurchaseQuote(Contract):
+    id: Identifier
+    version: int = Field(strict=True, ge=1)
+
+
 class PurchaseLine(Contract):
+    quote: PurchaseQuote | None = None
     product: Identifier
     quantity: Quantity
     unit_cost: Money
