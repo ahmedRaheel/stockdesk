@@ -50,7 +50,72 @@ def rates(history, dates, model, offset=1):
     return [base] * 30
 
 
-def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=None):
+def evaluate(history, dates):
+    """Select on earlier weekly folds; report error on a separate final week."""
+    n = len(history)
+    if n < 35:
+        return {
+            "model": "mean",
+            "selection_days": 0,
+            "test_days": 0,
+            "wape": None,
+            "mae": None,
+            "bias_pct": None,
+            "candidates": [],
+        }
+    # All candidate models use the same selection windows. The final seven
+    # observations are reserved and cannot influence model choice.
+    origins = [i for i in (n - 28, n - 21, n - 14) if i >= 28]
+    models = ["mean"]
+    if origins and min(origins) >= 56:
+        models.append("weekday")
+    scores = []
+    for model in models:
+        absolute = actual_total = 0.0
+        for origin in origins:
+            predicted = rates(history[:origin], dates[:origin], model)[:7]
+            observed = history[origin : origin + 7]
+            absolute += sum(abs(a - f) for a, f in zip(observed, predicted))
+            actual_total += sum(observed)
+        scores.append(
+            {
+                "model": model,
+                "absolute_error": round(absolute, 4),
+                "wape": (
+                    round(absolute / actual_total * 100, 1) if actual_total else None
+                ),
+            }
+        )
+    chosen = min(scores, key=lambda row: row["absolute_error"])["model"]
+    predicted = rates(history[:-7], dates[:-7], chosen)[:7]
+    observed = history[-7:]
+    absolute = sum(abs(a - f) for a, f in zip(observed, predicted))
+    total = sum(observed)
+    return {
+        "model": chosen,
+        "selection_days": len(origins) * 7,
+        "test_days": 7,
+        "test_start": dates[-7].isoformat(),
+        "test_end": dates[-1].isoformat(),
+        "wape": round(absolute / total * 100, 1) if total else None,
+        "mae": round(absolute / 7, 3),
+        "bias_pct": round((sum(predicted) - total) / total * 100, 1) if total else None,
+        "candidates": scores,
+    }
+
+
+def analyze(
+    products,
+    daily,
+    period="last7",
+    lead=7,
+    cover=30,
+    safety=20,
+    today=None,
+    event_pct=0,
+    event_start=1,
+    event_days=7,
+):
     today = today or datetime.now(timezone.utc).date()
     start, end = window(period, today)
     by_product = {}
@@ -65,6 +130,7 @@ def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=
     rankings = []
     forecasts = []
     future = [0.0] * 30
+    baseline_future = [0.0] * 30
     for p in products:
         p = {
             **p,
@@ -109,32 +175,16 @@ def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=
             continue
         selling_days = sum(v > 0 for v in history)
         enough = n >= 14 and selling_days >= 3
-        model = "trailing-28-day mean"
-        wape = None
+        evaluation = evaluate(history, dates)
+        model = (
+            "weekday mean (last 8 weeks)"
+            if evaluation["model"] == "weekday"
+            else "trailing-28-day mean"
+        )
+        wape = evaluation["wape"]
         pred = None
+        baseline = None
         quality = "Insufficient history"
-        # Rolling-origin validation: 7 complete holdout days, never current-day sales.
-        if n >= 35:
-            train = history[:-7]
-            train_dates = dates[:-7]
-            actual = history[-7:]
-            den = sum(actual)
-            candidates = [("trailing-28-day mean", "mean")]
-            if len(train) >= 56:
-                candidates.append(("weekday mean (last 8 weeks)", "weekday"))
-            chosen = min(
-                candidates,
-                key=lambda m: sum(
-                    abs(a - f)
-                    for a, f in zip(actual, rates(train, train_dates, m[1])[:7])
-                ),
-            )
-            model = chosen[0]
-            err = sum(
-                abs(a - f)
-                for a, f in zip(actual, rates(train, train_dates, chosen[1])[:7])
-            )
-            wape = round(err / den * 100, 1) if den else None
         if enough:
             pred = rates(
                 history,
@@ -142,6 +192,15 @@ def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=
                 "weekday" if model.startswith("weekday") else "mean",
                 offset=2,
             )
+            baseline = list(pred)
+            pred = [
+                (
+                    v * (1 + event_pct / 100)
+                    if event_start <= i + 1 < event_start + event_days
+                    else v
+                )
+                for i, v in enumerate(pred)
+            ]
             quality = (
                 "Moderate"
                 if wape is not None and wape <= 40 and selling_days >= 10
@@ -149,6 +208,7 @@ def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=
             )
             for i, v in enumerate(pred):
                 future[i] += v
+                baseline_future[i] += baseline[i]
         avg = mean(pred) if pred else None
         sold_dates = [d for d, v in sales.items() if v["units"] > 0 and d <= today]
         last_sale = (
@@ -172,7 +232,13 @@ def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=
             max(
                 0,
                 ceil(
-                    avg * (lead + cover) * (1 + safety / 100)
+                    (
+                        mean(baseline) * (lead + cover)
+                        + sum(
+                            pred[i] - baseline[i] for i in range(min(30, lead + cover))
+                        )
+                    )
+                    * (1 + safety / 100)
                     - p["stock"]
                     - p.get("incoming", 0)
                 ),
@@ -191,6 +257,22 @@ def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=
                 "quality": quality,
                 "model": model if enough else None,
                 "wape": wape,
+                "evaluation": evaluation,
+                "baseline_next30": (
+                    round(sum(baseline), 1) if baseline is not None else None
+                ),
+                "daily_forecast": (
+                    [
+                        {
+                            "day": (today + timedelta(days=i + 1)).isoformat(),
+                            "baseline": round(baseline[i], 3),
+                            "planned": round(v, 3),
+                        }
+                        for i, v in enumerate(pred)
+                    ]
+                    if pred is not None
+                    else []
+                ),
                 "daily_rate": round(avg, 2) if avg is not None else None,
                 "next7": round(f7, 1) if f7 is not None else None,
                 "next30": round(f30, 1) if f30 is not None else None,
@@ -199,7 +281,7 @@ def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=
                         round(max(0, f30 - 1.64 * sigma * sqrt(30)), 1),
                         round(f30 + 1.64 * sigma * sqrt(30), 1),
                     ]
-                    if f30 is not None
+                    if f30 is not None and event_pct == 0
                     else None
                 ),
                 "days_cover": days_cover,
@@ -227,7 +309,13 @@ def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=
                 "last_sale": last_sale.isoformat() if last_sale else None,
                 "days_unsold": days_unsold,
                 "overstock_units": (
-                    max(0, p["stock"] - ceil(avg * 90)) if avg is not None else None
+                    max(
+                        0,
+                        p["stock"]
+                        - ceil(mean(baseline) * 90 + sum(pred) - sum(baseline)),
+                    )
+                    if avg is not None
+                    else None
                 ),
                 "sales_value30": round(f30 * p["price"]) if f30 is not None else None,
             }
@@ -257,8 +345,20 @@ def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=
             x=[(today + timedelta(days=i)).isoformat() for i in range(1, 31)],
             y=[round(v, 2) for v in future],
             mode="lines",
-            name="Forecast · eligible products",
+            name=(
+                "Planned units · eligible products"
+                if event_pct
+                else "Forecast · eligible products"
+            ),
             line=dict(color="#d39c35", dash="dash"),
+        )
+    if event_pct and any(f["next30"] is not None for f in forecasts):
+        fig.add_scatter(
+            x=[(today + timedelta(days=i)).isoformat() for i in range(1, 31)],
+            y=[round(v, 2) for v in baseline_future],
+            mode="lines",
+            name="Baseline · eligible products",
+            line=dict(color="#64748b", dash="dot"),
         )
     fig.update_layout(
         template="plotly_white",
@@ -276,6 +376,15 @@ def analyze(products, daily, period="last7", lead=7, cover=30, safety=20, today=
         m["units"] += v["units"]
         m["gross"] += v["gross"]
     return {
+        "event": {
+            "percent": event_pct,
+            "start_day": event_start,
+            "days": event_days,
+            "first_date": (today + timedelta(days=event_start)).isoformat(),
+            "last_date": (
+                today + timedelta(days=event_start + event_days - 1)
+            ).isoformat(),
+        },
         "period": period,
         "start": start.isoformat(),
         "end": end.isoformat(),

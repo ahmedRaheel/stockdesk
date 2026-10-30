@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Plus, RefreshCw, Download, X, ArrowLeft } from "lucide-react";
 import { api, send } from "./api";
 import LookupSelect from "./LookupSelect";
+import RecoveryDesk from "./RecoveryDesk";
 
 type Customer = {
   id: string;
@@ -523,7 +524,7 @@ export default function Retail({
               ["31+ days overdue", buckets.days_31_plus],
             ].map(([label, value]) => (
               <div className="kpi" key={label}>
-                <div>{label}</div>
+                <div>{tr(String(label))}</div>
                 <strong>{money(Number(value) || 0)}</strong>
               </div>
             ))}
@@ -533,6 +534,7 @@ export default function Retail({
               ["customers", "Customers & khata"],
               ["requests", "Credit requests"],
               ["dues", "Due & overdue"],
+              ["followups", "Recovery follow-ups"],
             ].map(([key, label]) => (
               <button
                 key={key}
@@ -543,146 +545,154 @@ export default function Retail({
               </button>
             ))}
           </div>
-          <section className="panel">
-            {loading ? (
-              <p role="status">{tr("Loading…")}</p>
-            ) : (
-              <div className="table-scroll">
-                {tab === "customers" ? (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>{tr("Name")}</th>
-                        <th>{tr("Phone")}</th>
-                        <th>{tr("Credit limit")}</th>
-                        <th>{tr("Outstanding")}</th>
-                        <th>{tr("Actions")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {customers.map((c) => (
-                        <tr key={c.id}>
-                          <td>
-                            <b>{c.name}</b>
-                            <small>
-                              {c.credit_enabled
-                                ? "Credit enabled"
-                                : "Approval required"}
-                            </small>
-                          </td>
-                          <td>{c.phone}</td>
-                          <td>{money(c.credit_limit)}</td>
-                          <td>{money(c.balance)}</td>
-                          <td>
-                            <div className="actions">
-                              <button
-                                className="mini"
-                                onClick={() => show(c.id)}
-                              >
-                                {tr("Statement")}
-                              </button>
-                              <button
-                                className="mini"
-                                onClick={() => open("recover", c)}
-                              >
-                                {tr("Recovery")}
-                              </button>
-                              <button
-                                className="mini"
-                                onClick={() => open("credit", c)}
-                              >
-                                {tr("Request credit")}
-                              </button>
-                            </div>
-                          </td>
+          {tab === "followups" ? (
+            <RecoveryDesk
+              tenant={tenant}
+              currency={currency}
+              onCustomer={show}
+            />
+          ) : (
+            <section className="panel">
+              {loading ? (
+                <p role="status">{tr("Loading…")}</p>
+              ) : (
+                <div className="table-scroll">
+                  {tab === "customers" ? (
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>{tr("Name")}</th>
+                          <th>{tr("Phone")}</th>
+                          <th>{tr("Credit limit")}</th>
+                          <th>{tr("Outstanding")}</th>
+                          <th>{tr("Actions")}</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : tab === "requests" ? (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>{tr("Customer")}</th>
-                        <th>{tr("Requested limit")}</th>
-                        <th>{tr("Requested by")}</th>
-                        <th>{tr("Status")}</th>
-                        <th />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {requests.map((r) => (
-                        <tr key={r.id}>
-                          <td>
-                            {r.customer_name}
-                            <small>{r.reason}</small>
-                          </td>
-                          <td>{money(r.proposed_limit)}</td>
-                          <td>{r.requester}</td>
-                          <td>{r.status}</td>
-                          <td>
-                            {approve && r.status === "pending" && (
+                      </thead>
+                      <tbody>
+                        {customers.map((c) => (
+                          <tr key={c.id}>
+                            <td>
+                              <b>{c.name}</b>
+                              <small>
+                                {c.credit_enabled
+                                  ? "Credit enabled"
+                                  : "Approval required"}
+                              </small>
+                            </td>
+                            <td>{c.phone}</td>
+                            <td>{money(c.credit_limit)}</td>
+                            <td>{money(c.balance)}</td>
+                            <td>
+                              <div className="actions">
+                                <button
+                                  className="mini"
+                                  onClick={() => show(c.id)}
+                                >
+                                  {tr("Statement")}
+                                </button>
+                                <button
+                                  className="mini"
+                                  onClick={() => open("recover", c)}
+                                >
+                                  {tr("Recovery")}
+                                </button>
+                                <button
+                                  className="mini"
+                                  onClick={() => open("credit", c)}
+                                >
+                                  {tr("Request credit")}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : tab === "requests" ? (
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>{tr("Customer")}</th>
+                          <th>{tr("Requested limit")}</th>
+                          <th>{tr("Requested by")}</th>
+                          <th>{tr("Status")}</th>
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {requests.map((r) => (
+                          <tr key={r.id}>
+                            <td>
+                              {r.customer_name}
+                              <small>{r.reason}</small>
+                            </td>
+                            <td>{money(r.proposed_limit)}</td>
+                            <td>{r.requester}</td>
+                            <td>{r.status}</td>
+                            <td>
+                              {approve && r.status === "pending" && (
+                                <button
+                                  className="mini"
+                                  onClick={() => open("decision", r)}
+                                >
+                                  {" "}
+                                  {tr("Review")}{" "}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>{tr("Customer")}</th>
+                          <th>{tr("Due date")}</th>
+                          <th>{tr("Amount")}</th>
+                          <th>{tr("Days overdue")}</th>
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {overview?.dues.map((d: any, i: number) => (
+                          <tr key={d.receivable + i}>
+                            <td>{d.name}</td>
+                            <td>{d.due_date}</td>
+                            <td>{money(d.amount)}</td>
+                            <td>{d.days_overdue}</td>
+                            <td>
                               <button
                                 className="mini"
-                                onClick={() => open("decision", r)}
+                                onClick={() => show(d.customer)}
                               >
                                 {" "}
-                                {tr("Review")}{" "}
+                                {tr("Open khata")}{" "}
                               </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>{tr("Customer")}</th>
-                        <th>{tr("Due date")}</th>
-                        <th>{tr("Amount")}</th>
-                        <th>{tr("Days overdue")}</th>
-                        <th />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {overview?.dues.map((d: any, i: number) => (
-                        <tr key={d.receivable + i}>
-                          <td>{d.name}</td>
-                          <td>{d.due_date}</td>
-                          <td>{money(d.amount)}</td>
-                          <td>{d.days_overdue}</td>
-                          <td>
-                            <button
-                              className="mini"
-                              onClick={() => show(d.customer)}
-                            >
-                              {" "}
-                              {tr("Open khata")}{" "}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            )}
-            {tab === "dues" && (
-              <p>
-                {" "}
-                {tr("Scheduled next 30 days:")}{" "}
-                {money(overview?.scheduled_next30 || 0)}{" "}
-                {tr(
-                  ". These are contractual amounts, not guaranteed collections. Reminders are listed here; no external message is sent.",
-                )}{" "}
-              </p>
-            )}
-          </section>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+              {tab === "dues" && (
+                <p>
+                  {" "}
+                  {tr("Scheduled next 30 days:")}{" "}
+                  {money(overview?.scheduled_next30 || 0)}{" "}
+                  {tr(
+                    ". These are contractual amounts, not guaranteed collections. Reminders are listed here; no external message is sent.",
+                  )}{" "}
+                </p>
+              )}
+            </section>
+          )}
         </>
       )}
-      {!statement && (
+      {!statement && (mode === "lookups" || tab !== "followups") && (
         <div className="pagination">
           <span>
             {tr("Page")} {page + 1}

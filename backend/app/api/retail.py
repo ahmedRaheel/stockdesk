@@ -926,3 +926,22 @@ async def sale_customer(tenant: str, customer: str, user: User):
         if not item:
             fail("Customer not found.", 404)
     return dict(item)
+
+
+@router.get("/sale-customers/{customer}/membership")
+async def sale_membership(tenant: str, customer: str, user: User):
+    async with db.pool.acquire() as c:
+        await service.authorize(c, user, tenant, "sale")
+        if not await c.fetchval(
+            "SELECT 1 FROM customers WHERE tenant=$1 AND id=$2 AND active",
+            tenant,
+            customer,
+        ):
+            fail("Customer not found.", 404)
+        row = await c.fetchrow(
+            "SELECT number,plan_snapshot->>'name' AS plan_name,plan_snapshot->>'benefits' AS benefits,valid_until FROM customer_memberships WHERE tenant=$1 AND customer=$2 AND status='active' AND valid_from<=$3 AND valid_until>=$3 ORDER BY valid_from DESC,id LIMIT 1",
+            tenant,
+            customer,
+            business_date(),
+        )
+        return {"membership": dict(row) if row else None, "as_of": business_date()}

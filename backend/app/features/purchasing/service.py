@@ -40,6 +40,14 @@ async def add_supplier(connection, user, tenant, payload):
 async def create_order(connection, user, tenant, payload):
     await service.authorize(connection, user, tenant, "stock", lock=True)
     unique_lines(payload["lines"])
+    # Keep pre-tier request signatures replayable after upgrading.
+    payload = {
+        **payload,
+        "lines": [
+            {k: v for k, v in line.items() if k != "quote" or v is not None}
+            for line in payload["lines"]
+        ],
+    }
     fingerprint = signature(payload)
     existing = await connection.fetchrow(
         "SELECT id,signature FROM purchase_orders WHERE tenant=$1 AND request=$2",
@@ -109,13 +117,17 @@ async def create_order(connection, user, tenant, payload):
             line["product"],
         ):
             fail("An active product could not be found.", 404)
+        from ..supplier_prices import selected_quote
+
+        snapshot = await selected_quote(connection, tenant, payload["supplier"], line)
         await connection.execute(
-            "INSERT INTO purchase_lines(tenant,purchase,product,quantity,unit_cost) VALUES($1,$2,$3,$4,$5)",
+            "INSERT INTO purchase_lines(tenant,purchase,product,quantity,unit_cost,quote_snapshot) VALUES($1,$2,$3,$4,$5,$6::jsonb)",
             tenant,
             order_id,
             line["product"],
             line["quantity"],
             line["unit_cost"],
+            json.dumps(snapshot, default=str) if snapshot else None,
         )
     await service.audit(
         connection, tenant, user, "Purchase order created", {"id": order_id}

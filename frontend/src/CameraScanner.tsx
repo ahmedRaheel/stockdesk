@@ -19,14 +19,70 @@ export default function CameraScanner({
   const video = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
+  const [qrOnly, setQrOnly] = useState(false);
   const callbacks = useRef({ onCode, onClose });
   callbacks.current = { onCode, onClose };
   useEffect(() => {
     let disposed = false;
     let stream: MediaStream | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let worker: Worker | undefined;
+    let cancelDecode: (() => void) | undefined;
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    function decodeQr(source: HTMLVideoElement): Promise<string> {
+      if (!context) return Promise.reject(Error("Canvas unavailable"));
+      const scale = Math.min(
+        1,
+        768 / Math.max(source.videoWidth, source.videoHeight),
+      );
+      canvas.width = Math.max(1, Math.round(source.videoWidth * scale));
+      canvas.height = Math.max(1, Math.round(source.videoHeight * scale));
+      context.drawImage(source, 0, 0, canvas.width, canvas.height);
+      const pixels = context.getImageData(
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+      ).data;
+      if (!worker)
+        worker = new Worker(new URL("./qrDecoder.worker.ts", import.meta.url), {
+          type: "module",
+        });
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          cancelDecode = undefined;
+          reject(Error("QR decoder timed out"));
+        }, 10000);
+        cancelDecode = () => {
+          clearTimeout(timeout);
+          resolve("");
+        };
+        worker!.onmessage = (
+          event: MessageEvent<{ value?: string; error?: boolean }>,
+        ) => {
+          clearTimeout(timeout);
+          cancelDecode = undefined;
+          if (event.data.error) reject(Error("QR decoding failed"));
+          else resolve(event.data.value || "");
+        };
+        worker!.onerror = () => {
+          clearTimeout(timeout);
+          cancelDecode = undefined;
+          reject(Error("QR decoder unavailable"));
+        };
+        worker!.postMessage(
+          { pixels, width: canvas.width, height: canvas.height },
+          [pixels.buffer],
+        );
+      });
+    }
     const stop = () => {
       clearTimeout(timer);
+      cancelDecode?.();
+      cancelDecode = undefined;
+      worker?.terminate();
+      worker = undefined;
       stream?.getTracks().forEach((track) => track.stop());
     };
     const hidden = () => {
@@ -40,30 +96,29 @@ export default function CameraScanner({
         const Constructor = (
           window as unknown as { BarcodeDetector?: DetectorConstructor }
         ).BarcodeDetector;
-        if (!Constructor)
-          throw Error(
-            tr(
-              "This browser cannot decode camera barcodes. Use a supported browser or enter the code manually.",
-            ),
-          );
-        const supported = await Constructor.getSupportedFormats();
-        const formats = [
-          "qr_code",
-          "ean_13",
-          "ean_8",
-          "code_128",
-          "code_39",
-          "upc_a",
-          "upc_e",
-          "itf",
-          "data_matrix",
-        ].filter((f) => supported.includes(f));
-        if (!formats.includes("qr_code"))
-          throw Error(
-            tr("This browser cannot decode QR codes. Enter the code manually."),
-          );
+        let detector: Detector | undefined;
+        try {
+          if (Constructor) {
+            const supported = await Constructor.getSupportedFormats();
+            const formats = [
+              "qr_code",
+              "ean_13",
+              "ean_8",
+              "code_128",
+              "code_39",
+              "upc_a",
+              "upc_e",
+              "itf",
+              "data_matrix",
+            ].filter((f) => supported.includes(f));
+            if (formats.includes("qr_code"))
+              detector = new Constructor({ formats });
+          }
+        } catch {
+          /* Use the bundled QR decoder when native capability detection fails. */
+        }
         if (disposed) return;
-        const detector = new Constructor({ formats });
+        setQrOnly(!detector);
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
@@ -90,11 +145,22 @@ export default function CameraScanner({
           if (disposed || !video.current) return;
           try {
             if (video.current.readyState >= 2) {
-              const values = await detector.detect(video.current);
+              let value = "";
+              if (detector) {
+                try {
+                  const values = await detector.detect(video.current);
+                  value =
+                    values.find((v) => v.rawValue?.trim())?.rawValue.trim() ||
+                    "";
+                } catch {
+                  if (disposed) return;
+                  detector = undefined;
+                  setQrOnly(true);
+                }
+              }
               if (disposed) return;
-              const value = values
-                .find((v) => v.rawValue?.trim())
-                ?.rawValue.trim();
+              if (!detector) value = (await decodeQr(video.current)).trim();
+              if (disposed) return;
               if (value) {
                 stop();
                 if (value.length > 100 || /[\u0000-\u001f\u007f]/.test(value)) {
@@ -109,8 +175,9 @@ export default function CameraScanner({
                 return;
               }
             }
-            timer = setTimeout(scan, 180);
+            timer = setTimeout(scan, detector ? 180 : 350);
           } catch {
+            if (disposed) return;
             stop();
             setError(
               tr("Camera decoding failed. Close the scanner and try again."),
@@ -174,6 +241,13 @@ export default function CameraScanner({
               : tr("Starting camera…")}
           </p>
         </>
+      )}
+      {qrOnly && (
+        <p className="hint">
+          {tr(
+            "QR compatibility mode. For other barcode formats, use a keyboard scanner or enter the code manually.",
+          )}
+        </p>
       )}
       <p className="hint">
         {tr(

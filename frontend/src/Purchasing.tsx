@@ -5,6 +5,7 @@ import { Plus, RefreshCw, Truck, X } from "lucide-react";
 import { api, send } from "./api";
 import PurchasingPolicy from "./PurchasingPolicy";
 import SupplierInsights from "./SupplierInsights";
+import PurchaseQuoteChoice, { QuoteSelection } from "./PurchaseQuoteChoice";
 
 type Product = {
   id: string;
@@ -26,6 +27,7 @@ type Line = {
   unit_cost: number;
   name: string;
   sku: string;
+  quote_snapshot?: { version: number; minimum_quantity: string };
 };
 type Order = {
   id: string;
@@ -38,7 +40,12 @@ type Order = {
   decision_note: string | null;
   lines: Line[];
 };
-type DraftLine = { product: string; quantity: number; unit_cost: number };
+type DraftLine = {
+  product: string;
+  quantity: number;
+  unit_cost: number;
+  quote?: QuoteSelection;
+};
 type Props = {
   tenant: string;
   currency: string;
@@ -61,6 +68,7 @@ export default function Purchasing({
 }: Props) {
   const base = `/api/v1/tenants/${encodeURIComponent(tenant)}`;
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [orderSupplier, setOrderSupplier] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -127,6 +135,7 @@ export default function Purchasing({
     setReceiving({});
     setBatchInfo({});
     setLines([{ product: "", quantity: 1, unit_cost: 0 }]);
+    setOrderSupplier(suppliers[0]?.id || "");
     setModal(kind);
   }
   function deduplicated(payload: object) {
@@ -193,7 +202,9 @@ export default function Purchasing({
   }
   function updateLine(index: number, next: Partial<DraftLine>) {
     setLines((current) =>
-      current.map((line, i) => (i === index ? { ...line, ...next } : line)),
+      current.map((line, i) =>
+        i === index ? { ...line, quote: undefined, ...next } : line,
+      ),
     );
   }
 
@@ -482,7 +493,17 @@ export default function Purchasing({
                     <div className="form-grid">
                       <label className="field">
                         <span>{tr("Supplier")}</span>
-                        <select name="supplier" required>
+                        <select
+                          name="supplier"
+                          required
+                          value={orderSupplier}
+                          onChange={(e) => {
+                            setOrderSupplier(e.target.value);
+                            setLines((current) =>
+                              current.map((l) => ({ ...l, quote: undefined })),
+                            );
+                          }}
+                        >
                           {suppliers.map((s) => (
                             <option key={s.id} value={s.id}>
                               {s.name}
@@ -497,78 +518,92 @@ export default function Purchasing({
                     </div>
                     <div className="purchase-lines">
                       {lines.map((line, i) => (
-                        <div className="purchase-line" key={i}>
-                          <label className="field">
-                            <span>{tr("Product")}</span>
-                            <select
-                              required
-                              aria-label={`Product line ${i + 1}`}
-                              value={line.product}
-                              onChange={(e) => {
-                                const p = products.find(
-                                  (p) => p.id === e.target.value,
-                                );
-                                updateLine(i, {
-                                  product: e.target.value,
-                                  unit_cost: p?.cost || 0,
-                                });
-                              }}
+                        <div className="purchase-line-group" key={i}>
+                          <div className="purchase-line">
+                            <label className="field">
+                              <span>{tr("Product")}</span>
+                              <select
+                                required
+                                aria-label={`Product line ${i + 1}`}
+                                value={line.product}
+                                onChange={(e) => {
+                                  const p = products.find(
+                                    (p) => p.id === e.target.value,
+                                  );
+                                  updateLine(i, {
+                                    product: e.target.value,
+                                    unit_cost: p?.cost || 0,
+                                  });
+                                }}
+                              >
+                                <option value="">{tr("Select product")}</option>
+                                {activeProducts.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.sku} · {p.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="field">
+                              <span>{tr("Units")}</span>
+                              <input
+                                type="number"
+                                min={0.001}
+                                max={1000000}
+                                step="0.001"
+                                required
+                                value={line.quantity}
+                                onChange={(e) =>
+                                  updateLine(i, {
+                                    quantity: Number(e.target.value),
+                                  })
+                                }
+                              />
+                            </label>
+                            <label className="field">
+                              <span>
+                                {tr("Unit cost (")}
+                                {currency})
+                              </span>
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                required
+                                value={line.unit_cost / 100}
+                                onChange={(e) =>
+                                  updateLine(i, {
+                                    unit_cost: Math.round(
+                                      Number(e.target.value) * 100,
+                                    ),
+                                  })
+                                }
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              className="icon-button"
+                              aria-label={`Remove line ${i + 1}`}
+                              disabled={lines.length === 1}
+                              onClick={() =>
+                                setLines(lines.filter((_, n) => i !== n))
+                              }
                             >
-                              <option value="">{tr("Select product")}</option>
-                              {activeProducts.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.sku} · {p.name}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="field">
-                            <span>{tr("Units")}</span>
-                            <input
-                              type="number"
-                              min={0.001}
-                              max={1000000}
-                              step="0.001"
-                              required
-                              value={line.quantity}
-                              onChange={(e) =>
-                                updateLine(i, {
-                                  quantity: Number(e.target.value),
-                                })
-                              }
-                            />
-                          </label>
-                          <label className="field">
-                            <span>
-                              {tr("Unit cost (")}
-                              {currency})
-                            </span>
-                            <input
-                              type="number"
-                              min={0}
-                              step="0.01"
-                              required
-                              value={line.unit_cost / 100}
-                              onChange={(e) =>
-                                updateLine(i, {
-                                  unit_cost: Math.round(
-                                    Number(e.target.value) * 100,
-                                  ),
-                                })
-                              }
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            className="icon-button"
-                            aria-label={`Remove line ${i + 1}`}
-                            disabled={lines.length === 1}
-                            onClick={() =>
-                              setLines(lines.filter((_, n) => i !== n))
+                              <X size={16} />
+                            </button>
+                          </div>
+                          <PurchaseQuoteChoice
+                            key={`${orderSupplier}:${line.product}:${line.quantity}`}
+                            tenant={tenant}
+                            supplier={orderSupplier}
+                            product={line.product}
+                            quantity={line.quantity}
+                            currency={currency}
+                            selected={line.quote}
+                            onApply={(unit_cost, quote) =>
+                              updateLine(i, { unit_cost, quote })
                             }
-                          >
-                            <X size={16} />
-                          </button>
+                          />
                         </div>
                       ))}
                     </div>
@@ -619,7 +654,17 @@ export default function Purchasing({
                                 {l.sku} · {l.name}
                               </td>
                               <td>{l.quantity}</td>
-                              <td>{money(l.unit_cost)}</td>
+                              <td>
+                                {money(l.unit_cost)}
+                                {l.quote_snapshot && (
+                                  <small>
+                                    {tr("Quote revision")}:{" "}
+                                    {l.quote_snapshot.version} ·{" "}
+                                    {tr("From quantity")}:{" "}
+                                    {l.quote_snapshot.minimum_quantity}
+                                  </small>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -679,6 +724,13 @@ export default function Purchasing({
                               <td>
                                 <b>{l.name}</b>
                                 <small>{l.sku}</small>
+                                {l.quote_snapshot && (
+                                  <small>
+                                    {tr("Quote revision")}:{" "}
+                                    {l.quote_snapshot.version} ·{" "}
+                                    {money(l.unit_cost)}
+                                  </small>
+                                )}
                               </td>
                               <td>{l.quantity}</td>
                               <td>{l.received}</td>

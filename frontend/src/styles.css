@@ -2476,7 +2476,7 @@ footer {
 }
 .retail-feature[dir="rtl"] {
   text-align: right;
-  font-family: Tahoma, "Segoe UI", Arial, sans-serif;
+  font-family: StockDeskArabic, Tahoma, "Segoe UI", Arial, sans-serif;
 }
 .retail-feature[dir="rtl"] table {
   text-align: right;

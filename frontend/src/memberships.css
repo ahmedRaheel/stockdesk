@@ -1,0 +1,190 @@
+.membership-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.membership-heading h2,
+.membership-heading h3 {
+  margin: 0 0 8px;
+}
+.membership-heading p {
+  margin: 0;
+  color: #64748b;
+}
+.membership-tabs {
+  margin-block: 20px;
+}
+.membership-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
+  margin-block: 20px;
+}
+.membership-cards article {
+  background: white;
+  border: 1px solid #dbe4ee;
+  border-radius: 12px;
+  padding: 18px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.membership-cards .actions {
+  flex-wrap: wrap;
+}
+.membership-cards small,
+.membership-history small {
+  display: block;
+  color: #64748b;
+}
+.membership-badge {
+  padding: 5px 8px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.membership-active {
+  background: #ecfdf5;
+  color: #047857;
+}
+.membership-expired {
+  background: #fff7ed;
+  color: #9a3412;
+}
+.membership-benefits {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #475569;
+}
+.membership-editor {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 20px;
+  margin-block: 20px;
+  scroll-margin-top: 80px;
+}
+.membership-editor fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.membership-editor textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px;
+  font: inherit;
+  box-sizing: border-box;
+}
+.membership-editor .customer-select {
+  margin-block: 16px;
+}
+.membership-history article {
+  border-inline-start: 2px solid #cbd5e1;
+  background: white;
+  margin-block: 12px;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+.membership-history p {
+  white-space: pre-wrap;
+}
+.pos-membership {
+  padding: 12px;
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  border-radius: 8px;
+  margin-block: 10px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.pos-membership small {
+  display: block;
+}
+.pos-membership p {
+  white-space: pre-wrap;
+  margin-block: 6px;
+}
+@media (max-width: 600px) {
+  .membership-editor {
+    padding: 12px;
+  }
+  .membership-heading .actions {
+    flex-wrap: wrap;
+  }
+}
+
+.campaigns .actions {
+  flex-wrap: wrap;
+}
+.campaign-preview {
+  margin-block: 16px;
+  padding: 16px;
+  background: white;
+  border: 1px solid #dbe4ee;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.campaign-counts {
+  margin-block: 16px;
+}
+.campaigns .membership-editor .field {
+  margin-block: 14px;
+}
+.campaigns .membership-cards button {
+  margin-top: 12px;
+}
+
+.report-controls {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.report-builder .toolbar,
+.report-builder .actions {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.report-builder .toolbar {
+  align-items: end;
+  margin-block: 16px;
+}
+.report-builder .field {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.report-builder .field small {
+  max-width: 280px;
+}
+.report-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  border: 1px solid #dbe4ee;
+  border-radius: 8px;
+  padding: 16px;
+  margin-block: 16px;
+}
+.report-columns label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.report-builder .table-scroll {
+  margin-block: 16px;
+}
+
+.scheduled-reports .actions,
+.scheduled-reports .toolbar {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.scheduled-reports .field {
+  margin-block: 14px;
+}
+.scheduled-reports .membership-editor .primary {
+  margin-top: 16px;
+}

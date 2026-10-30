@@ -2,7 +2,13 @@ import { useEffect, useState } from "react";
 import { api, send } from "./api";
 import PurchaseLookup, { PurchaseOption } from "./PurchaseLookup";
 import { t as tr } from "./i18n";
+import "./supplier-prices.css";
+type Tier = { minimum_quantity: number; unit_cost: number };
 type Quote = {
+  tiers: Tier[];
+  effective_unit_cost: number;
+  applied_minimum_quantity: number;
+  estimated_total: number | null;
   id: string;
   supplier: string;
   product: string;
@@ -54,6 +60,7 @@ export default function SupplierInsights({
   const [editor, setEditor] = useState<Quote | "new" | null>(null),
     [supplier, setSupplier] = useState<PurchaseOption>(),
     [product, setProduct] = useState<PurchaseOption>();
+  const [tiers, setTiers] = useState<Tier[]>([]);
   const [revision, setRevision] = useState(0);
   const money = (n: number) =>
     new Intl.NumberFormat("en", { style: "currency", currency }).format(
@@ -93,6 +100,7 @@ export default function SupplierInsights({
   }, [tenant, tab, q, quantity, eligible, filterProduct?.id, page, revision]);
   function edit(quote: Quote | "new") {
     setEditor(quote);
+    setTiers(quote === "new" ? [] : quote.tiers.map((t) => ({ ...t })));
     setError("");
     setNotice("");
     setSupplier(
@@ -115,6 +123,7 @@ export default function SupplierInsights({
     setNotice("");
     try {
       const payload = {
+        tiers,
         supplier: supplier.id,
         product: product.id,
         unit_cost: Math.round(Number(f.get("unit_cost")) * 100),
@@ -189,7 +198,7 @@ export default function SupplierInsights({
       <p className="hint">
         {tab === "quotes"
           ? tr(
-              "Prices are per catalog unit, before tax and freight. Quotes do not automatically change order prices. Compare the same product and quantity.",
+              "Price breaks apply to every unit at the selected quantity, before tax and freight. Compare the same product. Apply a quote explicitly when creating an order.",
             )
           : tr(
               "Observed orders and time to first receipt, not a delivery forecast. Approved orders start their lead-time clock at approval. Older orders without a lead-time snapshot are excluded from late counts.",
@@ -356,6 +365,96 @@ export default function SupplierInsights({
                 />
               </label>
             </div>
+            <div className="price-break-editor">
+              <h4>{tr("Quantity price breaks")}</h4>
+              <p className="hint">
+                {tr(
+                  "Add up to 20 breaks above the base minimum. Each break must lower the unit cost. The highest qualifying break applies to all units.",
+                )}
+              </p>
+              {tiers.map((tier, index) => (
+                <div className="price-break-row" key={index}>
+                  <label className="field">
+                    <span>{tr("From quantity")}</span>
+                    <input
+                      aria-label={`${tr("From quantity")} ${index + 1}`}
+                      type="number"
+                      min="0.001"
+                      max="1000000"
+                      step="0.001"
+                      required
+                      value={tier.minimum_quantity}
+                      onChange={(e) =>
+                        setTiers(
+                          tiers.map((t, i) =>
+                            i === index
+                              ? {
+                                  ...t,
+                                  minimum_quantity: Number(e.target.value),
+                                }
+                              : t,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="field">
+                    <span>
+                      {tr("Unit cost")} ({currency})
+                    </span>
+                    <input
+                      aria-label={`${tr("Break unit cost")} ${index + 1}`}
+                      type="number"
+                      min="0"
+                      max="1000000000"
+                      step="0.01"
+                      required
+                      value={tier.unit_cost / 100}
+                      onChange={(e) =>
+                        setTiers(
+                          tiers.map((t, i) =>
+                            i === index
+                              ? {
+                                  ...t,
+                                  unit_cost: Math.round(
+                                    Number(e.target.value) * 100,
+                                  ),
+                                }
+                              : t,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() =>
+                      setTiers(tiers.filter((_, i) => i !== index))
+                    }
+                  >
+                    {tr("Remove break")}
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="secondary"
+                disabled={tiers.length >= 20}
+                onClick={() =>
+                  setTiers([
+                    ...tiers,
+                    {
+                      minimum_quantity:
+                        (tiers.at(-1)?.minimum_quantity || 0) + 10,
+                      unit_cost: 0,
+                    },
+                  ])
+                }
+              >
+                {tr("Add price break")}
+              </button>
+            </div>
             <div className="actions">
               <button className="primary" disabled={!supplier || !product}>
                 {tr(busy ? "Saving…" : "Save quote")}
@@ -383,8 +482,8 @@ export default function SupplierInsights({
                     {[
                       "Product",
                       "Supplier",
-                      "Unit cost",
-                      "Minimum quantity",
+                      "Price at quantity",
+                      "Quantity price breaks",
                       "Lead time (days)",
                       "Validity",
                       "Eligible",
@@ -404,8 +503,42 @@ export default function SupplierInsights({
                         <small>{o.unit_name}</small>
                       </td>
                       <td>{o.supplier_name}</td>
-                      <td className="numeric">{money(o.unit_cost)}</td>
-                      <td>{o.minimum_quantity}</td>
+                      <td className="numeric">
+                        <strong>{money(o.effective_unit_cost)}</strong>
+                        <small>
+                          {tr("Estimated total")}:{" "}
+                          {o.estimated_total === null
+                            ? tr("Above order value limit")
+                            : money(o.estimated_total)}
+                        </small>
+                        <small>
+                          {tr("From quantity")}: {o.applied_minimum_quantity}
+                        </small>
+                      </td>
+                      <td>
+                        <div className="price-break-list">
+                          {[
+                            {
+                              minimum_quantity: o.minimum_quantity,
+                              unit_cost: o.unit_cost,
+                            },
+                            ...o.tiers,
+                          ].map((tier) => (
+                            <span
+                              key={tier.minimum_quantity}
+                              className={
+                                o.applied_minimum_quantity ===
+                                tier.minimum_quantity
+                                  ? "price-break-applied"
+                                  : ""
+                              }
+                            >
+                              <b dir="ltr">{tier.minimum_quantity}+</b>{" "}
+                              {money(tier.unit_cost)}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
                       <td>{o.lead_days}</td>
                       <td>
                         {o.valid_from} / {o.valid_until || "—"}

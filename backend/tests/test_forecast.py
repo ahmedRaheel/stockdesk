@@ -114,3 +114,67 @@ def test_open_purchase_quantities_reduce_reorder_not_stockout():
     f = analyze([p], sales(), today=TODAY)["forecasts"][0]
     assert f["reorder_qty"] == 68
     assert f["stockout_in_days"] == 3
+
+
+def test_event_dates_reorder_and_independent_baseline():
+    base = analyze([product()], sales(), today=TODAY)["forecasts"][0]
+    scenario = analyze(
+        [product()], sales(), today=TODAY, event_pct=100, event_start=2, event_days=3
+    )["forecasts"][0]
+    assert scenario["next30"] == 132 and scenario["next7"] == 40
+    assert scenario["baseline_next30"] == 120 and scenario["reorder_qty"] == 182
+    assert scenario["evaluation"] == base["evaluation"] and scenario["range30"] is None
+    assert [d["planned"] for d in scenario["daily_forecast"][:5]] == [4, 8, 8, 8, 4]
+    assert scenario["daily_forecast"][0]["day"] == str(TODAY + timedelta(days=1))
+    short = analyze(
+        [product()],
+        sales(),
+        today=TODAY,
+        lead=1,
+        cover=1,
+        event_pct=100,
+        event_start=10,
+        event_days=2,
+    )["forecasts"][0]
+    assert (
+        short["reorder_qty"] == 0
+    )  # Event outside the requested replenishment window.
+    all_days = analyze(
+        [product()], sales(), today=TODAY, event_pct=100, event_start=1, event_days=30
+    )["forecasts"][0]
+    assert all_days["reorder_qty"] == 312  # Uplift must not extend beyond day 30.
+
+
+def test_model_selection_does_not_use_final_test_week():
+    from app.forecast import evaluate
+
+    dates = [TODAY - timedelta(days=90 - i) for i in range(90)]
+    history = [20 if d.weekday() == 0 else 1 for d in dates]
+    result = evaluate(history, dates)
+    changed = evaluate(history[:-7] + [1000] * 7, dates)
+    assert result["model"] == "weekday"
+    assert (
+        result["model"] == changed["model"]
+        and result["candidates"] == changed["candidates"]
+    )
+    assert result["selection_days"] == 21 and result["test_days"] == 7
+    assert result["wape"] == 0 and changed["mae"] > 900
+    assert result["test_start"] == str(dates[-7])
+
+
+def test_zero_event_and_sparse_evaluation():
+    from app.forecast import evaluate
+
+    f = analyze([product()], sales(), today=TODAY, event_pct=-100, event_days=30)[
+        "forecasts"
+    ][0]
+    assert f["next30"] == 0 and f["next7"] == 0 and f["stockout_date"] is None
+    assert f["baseline_next30"] == 120
+    dates = [TODAY - timedelta(days=35 - i) for i in range(35)]
+    e = evaluate([0] * 35, dates)
+    assert (
+        e["selection_days"] == 0
+        and e["wape"] is None
+        and e["bias_pct"] is None
+        and e["mae"] == 0
+    )

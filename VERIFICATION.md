@@ -1,4 +1,62 @@
-# Verification record — StockDesk 1.27
+# Verification record — StockDesk 1.34
+
+## Release 1.34 checks
+
+- Full backend regression: **120 passed, 1 skipped** in 220.92 seconds on the PostgreSQL-compatible PGlite harness. Real PostgreSQL multiprocess concurrency remains the skipped check. The final scheduler-only rerun passed **2 tests** after using actual completion time for retry/next-slot timing.
+- Scheduler coverage includes Karachi daily/weekly boundaries, strict time contracts, frozen relative definitions/results, repeated saves and due evaluations, stale versions, pause/resume, recovery on the third attempt, terminal three-attempt failure, cancelled pending retries after edits, 30-run retention, snapshot update protection, current-owner role revocation, tenant isolation/suspension, cashier denial and CSRF checks. Existing report-builder tests also passed after the shared connection-based report loader refactor.
+- Production TypeScript/Vite build passed in 30.38 seconds. Literal Urdu-label and dynamic scheduler-label coverage, CSV safety and four UUID tests passed. No runtime dependency added.
+- Chromium against built production assets verified the enabled background worker generated exactly one snapshot without a manual evaluation request; snapshot data and CSV, pause/resume, duplicate due evaluation, UUID fallback and English/Urdu mobile workflows passed. No JavaScript errors or horizontal page overflow. Desktop and Urdu mobile snapshot screenshots were inspected.
+- Migration 040 adds schedules and retained run snapshots. Package verification confirms migrations 001–039 unchanged. Both existing Compose definitions expose REPORT_WORKER_ENABLED; the primary external PostgreSQL/network setup is preserved.
+
+## Release 1.33 checks
+
+- Full backend regression: **118 passed, 1 skipped** in 213.51 seconds on the PostgreSQL-compatible PGlite harness. Real PostgreSQL multiprocess concurrency remains the skipped check.
+- Focused forecasting/report-builder suite: **16 passed**. Covers final-holdout exclusion from model selection, weekday selection, zero-demand metrics, event-day boundaries, baseline invariance, finite event effects on longer replenishment horizons, custom column validation/filtering/sorting/truncation, exact sale-line margin results, fixed/relative periods, date bounds, saved-view replay/version conflicts/deletion, tenant isolation, cost-permission denial and origin checks.
+- Final TypeScript/Vite production build passed in 26.46 seconds. Literal Urdu-label check, four request-ID tests and the new CSV formula/escaping/numeric-loss test passed. No runtime dependency added.
+- Chromium against built production assets exercised scenario totals versus baseline, expandable daily evidence, custom report run/filter/save/reload, English/Urdu CSV downloads, UUID fallback and desktop/mobile layouts. No browser JavaScript errors or horizontal page overflow. Screenshots were inspected; remaining English forecast tabs/statuses/KPI units found during visual review were corrected before the final browser run.
+- New migration 039 stores tenant-scoped versioned report definitions. Package verification preserves migrations 001–038 byte-for-byte. Existing external PostgreSQL and Docker network configuration retained.
+
+## Release 1.32 checks
+
+- Full backend regression: **113 passed, 1 skipped** in 207.92 seconds on the PostgreSQL-compatible PGlite harness. Real PostgreSQL multiprocess concurrency remains the skipped check.
+- Focused campaign suite: **2 passed** in 7.02 seconds. Covers strict contracts, changed previews, frozen audience, duplicate/changed retries, stale recipient edits, opt-out/inactive suppression, active-member selection, completion/cancellation, pending-recipient closure rejection, immutable event history, tenant isolation, cashier denial, origin checks and unchanged financial ledger.
+- TypeScript/Vite production build passed in 30.25 seconds; literal Urdu-label coverage, campaign dynamic-label coverage and four request-ID checks passed. No new runtime dependency.
+- Chromium against built production assets passed audience preview, launch, outcome recording, history, completion with disabled editing, and English/Urdu mobile layouts. Native randomUUID was disabled. No JavaScript errors or horizontal page overflow. Desktop preview and Urdu mobile screenshots were visually inspected.
+- Migration 038 adds campaigns, recipient snapshots, tenant-wide suppression and immutable history. Package verification retains all prior files and confirms migrations 001–037 byte-identical. External PostgreSQL/Docker configuration remains unchanged.
+
+## Release 1.31 checks
+
+- Full backend regression: **111 passed, 1 skipped** in 256.36 seconds on the PostgreSQL-compatible PGlite harness. Real PostgreSQL multiprocess concurrency remains the skipped check.
+- Focused membership suite: **2 passed**. Covers strict plan/quantity contracts, active-plan and plan-version checks, date boundaries, enrollment overlap, renewal into scheduled coverage, cancellation, expired renewal, frozen terms after plan edits, idempotency/stale requests, tenant isolation, cashier permission denial, minimized POS responses, immutable history and no financial postings.
+- TypeScript/Vite production build, literal Urdu-label coverage and four request-ID checks pass. No runtime dependency added.
+- Chromium against built production assets passed plan creation, enrollment, renewal with expiry extension, immutable history display, selected-customer POS status/clearing, cancellation and English/Urdu mobile workflows. Screenshots were visually inspected; no horizontal page overflow or JavaScript errors. Native randomUUID was disabled to exercise the existing fallback.
+- Migration 037 adds plans, business-scoped member numbering, memberships and immutable events. Existing migrations 001–036 and external PostgreSQL/Docker configuration are retained.
+
+## Release 1.30 checks
+
+- Full backend regression: **109 passed, 1 skipped** in 196.66 seconds using the PostgreSQL-compatible PGlite harness. Real PostgreSQL multiprocess concurrency is still the skipped check.
+- Recovery coverage includes timezone-aware contracts, promise validation, manager/assigned-agent boundaries, tenant isolation, role/member revocation, custom-role eligibility, duplicate/stale requests, reassign/close/reopen, immutable event storage, origin checks, current invoice balances, partial/full payment handling and server-time due classification. Promises/notes/closure leave ledger balances unchanged. Focused suite passed 2/2 before the final full regression run.
+- TypeScript/Vite production build, literal Urdu coverage and four request-ID tests pass. No runtime dependency added.
+- Chromium against built production assets passed case creation/assignment, due filtering, promise scheduling and history, unchanged debt after promises, settlement through the real recovery API, and English/Urdu mobile layouts. Native randomUUID was disabled. Screenshots were visually inspected; the old khata fallback-font override was corrected, the bundled font was verified as active, and RTL dates were corrected. No horizontal page overflow or browser JavaScript errors.
+- Migration 036 adds cases/events and an invoice-ledger lookup index. Previous migrations 001–035 and external PostgreSQL/Docker configuration remain unchanged.
+
+## Release 1.29 checks
+
+- Full backend regression: **107 passed, 1 skipped** in 190.14 seconds on the PostgreSQL-compatible PGlite harness. The skipped real PostgreSQL multiprocess check remains outstanding.
+- Focused pricing coverage checks threshold boundaries, normalized ordering, strict money/quantity contracts, duplicate/decreasing-price rules, fractional/whole-unit eligibility, expiry/inactivity, tenant isolation, origin enforcement, stale revisions, frozen quote evidence, manual order compatibility and replay after quote changes. Final focused rerun, including oversized comparisons and multi-line rollback: **3 passed** in 12.72 seconds.
+- TypeScript/Vite production build, literal Urdu coverage and four request-ID tests pass. No runtime dependency changes.
+- Chromium against the built production assets passed supplier tier creation, effective-price comparison, explicit order selection, invalidation after quantity changes and persisted quote evidence. English desktop and 390px Urdu/mobile screenshots were inspected; no page overflow or browser JavaScript errors. Native randomUUID was disabled during the test.
+- New migration 035; package verification checks migrations 001–034 are unchanged. External PostgreSQL and Docker network configuration are unchanged.
+
+## Release 1.28 checks
+
+- Chromium using the built production assets: staff link issuance, anonymous English/Urdu/mobile submission, confirmation after reload, customer-source inbox display and no staff API/session-cookie access passed. Actual QR pixels streamed from a test canvas decoded in the bundled worker with BarcodeDetector absent. Native capability failure, close cleanup and permission-denial messaging also passed. Physical camera acceptance is not claimed. Final mobile form screenshots were visually inspected.
+
+- Full regression run: 104 passed, one skipped, one test-only false positive (the string `1000` appeared inside expiry timestamp microseconds). Replaced that substring check with exact response-field and business-name assertions; both invitation tests then passed. All 105 distinct backend tests passed across the regression run and corrected focused rerun. The skipped check still requires real PostgreSQL multiprocess concurrency testing.
+
+- Focused customer feedback/invitation/quiet-hour tests: **4 passed**. Covers token hashing and redaction, public response minimization, unauthenticated access, expiry/revocation/replacement, same-payload retries, conflict rejection, tenant isolation, suspension, permission denial, origin checks including forged bearer headers, persistent throttling and staff resolution without resubmission.
+- TypeScript/Vite production build, literal Urdu coverage and four request-ID tests pass. The QR decoder is a separate bundled worker asset; jsqr 1.4.0 is pinned and its license included.
+- New migration 034; existing migrations 001–033 retained. Nginx adds public-feedback endpoint throttling. External PostgreSQL Compose settings remain unchanged.
 
 ## Release 1.27 checks
 

@@ -3,7 +3,7 @@
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Release 1.27** adds overdue customer/supplier alerts, cash discrepancy alerts and a redesigned responsive alert center. See [release notes](docs/RELEASE-1.27.md) and the [remaining checklist](docs/CHECKLIST.md). The full enterprise scope remains incomplete.
+**Release 1.34** completes daily/weekly scheduled reporting with frozen snapshots, an in-app inbox, permission checks, bounded retries and English/Urdu controls. See [release notes](docs/RELEASE-1.34.md) and the [remaining checklist](docs/CHECKLIST.md). The full enterprise scope remains incomplete.
 
 ## Upgrade your existing deployment
 

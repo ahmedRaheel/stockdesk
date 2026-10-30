@@ -1,0 +1,77 @@
+.price-break-editor {
+  border: 1px solid #dbe4ee;
+  border-radius: 12px;
+  padding: 16px;
+  margin-block: 16px;
+  background: #f8fafc;
+}
+.price-break-editor h4 {
+  margin: 0 0 8px;
+}
+.price-break-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  margin-block: 12px;
+}
+.price-break-row .field {
+  min-width: 0;
+}
+.price-break-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 340px;
+  min-width: 160px;
+}
+.price-break-list span {
+  padding: 5px 8px;
+  border: 1px solid #dbe4ee;
+  border-radius: 6px;
+  white-space: nowrap;
+  background: #f8fafc;
+  font-size: 12px;
+}
+.price-break-list .price-break-applied {
+  border-color: #0f766e;
+  background: #ecfdf5;
+  color: #115e59;
+}
+.purchase-line-group {
+  border: 1px solid #dbe4ee;
+  border-radius: 10px;
+  padding: 12px;
+  margin-block: 10px;
+}
+.purchase-quote-choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px;
+  background: #f0fdfa;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.purchase-quote-choice small {
+  flex-basis: 100%;
+  color: #475569;
+}
+@media (max-width: 600px) {
+  .price-break-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .price-break-row button {
+    grid-column: 1/-1;
+    justify-self: start;
+  }
+  .purchase-quote-choice button {
+    width: 100%;
+  }
+  .supplier-panel .panel-heading {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}

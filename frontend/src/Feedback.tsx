@@ -1,3 +1,4 @@
+import FeedbackInvitations from "./FeedbackInvitations";
 import { useEffect, useState } from "react";
 import { api, send } from "./api";
 import { newRequestId } from "./requestId";
@@ -77,6 +78,7 @@ export default function Feedback({ tenant }: { tenant: string }) {
   }
   return (
     <>
+      <FeedbackInvitations tenant={tenant} />
       <p>
         {tr(
           "Record feedback received from customers. Entries remain unchanged; resolution notes are audited.",
@@ -193,7 +195,14 @@ export default function Feedback({ tenant }: { tenant: string }) {
                       <td style={{ whiteSpace: "pre-wrap", maxWidth: 400 }}>
                         {f.comment}
                         <br />
-                        <small>{new Date(f.created).toLocaleString()}</small>
+                        <small>
+                          {new Date(f.created).toLocaleString()} ·{" "}
+                          {tr(
+                            f.source === "customer"
+                              ? "Submitted by customer"
+                              : "Recorded by staff",
+                          )}
+                        </small>
                       </td>
                       <td>{f.invoice_number || "—"}</td>
                       <td>{tr(f.status === "open" ? "Open" : "Resolved")}</td>

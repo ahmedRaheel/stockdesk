@@ -52,7 +52,7 @@ async def listing(
                 status,
             )
             items = await c.fetch(
-                "SELECT f.id,f.rating,f.comment,f.status,f.resolution,f.version,f.created,f.updated,f.created_by,f.updated_by,s.invoice_number FROM customer_feedback f LEFT JOIN sales s ON s.tenant=f.tenant AND s.id=f.sale WHERE f.tenant=$1 AND ($2='all' OR f.status=$2) ORDER BY f.created DESC,f.id LIMIT $3 OFFSET $4",
+                "SELECT f.id,f.source,f.rating,f.comment,f.status,f.resolution,f.version,f.created,f.updated,f.created_by,f.updated_by,s.invoice_number FROM customer_feedback f LEFT JOIN sales s ON s.tenant=f.tenant AND s.id=f.sale WHERE f.tenant=$1 AND ($2='all' OR f.status=$2) ORDER BY f.created DESC,f.id LIMIT $3 OFFSET $4",
                 tenant,
                 status,
                 limit,

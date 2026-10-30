@@ -1,3 +1,4 @@
+import { downloadCsv } from "./csv";
 import { t as tr } from "./i18n";
 import { useEffect, useState } from "react";
 import {
@@ -24,6 +25,9 @@ export default function Forecasts({
     [period, setPeriod] = useState("last7"),
     [lead, setLead] = useState(7),
     [cover, setCover] = useState(30),
+    [eventPct, setEventPct] = useState(0),
+    [eventStart, setEventStart] = useState(1),
+    [eventDays, setEventDays] = useState(7),
     [safety, setSafety] = useState(20),
     [loading, setLoading] = useState(false),
     [error, setError] = useState(""),
@@ -40,9 +44,10 @@ export default function Forecasts({
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
+    setData(null);
     setError("");
     fetch(
-      `/api/forecasts?tenant=${encodeURIComponent(tenant)}&period=${period}&lead=${lead}&cover=${cover}&safety=${safety}`,
+      `/api/forecasts?tenant=${encodeURIComponent(tenant)}&period=${period}&lead=${lead}&cover=${cover}&safety=${safety}&event_pct=${eventPct}&event_start=${eventStart}&event_days=${eventDays}`,
       { signal: controller.signal },
     )
       .then(async (r) => {
@@ -58,7 +63,17 @@ export default function Forecasts({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [tenant, period, lead, cover, safety, revision]);
+  }, [
+    tenant,
+    period,
+    lead,
+    cover,
+    safety,
+    eventPct,
+    eventStart,
+    eventDays,
+    revision,
+  ]);
   const filtered = (data?.forecasts || []).filter(
     (f: any) =>
       (!risk || f.risk === risk) &&
@@ -77,7 +92,10 @@ export default function Forecasts({
         "Suggested reorder",
         "Evidence",
         "Backtest WAPE %",
-      ],
+        "Baseline next 30 days",
+        "Test MAE (units/day)",
+        "Test bias (%)",
+      ].map(tr),
       ...filtered.map((f: any) => [
         f.sku,
         f.name,
@@ -87,32 +105,30 @@ export default function Forecasts({
         f.days_cover ?? "",
         f.stockout_date || "",
         f.reorder_qty ?? "",
-        f.quality,
+        tr(f.quality),
         f.wape ?? "",
+        f.baseline_next30 ?? "",
+        f.evaluation.mae ?? "",
+        f.evaluation.bias_pct ?? "",
       ]),
     ];
-    const safe = (v: any) =>
-      '"' +
-      String(v)
-        .replace(/^[\s]*[=+@\-]/, (m) => "'" + m)
-        .replaceAll('"', '""') +
-      '"';
-    const url = URL.createObjectURL(
-      new Blob(
-        ["\ufeff" + rows.map((r) => r.map(safe).join(",")).join("\r\n")],
-        { type: "text/csv;charset=utf-8;" },
-      ),
-    );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "stockdesk-forecasts.csv";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadCsv("stockdesk-forecasts.csv", [
+      [
+        tr("Demand event adjustment (%)"),
+        eventPct,
+        tr("Event starts on forecast day"),
+        eventStart,
+        tr("Event duration (days)"),
+        eventDays,
+      ],
+      ...rows,
+    ]);
   }
+
   const ranking = (title: string, list: any[], mode = "units") => (
     <section className="panel">
       <div className="panel-heading">
-        <h2>{title}</h2>
+        <h2>{tr(title)}</h2>
         <span className="subtle-tag">
           {mode === "growth"
             ? tr("Last 7 vs previous 7")
@@ -133,8 +149,8 @@ export default function Forecasts({
               </div>
               <strong>
                 {mode === "growth"
-                  ? `${p.growth_pct === null ? "New demand" : p.growth_pct + "%"} (${p.last7 - p.previous7 > 0 ? "+" : ""}${p.last7 - p.previous7} units)`
-                  : `${p.units} units`}
+                  ? `${p.growth_pct === null ? tr("New demand") : p.growth_pct + "%"} (${p.last7 - p.previous7 > 0 ? "+" : ""}${p.last7 - p.previous7} ${tr("units")})`
+                  : `${p.units} ${tr("units")}`}
                 <small>
                   {money(p.gross)} {tr("gross")}
                 </small>
@@ -215,6 +231,83 @@ export default function Forecasts({
           )}{" "}
         </p>
       </div>
+      <section className="panel forecast-event">
+        <h2>{tr("Demand event scenario")}</h2>
+        <p>
+          {tr(
+            "Plan a festival, weather or promotion assumption. This is a manual percentage adjustment, not a learned event forecast. It applies to every eligible product on the selected dates.",
+          )}
+        </p>
+        <div className="toolbar">
+          <label>
+            {tr("Demand event adjustment (%)")}
+            <select
+              aria-label={tr("Demand event adjustment (%)")}
+              value={eventPct}
+              onChange={(e) => setEventPct(Number(e.target.value))}
+            >
+              {[-100, -50, -25, -10, 0, 10, 25, 50, 100, 200, 300].map((n) => (
+                <option key={n} value={n}>
+                  {n > 0 ? "+" : ""}
+                  {n}%
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {tr("Event starts on forecast day")}
+            <select
+              aria-label={tr("Event starts on forecast day")}
+              value={eventStart}
+              onChange={(e) => {
+                const start = Number(e.target.value);
+                setEventStart(start);
+                setEventDays((d) => Math.min(d, 31 - start));
+              }}
+            >
+              {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {tr("Event duration (days)")}
+            <select
+              aria-label={tr("Event duration (days)")}
+              value={eventDays}
+              onChange={(e) => setEventDays(Number(e.target.value))}
+            >
+              {Array.from({ length: 31 - eventStart }, (_, i) => i + 1).map(
+                (n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ),
+              )}
+            </select>
+          </label>
+          <button
+            className="secondary"
+            onClick={() => {
+              setEventPct(0);
+              setEventStart(1);
+              setEventDays(7);
+            }}
+          >
+            {tr("Reset scenario")}
+          </button>
+        </div>
+        {data && eventPct !== 0 && (
+          <p>
+            {tr("Scenario dates (UTC)")}:{" "}
+            <span dir="ltr">
+              {data.event.first_date} — {data.event.last_date}
+            </span>
+          </p>
+        )}
+      </section>
       {error && <div className="alert error">{tr(error)}</div>}
       {loading && (
         <p className="hint" role="status">
@@ -237,12 +330,18 @@ export default function Forecasts({
             </div>
             <div className="kpi">
               <div>
-                <span>{tr("Next 30 days · forecast")}</span>
+                <span>
+                  {tr(
+                    eventPct
+                      ? "Next 30 days · scenario"
+                      : "Next 30 days · forecast",
+                  )}
+                </span>
                 <Package size={18} />
               </div>
               <strong>
                 {data.summary.eligible
-                  ? data.summary.forecast30 + " units"
+                  ? data.summary.forecast30 + " " + tr("units")
                   : tr("Not enough history")}
               </strong>
               <small>
@@ -282,7 +381,25 @@ export default function Forecasts({
               </div>
               <span className="subtle-tag">{tr("Units, not revenue")}</span>
             </div>
-            <PlotlyChart figure={data.chart} />
+            <PlotlyChart
+              figure={{
+                ...data.chart,
+                data: data.chart.data.map((trace: any) => ({
+                  ...trace,
+                  name: tr(trace.name),
+                })),
+                layout: {
+                  ...data.chart.layout,
+                  yaxis: {
+                    ...data.chart.layout.yaxis,
+                    title: {
+                      ...data.chart.layout.yaxis.title,
+                      text: tr("Units"),
+                    },
+                  },
+                },
+              }}
+            />
           </section>
           <div className="forecast-tabs">
             {[
@@ -296,7 +413,7 @@ export default function Forecasts({
                 className={tab === id ? "active" : ""}
                 onClick={() => setTab(id)}
               >
-                {label}
+                {tr(label)}
               </button>
             ))}
           </div>
@@ -330,7 +447,9 @@ export default function Forecasts({
                     "No forecast",
                     "Covered",
                   ].map((s) => (
-                    <option key={s}>{s}</option>
+                    <option key={s} value={s}>
+                      {tr(s)}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -374,50 +493,56 @@ export default function Forecasts({
                                     : "")
                               }
                             >
-                              {f.risk}
+                              {tr(f.risk)}
                             </span>
                           </small>
                         </td>
                         <td>
                           {f.next7 === null
                             ? tr("Not enough history")
-                            : `${f.next7} / ${f.next30} units`}
+                            : `${f.next7} / ${f.next30} ${tr("units")}`}
                           <small>
                             {f.range30
-                              ? `30-day variation: ${f.range30[0]}–${f.range30[1]}`
-                              : tr(
-                                  "At least 14 complete days and 3 selling days required",
-                                )}
+                              ? `${tr("30-day variation")}: ${f.range30[0]}–${f.range30[1]}`
+                              : f.next30 !== null
+                                ? tr(
+                                    "Variation range omitted for event scenarios.",
+                                  )
+                                : tr(
+                                    "At least 14 complete days and 3 selling days required",
+                                  )}
                           </small>
                           <small>
                             {f.sales_value30 !== null
-                              ? money(f.sales_value30) + " at current prices"
+                              ? money(f.sales_value30) +
+                                " " +
+                                tr("at current prices")
                               : ""}
                           </small>
                         </td>
                         <td>
                           {f.days_cover === null
                             ? tr("Not estimable")
-                            : f.days_cover + " days"}
+                            : f.days_cover + " " + tr("days")}
                           <small>
                             {f.overstock_units > 0
-                              ? `${f.overstock_units} units above 90-day cover`
+                              ? `${f.overstock_units} ${tr("units above 90-day cover")}`
                               : ""}
                           </small>
                         </td>
                         <td>
                           {f.stockout_date ||
                             (f.next30 !== null
-                              ? "Not within 30-day forecast"
-                              : "Not estimable")}
+                              ? tr("Not within 30-day forecast")
+                              : tr("Not estimable"))}
                         </td>
                         <td>
                           {f.reorder_qty === null
                             ? tr("Review manually")
-                            : f.reorder_qty + " units"}
+                            : f.reorder_qty + " " + tr("units")}
                         </td>
                         <td>
-                          <span className="badge">{f.quality}</span>
+                          <span className="badge">{tr(f.quality)}</span>
                           <small>
                             {f.history_days} {tr("observed days ·")}{" "}
                             {f.selling_days} {tr("selling days")}{" "}
@@ -425,9 +550,64 @@ export default function Forecasts({
                           <small>
                             {f.wape === null
                               ? tr("Backtest unavailable")
-                              : `7-day backtest WAPE: ${f.wape}%`}
+                              : `${tr("Independent 7-day WAPE")}: ${f.wape}%`}
                           </small>
-                          <small>{f.model}</small>
+                          <small>{tr(f.model || "")}</small>
+                          {f.evaluation.test_days > 0 && (
+                            <small>
+                              {tr("Test MAE (units/day)")}: {f.evaluation.mae} ·{" "}
+                              {tr("Test bias (%)")}:{" "}
+                              {f.evaluation.bias_pct ?? "—"}
+                            </small>
+                          )}
+                          <details>
+                            <summary>
+                              {tr("Forecast evidence and daily plan")}
+                            </summary>
+                            <p>
+                              {tr("Model selection days")}:{" "}
+                              {f.evaluation.selection_days} ·{" "}
+                              {tr("Independent test days")}:{" "}
+                              {f.evaluation.test_days}
+                            </p>
+                            {f.evaluation.test_start && (
+                              <p dir="ltr">
+                                {f.evaluation.test_start} —{" "}
+                                {f.evaluation.test_end}
+                              </p>
+                            )}
+                            <p>
+                              {tr(
+                                "Positive bias means overprediction. Error scores measure the baseline, not the event scenario.",
+                              )}
+                            </p>
+                            {f.baseline_next30 !== null && (
+                              <p>
+                                {tr("Baseline next 30 days")}:{" "}
+                                {f.baseline_next30}
+                              </p>
+                            )}
+                            {f.daily_forecast.length > 0 && (
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>{tr("Day (UTC)")}</th>
+                                    <th>{tr("Baseline units")}</th>
+                                    <th>{tr("Planned units")}</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {f.daily_forecast.map((day: any) => (
+                                    <tr key={day.day}>
+                                      <td>{day.day}</td>
+                                      <td>{day.baseline}</td>
+                                      <td>{day.planned}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                          </details>
                         </td>
                         <td>
                           <button className="mini" onClick={() => onRestock(f)}>
@@ -531,13 +711,13 @@ export default function Forecasts({
             <p>
               {" "}
               {tr(
-                "Demand uses a trailing 28-day average, or a weekday model when enough history is available and its last-7-day backtest performs better. Zero-sales days count. Current-day sales do not train the forecast. Evidence is Low or Moderate, never a guarantee. WAPE is absolute error divided by actual holdout sales; lower is better. It is undefined when the holdout sold zero units.",
+                "Model choice uses up to three earlier weekly validation windows. A separate final seven-day holdout measures WAPE, daily MAE and bias. Models are refitted on all complete days for planning. Zero-sales days count; today never trains the forecast. Undefined WAPE means zero holdout sales. Evidence is not a guarantee.",
               )}{" "}
             </p>
             <p>
               {" "}
               {tr(
-                "The variation range is a rough historical variability estimate, not a calibrated confidence interval. Reorder quantity = expected daily sales × (supplier lead time + coverage days) × safety allowance − current stock − outstanding purchase quantities, rounded up and floored at zero. Open purchase quantities reduce reorder suggestions. Stockout estimates assume no replenishment. Sales missed while out of stock, promotions, holidays and market changes are not modeled.",
+                "Reorder planning extends the baseline average through lead time plus coverage, adds event changes only on affected forecast dates, then applies safety and subtracts stock and open purchases. Stockout assumes no replenishment. Event scenarios omit the rough variation range. Lost sales, learned weather/festival effects and price elasticity are not modeled.",
               )}{" "}
             </p>
             <p>
