@@ -103,6 +103,10 @@ async def get_receipt(c, u, tenant, sale_id):
             )
         ),
     }
+    profile = result["sale"].get("seller_profile") or {}
+    if isinstance(profile, str):
+        profile = json.loads(profile)
+    result["sale"]["seller_profile"] = profile
     result["tenders"] = rows(
         await c.fetch(
             "SELECT method_name,method_name_ur,is_cash,amount,reference,carried_credit FROM sale_tenders WHERE tenant=$1 AND sale=$2 ORDER BY id",
