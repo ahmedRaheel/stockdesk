@@ -247,23 +247,6 @@ async def checkout(c, u, b, t=None):
         t["currency"],
         u["email"],
     )
-    tenant_profile = dict(t)
-    seller_profile = {
-        key: tenant_profile[key]
-        for key in (
-            "branch_name", "shop_number", "business_type", "phone", "email",
-            "website", "ntn", "strn", "invoice_title", "invoice_header",
-            "invoice_footer", "return_policy", "exchange_policy",
-            "pos_charge_label", "pos_charge", "receipt_width", "logo_url",
-        )
-        if key in tenant_profile
-    }
-    await c.execute(
-        "UPDATE sales SET seller_profile=$1::jsonb WHERE tenant=$2 AND id=$3",
-        json.dumps(seller_profile, default=str),
-        tenant,
-        sid,
-    )
     await c.execute(
         "UPDATE sales SET customer_id=$1,paid_now=$2,credit_amount=$3,payment_method_id=$4 WHERE tenant=$5 AND id=$6",
         customer_id,

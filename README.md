@@ -1,13 +1,9 @@
-# Release 1.36 additions
-
-See [docs/RELEASE-1.36.md](docs/RELEASE-1.36.md) for new logo-upload support, backup/restore tools, and explicit production limitations.
-
 # StockDesk — Python SaaS Inventory & Point of Sale
 
 A runnable full-stack application: **FastAPI + PostgreSQL + React/TypeScript + Plotly**.
 Independent headless API and retail operations UI. PostgreSQL is the source of truth.
 
-**Release 1.35** adds tenant-specific business identity, NTN/STRN, branch/shop details, configurable invoice policies and 58mm/80mm/A4 invoice output. **Release 1.34** completes daily/weekly scheduled reporting with frozen snapshots, an in-app inbox, permission checks, bounded retries and English/Urdu controls. See [release notes](docs/RELEASE-1.34.md) and the [remaining checklist](docs/CHECKLIST.md). The full enterprise scope remains incomplete.
+**Release 1.34** completes daily/weekly scheduled reporting with frozen snapshots, an in-app inbox, permission checks, bounded retries and English/Urdu controls. See [release notes](docs/RELEASE-1.34.md) and the [remaining checklist](docs/CHECKLIST.md). The full enterprise scope remains incomplete.
 
 ## Upgrade your existing deployment
 
