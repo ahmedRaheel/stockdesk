@@ -17,9 +17,8 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: stockdesk-frontend
-    pull_policy: never
-    ports: ["80:80"]
+    build: ./frontend
+    ports: ["8080:80"]
     networks: [default]
     depends_on:
       backend:
