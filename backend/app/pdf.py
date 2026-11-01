@@ -97,21 +97,6 @@ def invoice_pdf(sale, items, language="en", tenders=None):
             else value
         )
 
-    profile = sale.get("seller_profile") or {}
-    if isinstance(profile, str):
-        import json
-        profile = json.loads(profile)
-    from reportlab.lib.units import mm
-    receipt_width = profile.get("receipt_width", "A4")
-    if receipt_width == "58mm":
-        page_size = (58 * mm, 260 * mm)
-        margins = (5 * mm, 5 * mm, 6 * mm, 6 * mm)
-    elif receipt_width == "80mm":
-        page_size = (80 * mm, 300 * mm)
-        margins = (5 * mm, 5 * mm, 6 * mm, 6 * mm)
-    else:
-        page_size = A4
-        margins = (40, 40, 40, 45)
     buf = BytesIO()
     styles = getSampleStyleSheet()
     for name in styles.byName:
@@ -124,8 +109,7 @@ def invoice_pdf(sale, items, language="en", tenders=None):
         for style in styles.byName.values():
             style.alignment = 2
     doc = SimpleDocTemplate(
-        buf, pagesize=page_size, rightMargin=margins[0], leftMargin=margins[1],
-        topMargin=margins[2], bottomMargin=margins[3]
+        buf, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=45
     )
 
     def p(value, style="Normal"):
@@ -153,31 +137,16 @@ def invoice_pdf(sale, items, language="en", tenders=None):
     def money(n):
         return f"{sale['currency']} {n/100:,.2f}"
 
-    story = [p(sale["seller_name"], "Title")]
-    if profile.get("branch_name"):
-        story.append(p(profile["branch_name"], "Heading2"))
-    if profile.get("shop_number"):
-        story.append(p("Shop: " + profile["shop_number"]))
-    if sale.get("seller_address"):
-        story.append(p(sale["seller_address"]))
-    contact = "  |  ".join(x for x in (profile.get("phone"), profile.get("email"), profile.get("website")) if x)
-    if contact:
-        story.append(p(contact))
-    registrations = []
-    if profile.get("ntn"):
-        registrations.append("NTN: " + profile["ntn"])
-    if profile.get("strn"):
-        registrations.append("STRN: " + profile["strn"])
-    if sale.get("seller_tax_number") and not registrations:
-        registrations.append(label("Tax ID") + ": " + sale["seller_tax_number"])
-    if registrations:
-        story.append(p("  |  ".join(registrations)))
-    if profile.get("invoice_header"):
-        story.append(p(profile["invoice_header"]))
-    story += [
-        Spacer(1, 12),
-        p(profile.get("invoice_title") or label("INVOICE"), "Heading1"),
-        p(label("INVOICE") + " " + sale["invoice_number"], "Heading2"),
+    story = [
+        p(sale["seller_name"], "Title"),
+        p(sale["seller_address"]),
+        p(
+            label("Tax ID") + ": " + sale["seller_tax_number"]
+            if sale["seller_tax_number"]
+            else ""
+        ),
+        Spacer(1, 20),
+        p(label("INVOICE") + " " + sale["invoice_number"], "Heading1"),
         p(
             label("Date")
             + ": "
@@ -185,51 +154,41 @@ def invoice_pdf(sale, items, language="en", tenders=None):
                 datetime.fromisoformat(sale["created"])
                 if isinstance(sale["created"], str)
                 else sale["created"]
-            ).astimezone(__import__("zoneinfo").ZoneInfo("Asia/Karachi")).strftime("%A, %B %d, %Y %I:%M %p")
+            ).strftime("%Y-%m-%d %H:%M UTC")
         ),
         p(label("Customer") + ": " + label(sale["customer"])),
         p(label("Status") + ": " + label(sale["status"].upper())),
         Spacer(1, 18),
     ]
-    thermal = receipt_width in ("58mm", "80mm")
-    rows = [[p("Item"), p("Qty"), p("Price"), p("GST"), p("Amount")]]
-    item_amounts = [
-        int(i.get("line_total") or Decimal(str(i["quantity"])) * i["price"])
-        for i in items
+    rows = [
+        [
+            p(label("Product / SKU")),
+            p(label("Qty")),
+            p(label("Unit price")),
+            p(label("Amount")),
+        ]
     ]
-    taxable_base = sum(item_amounts) or 1
-    allocated_tax = 0
-    for index, i in enumerate(items):
-        amount = item_amounts[index]
-        line_tax = (
-            int(sale.get("tax", 0)) - allocated_tax
-            if index == len(items) - 1
-            else round(int(sale.get("tax", 0)) * amount / taxable_base)
+    for i in items:
+        rows.append(
+            [
+                p(i["name"] + " / " + i["sku"]),
+                p(
+                    format(
+                        Decimal(str(i["quantity"])).normalize(),
+                        "f",
+                    )
+                    + " "
+                    + label(i.get("unit_name", ""))
+                ),
+                money(i["price"]),
+                money(
+                    i["line_total"]
+                    if "line_total" in i
+                    else Decimal(str(i["quantity"])) * i["price"]
+                ),
+            ]
         )
-        allocated_tax += line_tax
-        quantity = format(Decimal(str(i["quantity"])).normalize(), "f")
-        if thermal:
-            rows.append([
-                p(i["name"] + " / " + i["sku"]),
-                p(quantity),
-                p(money(i["price"])),
-                p(money(line_tax)),
-                p(money(amount)),
-            ])
-        else:
-            rows.append([
-                p(i["name"] + " / " + i["sku"]),
-                p(quantity + " " + label(i.get("unit_name", ""))),
-                p(money(i["price"])),
-                p(money(line_tax)),
-                p(money(amount)),
-            ])
-    available_width = page_size[0] - margins[0] - margins[1]
-    if thermal:
-        widths = [available_width * .36, available_width * .10, available_width * .18, available_width * .16, available_width * .20]
-    else:
-        widths = [available_width * .32, available_width * .13, available_width * .18, available_width * .17, available_width * .20]
-    table = Table(rows, colWidths=widths, repeatRows=1, hAlign="LEFT")
+    table = Table(rows, colWidths=[195, 80, 110, 110], repeatRows=1, hAlign="LEFT")
     table.setStyle(
         TableStyle(
             [
@@ -373,12 +332,8 @@ def invoice_pdf(sale, items, language="en", tenders=None):
         ),
         p(label("Served by") + ": " + sale["actor"]),
         Spacer(1, 16),
-        p(profile.get("invoice_footer") or label("Thank you for your business.")),
+        p(label("Thank you for your business.")),
     ]
-    if profile.get("return_policy"):
-        story += [Spacer(1, 6), p("Return policy: " + profile["return_policy"])]
-    if profile.get("exchange_policy"):
-        story.append(p("Exchange policy: " + profile["exchange_policy"]))
     import json
 
     promotion = sale.get("promotion_snapshot") or {}

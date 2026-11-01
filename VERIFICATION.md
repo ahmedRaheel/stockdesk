@@ -1,4 +1,4 @@
-# Release 1.35 verification note\n\n- Python bytecode compilation passed for the backend application.\n- A focused 80mm thermal PDF smoke test rendered a valid PDF using the bundled font files and a representative shop profile.\n- Full pytest collection could not run in this execution environment because `asyncpg` is not installed; the uploaded project dependencies were not installed here.\n- Frontend `npm ci` timed out while resolving packages; the production TypeScript/Vite build could not complete because the partially populated `node_modules` lacked type definitions. Run `npm ci` and `npm run build` in the project environment.\n- No live PostgreSQL migration, real printer, FBR/POS integration, EC2 deployment, load/concurrency or backup/restore acceptance was performed. Do not treat this archive as certified for production until those checks pass.\n\n# Verification record — StockDesk 1.34
+# Verification record — StockDesk 1.34
 
 ## Release 1.34 checks
 
