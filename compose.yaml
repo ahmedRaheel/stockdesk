@@ -19,8 +19,10 @@ services:
     restart: unless-stopped
   frontend:
     build: ./frontend
-    ports: ["8080:80"]
-    networks: [default]
+    ports:
+      - "80:80"
+    networks:
+      - default
     depends_on:
       backend:
         condition: service_healthy
