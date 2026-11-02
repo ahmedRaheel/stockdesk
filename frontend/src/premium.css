@@ -1,0 +1,60 @@
+/* StockDesk premium visual system. Bootstrap 5 layout/utilities layered below these overrides. */
+:root { --bg:#f5f7fb; --paper:#fff; --ink:#17243a; --muted:#66758b; --line:#e4eaf2; --green:#2457b9; --green-light:#eaf1ff; --bs-primary:#2457b9; --bs-body-font-family:Inter,"Segoe UI",Arial,sans-serif; --bs-body-color:#17243a; }
+body { background:var(--bg); font-family:Inter,"Segoe UI",Arial,StockDeskArabic,sans-serif; letter-spacing:-.01em; }
+.sidebar {background:linear-gradient(168deg,#101c32 0%,#172941 56%,#102037 100%);width:255px;padding:27px 16px;border-right:1px solid rgba(255,255,255,.08);box-shadow:12px 0 45px rgba(12,27,55,.045)}
+.sidebar .brand {margin-bottom:31px;font-weight:740;letter-spacing:-.05em;color:#fff}
+.sidebar .brand >span:first-child {width:39px;height:39px;background:linear-gradient(135deg,#477ad5,#2256ad);box-shadow:0 7px 19px #061b4860;border-radius:12px}
+.sidebar nav {gap:4px;padding-bottom:10px}
+.sidebar nav button {font-size:12.5px; font-weight:540; padding:11px 13px; border-radius:9px;color:#aab9ce;transition:background .18s ease,color .18s ease}
+.sidebar nav button:hover {background:rgba(255,255,255,.075);color:#fff}
+.sidebar nav button.active {background:linear-gradient(105deg,rgba(63,117,204,.32),rgba(63,117,204,.13));color:#fff;box-shadow:inset 3px 0 #8bb5ff;border:1px solid rgba(137,177,255,.13);font-weight:650}
+.sidebar nav button.active svg {color:#a9c8ff}
+.workspace-label{color:#879bb8;font-size:10px;letter-spacing:.17em}
+.business-select{background:#22354e;border:1px solid #34465d;border-radius:10px;color:#b3c5db;padding:12px}
+.business-select select{color:#fff}
+.sidebar-bottom{border-top:1px solid #ffffff1b;padding-top:16px}
+.main-shell {margin-left:255px}
+.main-shell>header{background:rgba(255,255,255,.92);border-bottom:1px solid #e8edf5;box-shadow:0 3px 12px rgba(16,32,66,.025);min-height:68px}
+main{padding:34px 38px;max-width:1640px}
+.page-heading{margin-bottom:27px}
+h1{font-weight:750;letter-spacing:-.055em;font-size:clamp(26px,2.6vw,35px)}
+h2{font-weight:700;letter-spacing:-.027em}
+.page-heading p{font-size:13px;color:#6f7e92}
+.panel{background:#fff;border:1px solid #e4eaf2;border-radius:14px;box-shadow:0 5px 18px rgba(20,40,76,.035);padding:23px}
+.panel:hover{border-color:#dbe4f0}
+.primary,.secondary,.mini{border-radius:9px;padding:10px 15px;font-size:12px;font-weight:650}
+.primary{background:#2657b4;border-color:#2657b4;box-shadow:0 4px 11px #225bb32e;color:#fff}
+.primary:hover{background:#1b4695;border-color:#1b4695}
+.secondary,.mini{color:#3b4c64;border-color:#dbe4ef;background:#fff}
+.secondary:hover,.mini:hover{background:#f5f8ff;border-color:#bdcde6}
+input:not([type=checkbox]):not([type=radio]),select,textarea{border-radius:8px;accent-color:#285abb}
+input:focus,select:focus,textarea:focus{outline-color:#93b7f2}
+.table{--bs-table-bg:transparent;--bs-table-color:#26354b;--bs-table-border-color:#e9eef6}
+table th{background:#f8fafd;color:#62718a;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.065em}
+table td{font-size:12.5px}
+table tbody tr:hover{background:#f8fbff}
+.auth-page{background:linear-gradient(118deg,#101f38 0 51%,#f4f7fc 51% 100%)}
+.auth-story{color:#fff}
+.auth-story p{color:#b5c6dd}
+.auth-card{border-radius:18px;box-shadow:0 20px 80px #0f27472a;border:1px solid #e6eaf2}
+.auth-card h2{font-size:24px}
+.offline-desk .panel h2{display:flex;gap:10px;align-items:center;margin-bottom:9px}
+.offline-desk .panel h2 svg{color:var(--green)}
+.offline-desk .alert{border-radius:12px;padding:15px 18px;font-size:13px}
+.offline-desk textarea{width:100%;resize:vertical}
+.offline-desk .table-responsive{overflow:auto}
+@media (max-width:950px){.sidebar{width:215px}.main-shell{margin-left:215px}main{padding:24px 18px}}
+@media (max-width:720px){.sidebar{width:100%;position:relative;inset:auto;max-height:320px}.sidebar nav{flex-direction:row;overflow-x:auto}.sidebar nav button{flex-shrink:0}.main-shell{margin-left:0}main{padding:18px 12px}.auth-page{background:#f5f7fb}.auth-story{background:#12233e;padding:28px}}
+
+/* Release 1.39: consistent Bootstrap-inspired premium retail dashboard */
+.demo-workspace-banner{display:flex;flex-wrap:wrap;align-items:center;column-gap:8px;row-gap:3px;margin:14px 3px 16px;padding:11px 12px;border:1px solid rgba(253,199,100,.35);background:rgba(245,158,11,.10);border-radius:12px;color:#ffda95;font-size:10px;font-weight:780;letter-spacing:.10em}
+.demo-workspace-banner small{display:block;flex:0 0 100%;font-size:10px;color:#d6c5ad;letter-spacing:0;font-weight:450;padding-left:14px}
+.demo-workspace-dot{width:7px;height:7px;background:#f6bd56;border-radius:50%}
+:root{--bs-border-radius:.65rem;--bs-border-radius-lg:.9rem;--bs-box-shadow-sm:0 5px 20px rgba(19,40,80,.055)}
+.panel,.card{transition:box-shadow .18s ease,border-color .18s ease}
+.panel:focus-within,.card:focus-within{border-color:#9abaf0;box-shadow:0 8px 26px rgba(30,75,145,.08)}
+button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #80b4fa!important;outline-offset:2px}
+.table-responsive{border-radius:10px}
+.table>:not(caption)>*>*{padding:.8rem .9rem}
+.badge{font-weight:650;letter-spacing:.015em}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}

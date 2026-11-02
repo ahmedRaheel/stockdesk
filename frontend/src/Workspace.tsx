@@ -1,3 +1,5 @@
+import OperationsDesk from "./OperationsDesk";
+import OfflineDesk from "./OfflineDesk";
 import CashierSwitch from "./CashierSwitch";
 import CatalogTools from "./CatalogTools";
 import TransactionApprovals from "./TransactionApprovals";
@@ -113,6 +115,8 @@ const titles: any = {
     "Manage business reference data and Urdu labels.",
   ],
   purchasing: ["Purchasing", "Supplier orders and goods receiving."],
+  warehouses: ["Stores & warehouses", "Allocate and transfer location-level inventory."],
+  offline: ["Offline recovery", "Register terminals, keep local drafts and verify server replay."],
   forecasts: [
     "Sales forecasts & insights",
     "See what sells, what may run out, and what to replenish.",
@@ -161,6 +165,8 @@ const icons: any = {
   counts: Package,
   reports: Package,
   purchasing: Package,
+  warehouses: Building2,
+  offline: RefreshCw,
   forecasts: ArrowUpRight,
   dashboard: LayoutDashboard,
   products: Package,
@@ -410,7 +416,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
   async function submit(e: any) {
     e.preventDefault();
     if (busy) return;
+    const settingsLogo = (e.currentTarget as HTMLFormElement).querySelector<HTMLInputElement>('input[name="business_logo_file"]')?.files?.[0];
     const f: any = Object.fromEntries(new FormData(e.target).entries());
+    delete f.business_logo_file;
     setBusy(true);
     setFormError("");
     try {
@@ -455,6 +463,23 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
         pendingMove.current = null;
       } else if (kind === "return")
         result = await post(kind, { id: modal.item.id, ...f });
+      else if (kind === "settings") {
+        // Persist the business profile, then attach an immutable logo asset.
+        // If uploading fails the user sees the error and can retry the logo.
+        result = await post(kind, {
+          ...f,
+          pos_charge: Math.round(Number(f.pos_charge || 0) * 100),
+        });
+        if (settingsLogo) {
+          const file = settingsLogo;
+          if (file.size > 512 * 1024 || !["image/png", "image/jpeg"].includes(file.type)) {
+            throw Error("Logo must be PNG/JPEG and no more than 512 KB.");
+          }
+          await api<{ logo_url: string }>(`/api/v1/tenants/${encodeURIComponent(tenant)}/business-logo`, {
+            method: "POST", headers: { "Content-Type": file.type }, body: file,
+          });
+        }
+      }
       else result = await post(kind, f);
       setModal(null);
       setToast(
@@ -820,9 +845,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     "dashboard",
     ...(can("forecast") ? ["forecasts"] : []),
     "products",
-    ...(can("sale") ? ["pos", "sales", "tills", "approvals"] : []),
+    ...(can("sale") ? ["pos", "sales", "tills", "approvals", "offline"] : []),
     "movements",
-    ...(can("stock") ? ["purchasing", "batches", "counts"] : []),
+    ...(can("stock") ? ["purchasing", "warehouses", "batches", "counts"] : []),
     ...(can("credit") ? ["khata"] : []),
     ...(can("settings") ? ["lookups", "taxes"] : []),
     ...(can("alerts") ? ["alerts"] : []),
@@ -894,7 +919,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
         min={type === "number" ? 0 : undefined}
         step={
           type === "number"
-            ? name === "price" || name === "cost"
+            ? name === "price" || name === "cost" || name === "pos_charge"
               ? "0.01"
               : ["initial", "quantity", "reorder"].includes(name)
                 ? "0.001"
@@ -934,6 +959,12 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               ))}
           </select>
         </div>
+        {data.tenants.some((t: any) => t.id === tenant && t.name === "StockDesk Demo Retail Group") && (
+          <div className="demo-workspace-banner" role="status">
+            <span className="demo-workspace-dot" /> DEMO WORKSPACE
+            <small>Sample transactions · Not real sales</small>
+          </div>
+        )}
         <nav>
           {nav.map((v) => {
             const Icon = icons[v];
@@ -1355,6 +1386,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   </section>
                 </>
               )}
+              {view === "offline" && can("sale") && tenant && <OfflineDesk key={tenant + (data.user?.id || "")} tenant={tenant} owner={String(data.user?.id || data.user?.email || "")} />}
+              {view === "warehouses" && can("stock") && <OperationsDesk key={tenant} tenant={tenant} products={data.products} />}
               {view === "purchasing" && can("stock") && (
                 <Purchasing
                   key={tenant}
@@ -2505,7 +2538,15 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                         )}{" "}
                       </small>
                     </dd>
-                    <dt>{tr("Business ID")}</dt>
+                    <dt>Shop / Branch</dt>
+                    <dd>{[data.tenant?.shop_number, data.tenant?.branch_name].filter(Boolean).join(" · ") || "Not configured"}</dd>
+                    <dt>Address</dt>
+                    <dd>{data.tenant?.address || "Not configured"}</dd>
+                    <dt>Contact</dt>
+                    <dd>{[data.tenant?.phone, data.tenant?.email].filter(Boolean).join(" · ") || "Not configured"}</dd>
+                    <dt>NTN / STRN</dt>
+                    <dd>{[data.tenant?.ntn && `NTN ${data.tenant.ntn}`, data.tenant?.strn && `STRN ${data.tenant.strn}`].filter(Boolean).join(" · ") || "Not configured"}</dd>
+                    <dt>Business ID</dt>
                     <dd className="mono">{tenant}</dd>
                   </dl>
                   <button
@@ -2945,21 +2986,60 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                 )}
                 {modal.kind === "settings" && (
                   <>
-                    {field("Business name", "name", "text", modal.item?.name)}
-                    {field(
-                      "Business address",
-                      "address",
-                      "text",
-                      modal.item?.address || "",
-                      false,
-                    )}
-                    {field(
-                      "Tax registration number",
-                      "tax_number",
-                      "text",
-                      modal.item?.tax_number || "",
-                      false,
-                    )}
+                    <h3>Business identity</h3>
+                    <div className="form-grid">
+                      {field("Business name", "name", "text", modal.item?.name)}
+                      <label className="field">
+                        <span>Business type</span>
+                        <select name="business_type" defaultValue={modal.item?.business_type || "retail"}>
+                          <option value="retail">Retail</option>
+                          <option value="grocery">Grocery</option>
+                          <option value="pharmacy">Pharmacy</option>
+                          <option value="restaurant">Restaurant</option>
+                          <option value="wholesale">Wholesale</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </label>
+                      {field("Branch name", "branch_name", "text", modal.item?.branch_name || "", false)}
+                      {field("Shop number", "shop_number", "text", modal.item?.shop_number || "", false)}
+                      {field("Business address", "address", "text", modal.item?.address || "", false)}
+                      {field("Telephone / mobile", "phone", "text", modal.item?.phone || "", false)}
+                      {field("Business email", "email", "email", modal.item?.email || "", false)}
+                      {field("Website", "website", "text", modal.item?.website || "", false)}
+                    </div>
+                    <h3>Pakistan tax registration</h3>
+                    <div className="form-grid">
+                      {field("NTN", "ntn", "text", modal.item?.ntn || "", false)}
+                      {field("STRN", "strn", "text", modal.item?.strn || "", false)}
+                      {field("Legacy tax registration number", "tax_number", "text", modal.item?.tax_number || "", false)}
+                    </div>
+                    <h3>Invoice and receipt</h3>
+                    <div className="form-grid">
+                      {field("Invoice heading", "invoice_title", "text", modal.item?.invoice_title || "CASH INVOICE")}
+                      {field("Logo URL (HTTPS)", "logo_url", "text", modal.item?.logo_url || "", false)}
+                      <label className="field"><span>Upload business logo (PNG/JPEG, max 512 KB)</span><input type="file" name="business_logo_file" accept="image/png,image/jpeg" /></label>
+                      {field("Invoice header note", "invoice_header", "text", modal.item?.invoice_header || "", false)}
+                      {field("Invoice footer", "invoice_footer", "text", modal.item?.invoice_footer || "Thank you for your business.", false)}
+                      {field("POS charge label", "pos_charge_label", "text", modal.item?.pos_charge_label || "POS Charges", false)}
+                      {field("POS charge amount (display/configuration only)", "pos_charge", "number", ((modal.item?.pos_charge || 0) / 100).toFixed(2), false)}
+                    </div>
+                    <label className="field">
+                      <span>Receipt paper size</span>
+                      <select name="receipt_width" defaultValue={modal.item?.receipt_width || "80mm"}>
+                        <option value="58mm">58mm thermal</option>
+                        <option value="80mm">80mm thermal</option>
+                        <option value="A4">A4</option>
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Return policy</span>
+                      <textarea name="return_policy" rows={2} maxLength={1000} defaultValue={modal.item?.return_policy || ""} />
+                    </label>
+                    <label className="field">
+                      <span>Exchange policy</span>
+                      <textarea name="exchange_policy" rows={2} maxLength={1000} defaultValue={modal.item?.exchange_policy || ""} />
+                    </label>
+                    <p className="hint">Business details are saved with each sale as an immutable invoice snapshot. Editing this profile affects new invoices only. POS charge is stored for configuration; it is not silently added to customer totals.</p>
                   </>
                 )}
                 {modal.kind === "tenantStatus" && (
@@ -3014,10 +3094,16 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
             aria-label={tr("Sales receipt")}
           >
             <div className="receipt-top">
-              <Boxes size={30} />
+              {receipt.sale.seller_profile?.logo_url ? (
+                <img className="receipt-logo" src={receipt.sale.seller_profile.logo_url} alt="Business logo" />
+              ) : <Boxes size={30} />}
               <h2>{receipt.sale.seller_name}</h2>
+              {receipt.sale.seller_profile?.branch_name && <p>{receipt.sale.seller_profile.branch_name}</p>}
+              {receipt.sale.seller_profile?.shop_number && <p>Shop {receipt.sale.seller_profile.shop_number}</p>}
               <p>{receipt.sale.seller_address}</p>
-              <small>{receipt.sale.seller_tax_number}</small>
+              <small>{receipt.sale.seller_profile?.phone} {receipt.sale.seller_profile?.email}</small>
+              <small>{receipt.sale.seller_profile?.ntn && `NTN: ${receipt.sale.seller_profile.ntn}`} {receipt.sale.seller_profile?.strn && `STRN: ${receipt.sale.seller_profile.strn}`}</small>
+              <p>{receipt.sale.seller_profile?.invoice_title || "CASH INVOICE"}</p>
               <p>
                 {tr("Invoice ·")} {receipt.sale.invoice_number}
               </p>
@@ -3238,8 +3324,14 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                 <b>{money(r.amount)}</b>
               </div>
             ))}
+            {receipt.sale.seller_profile?.return_policy && (
+              <p className="receipt-policy"><b>Return policy:</b> {receipt.sale.seller_profile.return_policy}</p>
+            )}
+            {receipt.sale.seller_profile?.exchange_policy && (
+              <p className="receipt-policy"><b>Exchange policy:</b> {receipt.sale.seller_profile.exchange_policy}</p>
+            )}
             <p className="receipt-thanks">
-              {tr("Thank you for your business.")}
+              {receipt.sale.seller_profile?.invoice_footer || tr("Thank you for your business.")}
             </p>
             <div className="modal-actions no-print">
               <button className="secondary" onClick={() => setReceipt(null)}>

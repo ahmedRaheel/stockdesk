@@ -7,6 +7,7 @@ import Workspace from "./Workspace";
 import PublicFeedback from "./PublicFeedback";
 import ErrorBoundary from "./ErrorBoundary";
 import "./styles.css";
+import "./premium.css";
 function App() {
   const [language, setLanguage] = useLanguage();
   const [user, setUser] = useState<any>(null),
