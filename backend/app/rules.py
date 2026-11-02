@@ -106,7 +106,7 @@ def email(v):
 def password(v):
     if not isinstance(v, str) or not 6 <= len(v) <= 128:
         fail("Password must contain 6–128 characters.")
-    return v
+    return 
 
 
 def boolean(v):

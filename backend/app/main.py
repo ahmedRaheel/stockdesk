@@ -16,6 +16,8 @@ log = logging.getLogger("stockdesk")
 
 @asynccontextmanager
 async def lifespan(app):
+    from .production import require_production_configuration
+    require_production_configuration()
     await db.connect()
     async with db.pool.acquire() as c:
         # Explicit bootstrap credentials, never a public first-user admin shortcut.
@@ -54,7 +56,7 @@ async def lifespan(app):
 
 app = FastAPI(
     title="StockDesk Inventory & POS",
-    version="1.39.0",
+    version="1.40.0",
     lifespan=lifespan,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",

@@ -50,6 +50,8 @@ CUSTOMERS = [('Walk-in customer',''),('Farah Ahmed','03001230001'),('Omar Raza',
 SUPPLIERS = [('Karachi Wholesale Foods','021-111-222333',3),('Metro FMCG Distributors','021-111-222444',5),('Fresh Supply Traders','021-111-222555',2)]
 
 async def seed():
+    if os.environ.get('APP_ENV', 'development').strip().lower() == 'production':
+        raise SystemExit('Demo seeding is disabled when APP_ENV=production.')
     if os.environ.get('DEMO_SEED_CONFIRM') != 'I_UNDERSTAND_THIS_IS_DEMO_DATA':
         raise SystemExit('Refused: set DEMO_SEED_CONFIRM=I_UNDERSTAND_THIS_IS_DEMO_DATA')
     pwd = os.environ.get('DEMO_PASSWORD', '')
