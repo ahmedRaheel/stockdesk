@@ -56,7 +56,7 @@ async def lifespan(app):
 
 app = FastAPI(
     title="StockDesk Inventory & POS",
-    version="1.40.0",
+    version="1.41.0",
     lifespan=lifespan,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
@@ -155,6 +155,9 @@ async def login(request: Request, response: Response):
         )
         if not u or not u["active"] or not valid:
             fail("Invalid email or password.", 401)
+        from .features.totp_mfa import enforce
+        async with c.transaction():
+            await enforce(c,u['id'],b.get('otp'))
         await c.execute(
             "DELETE FROM login_limits WHERE key=$1",
             security.digest("account:" + address),
@@ -450,3 +453,13 @@ from .api.operations_core import router as operations_core_router
 app.include_router(operations_core_router)
 from .api.operations_extensions import router as operations_extensions_router
 app.include_router(operations_extensions_router)
+
+from .api.stripe_billing import router as stripe_billing_router, webhooks as stripe_webhook_router
+app.include_router(stripe_billing_router)
+app.include_router(stripe_webhook_router)
+
+from .api.mfa import router as mfa_router
+app.include_router(mfa_router)
+
+from .api.fbr_sandbox import router as fbr_sandbox_router
+app.include_router(fbr_sandbox_router)

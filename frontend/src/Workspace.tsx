@@ -1,5 +1,7 @@
 import OperationsDesk from "./OperationsDesk";
 import OfflineDesk from "./OfflineDesk";
+import AccountSecurity from "./AccountSecurity";
+import BillingSettings from "./BillingSettings";
 import CashierSwitch from "./CashierSwitch";
 import CatalogTools from "./CatalogTools";
 import TransactionApprovals from "./TransactionApprovals";
@@ -213,6 +215,15 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     [tendered, setTendered] = useState(""),
     [receipt, setReceipt] = useState<any>(null),
     [page, setPage] = useState(0);
+  const [saleLocations,setSaleLocations]=useState<{id:string;name:string;kind:string}[]>([]);
+  const [saleLocation,setSaleLocation]=useState('');
+  useEffect(()=>{
+    if(!tenant){setSaleLocations([]);setSaleLocation('');return;}
+    api<{items:{id:string;name:string;kind:string}[]}>(`/api/v1/tenants/${tenant}/locations`)
+      .then(data=>{const stores=data.items.filter(item=>item.kind==='store');setSaleLocations(stores);
+        setSaleLocation(previous=>stores.some(s=>s.id===previous)?previous:(stores.length===1?stores[0].id:''));})
+      .catch(()=>{setSaleLocations([]);setSaleLocation('');});
+  },[tenant]);
   const [heldBills, setHeldBills] = useState<any[]>([]),
     [heldId, setHeldId] = useState("");
   async function refreshHeld() {
@@ -679,6 +690,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
   }>();
   async function checkout(requestApproval = false) {
     if (!cart.length || busy || !quoteReady) return;
+    if (saleLocations.length&&!saleLocation){setError('Choose the store issuing this sale.');return;}
     setBusy(true);
     setError("");
     const payload = {
@@ -686,6 +698,7 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
       promotion_code: promotionCode,
       auto_promotion: autoPromotion,
       items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
+      location: saleLocation || null,
       customer,
       held_bill_id: heldId || null,
       prescription_reference: prescriptionRef,
@@ -1657,6 +1670,14 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
               {view === "pos" && can("sale") && (
                 <div className="pos-grid">
                   <section>
+                    {!!saleLocations.length && <div className="panel mb-3">
+                      <label className="field"><span>Checkout store</span>
+                        <select value={saleLocation} onChange={e=>setSaleLocation(e.target.value)}>
+                          <option value="">Select issuing store</option>
+                          {saleLocations.map(loc=><option key={loc.id} value={loc.id}>{loc.name}</option>)}
+                        </select>
+                      </label><small>Store-level stock must be allocated before checkout.</small>
+                    </div>}
                     <PosEntry
                       key={tenant}
                       products={data.products}
@@ -2520,6 +2541,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   )}
                 </>
               )}
+              {view === "settings" && can("settings") && <AccountSecurity />}
+              {view === "settings" && can("settings") && tenant && <BillingSettings tenant={tenant} />}
               {view === "settings" && can("settings") && (
                 <section className="panel settings">
                   <div className="panel-heading">

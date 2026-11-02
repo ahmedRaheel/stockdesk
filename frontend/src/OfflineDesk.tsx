@@ -84,7 +84,8 @@ export default function OfflineDesk({ tenant, owner }: { tenant: string; owner: 
     if (!online || !window.confirm('Submit this draft to the server? Prices, stock, tax and permissions will be checked again. A successful replay creates a real sale.')) return;
     await perform(async () => {
       try {
-        const result = await send<{status:string}>(`${base}/offline/devices/${item.device}/replay`, {operation_id: item.id, sale: item.sale});
+        const result = await send<{status:string; result?: { error?:string } }>(`${base}/offline/devices/${item.device}/replay`, {operation_id: item.id, sale: item.sale});
+        if (result.status === 'rejected') throw Error(result.result?.error || 'Server rejected sale; review the draft and create a corrected operation.');
         if (result.status !== 'accepted') throw Error(`Unexpected replay status: ${result.status}`);
         await transaction('readwrite', store => store.delete(item.id));
         await loadLocal(); setMessage('Sale accepted by server. Verify the issued receipt before completing handover.');
@@ -93,6 +94,29 @@ export default function OfflineDesk({ tenant, owner }: { tenant: string; owner: 
         await transaction('readwrite', store => store.put(updated)); await loadLocal();
         throw e;
       }
+    });
+  }
+  async function syncAll() {
+    if (!online || !drafts.length || !window.confirm('Verify all pending drafts with the server? Accepted drafts become real sales. Rejected drafts remain on this terminal.')) return;
+    await perform(async () => {
+      let accepted=0; let rejected=0;
+      for (const terminal of [...new Set(drafts.map(d=>d.device))]) {
+        const selected=drafts.filter(d=>d.device===terminal);
+        for (let index=0;index<selected.length;index+=50) {
+          const batch=selected.slice(index,index+50);
+          const result=await send<{items:{operation_id:string;status:string;result?:{error?:string}}[]}>(
+            `${base}/offline/devices/${terminal}/replay-batch`,
+            {operations:batch.map(item=>({operation_id:item.id,sale:item.sale}))}
+          );
+          for (const entry of result.items) {
+            const item=batch.find(x=>x.id===entry.operation_id);
+            if (!item) continue;
+            if (entry.status==='accepted') { await transaction('readwrite',store=>store.delete(item.id)); accepted++; }
+            else { await transaction('readwrite',store=>store.put({...item,error:entry.result?.error||'Server rejected operation'})); rejected++; }
+          }
+        }
+      }
+      await loadLocal();setMessage(`${accepted} accepted, ${rejected} require review. Receipts must be verified on the server.`);
     });
   }
   return <div className="offline-desk container-fluid px-0">
@@ -106,7 +130,7 @@ export default function OfflineDesk({ tenant, owner }: { tenant: string; owner: 
         <label className="field">Checkout JSON<textarea rows={6} className="form-control font-monospace" placeholder='{"items":[{"id":"product-id","quantity":1}],"expected":1000,"payment":"cash","tendered":1000}' value={json} onChange={e=>setJson(e.target.value)}/></label>
         <button className="primary mt-3" disabled={busy||!device||!json.trim()} onClick={saveDraft}>Save draft locally</button></section></div>
     </div>
-    <section className="panel mt-4"><div className="d-flex align-items-center justify-content-between flex-wrap gap-2"><h2>Pending local drafts <span className="badge text-bg-light">{drafts.length}</span></h2><button className="secondary" onClick={()=>perform(loadLocal)} disabled={busy}><RefreshCw size={16}/> Refresh</button></div>
+    <section className="panel mt-4"><div className="d-flex align-items-center justify-content-between flex-wrap gap-2"><h2>Pending local drafts <span className="badge text-bg-light">{drafts.length}</span></h2><div className="d-flex gap-2"><button className="primary" onClick={syncAll} disabled={busy||!online||!drafts.length}><CloudUpload size={16}/> Sync pending</button><button className="secondary" onClick={()=>perform(loadLocal)} disabled={busy}><RefreshCw size={16}/> Refresh</button></div></div>
       {drafts.length===0?<p className="py-3 mb-0">No locally saved drafts for this account and business.</p>:<div className="table-responsive"><table className="table align-middle"><thead><tr><th>Created</th><th>Items</th><th>Expected total</th><th>State</th><th>Actions</th></tr></thead><tbody>{drafts.map(item=><tr key={item.id}><td>{new Date(item.created).toLocaleString()}</td><td>{Array.isArray(item.sale.items)?item.sale.items.length:'—'}</td><td>{String(item.sale.expected)}</td><td>{item.error?<span className="text-danger">Conflict: {item.error}</span>:'Awaiting confirmation'}</td><td><div className="d-flex gap-2"><button className="primary" disabled={busy||!online} onClick={()=>replay(item)}><CloudUpload size={16}/> Verify & submit</button><button className="secondary" disabled={busy} onClick={()=>remove(item)} aria-label="Discard draft"><Trash2 size={16}/></button></div></td></tr>)}</tbody></table></div>}
     </section>{error&&<div className="alert alert-danger" role="alert">{error}</div>}{message&&<div className="alert alert-success" role="status">{message}</div>}
   </div>;

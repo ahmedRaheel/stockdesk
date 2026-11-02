@@ -118,6 +118,11 @@ function App() {
               disabled={busy}
             />
           </label>
+          <label className="field">
+            <span>Authenticator code (if enabled)</span>
+            <input name="otp" type="text" inputMode="numeric" autoComplete="one-time-code"
+              pattern="[0-9]{6}" maxLength={6} placeholder="6 digits" disabled={busy} />
+          </label>
           {error && (
             <div className="form-error" role="alert">
               {error}

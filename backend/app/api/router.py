@@ -57,6 +57,9 @@ async def token_login(payload: Credentials, request: Request):
         )
         if not user or not user["active"] or not valid:
             fail("Invalid email or password.", 401)
+        from ..features.totp_mfa import enforce
+        async with connection.transaction():
+            await enforce(connection,user['id'],payload.otp)
         await connection.execute(
             "DELETE FROM login_limits WHERE key=$1",
             security.digest("account:" + address),

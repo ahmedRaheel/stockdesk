@@ -85,6 +85,11 @@ export default function Purchasing({
     Record<string, { lot: string; expires: string }>
   >({});
   const [receiving, setReceiving] = useState<Record<string, number>>({});
+  const [locations,setLocations]=useState<{id:string;name:string}[]>([]);
+  const [receiptLocation,setReceiptLocation]=useState('');
+  useEffect(()=>{api<{items:{id:string;name:string}[]}>(`${base}/locations`)
+    .then(r=>{setLocations(r.items);setReceiptLocation(r.items.length===1?r.items[0].id:'');})
+    .catch(()=>setLocations([]));},[tenant]);
   const [page, setPage] = useState(0);
   const request = useRef<{ signature: string; id: string } | null>(null);
   const modalRef = useRef<HTMLElement>(null);
@@ -177,9 +182,11 @@ export default function Purchasing({
           }));
         if (!receipts.length)
           throw new Error("Enter at least one quantity received.");
+        if (locations.length&&!receiptLocation)
+          throw new Error('Choose the receiving store or warehouse.');
         await send(
           `${base}/purchase-orders/${selected.id}/receipts`,
-          deduplicated({ lines: receipts }),
+          deduplicated({ lines: receipts, location: receiptLocation || null }),
         );
         onReceived();
       } else if (modal === "decision" && selected) {
@@ -695,6 +702,11 @@ export default function Purchasing({
                 )}
                 {modal === "receive" && selected && (
                   <>
+                    {!!locations.length&&<label className="field mb-3"><span>Receive into store / warehouse</span>
+                      <select value={receiptLocation} onChange={e=>setReceiptLocation(e.target.value)} required>
+                        <option value="">Select location</option>
+                        {locations.map(loc=><option key={loc.id} value={loc.id}>{loc.name}</option>)}
+                      </select></label>}
                     <p>
                       {selected.supplier_name} ·{" "}
                       {selected.reference || selected.id}

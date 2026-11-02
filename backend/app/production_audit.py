@@ -66,6 +66,15 @@ async def audit():
                 ) bad
             ''')
             check('general_ledger_balanced', journals==0, {'imbalanced_or_empty_journals':journals})
+            sale_gap=await connection.fetchval("""SELECT count(*) FROM sales s WHERE s.status='completed' AND NOT EXISTS
+                (SELECT 1 FROM gl_journals j WHERE j.tenant=s.tenant AND j.request='sale:'||s.id)""")
+            receipt_gap=await connection.fetchval("""SELECT count(*) FROM purchase_receipts r WHERE NOT EXISTS
+                (SELECT 1 FROM gl_journals j WHERE j.tenant=r.tenant AND j.request='receipt:'||r.id)""")
+            report['warnings'].append(f'{sale_gap} completed historical sales and {receipt_gap} historical receipts lack automated GL entries. Accountant-approved backfill is required.')
+            conflicts=await connection.fetchval("SELECT count(*) FROM offline_operations WHERE status='rejected'")
+            report['warnings'].append(f'{conflicts} offline replay conflicts require terminal-level resolution.')
+            pending_fbr=await connection.fetchval("SELECT count(*) FROM fbr_sandbox_validations WHERE status IN ('pending','uncertain')")
+            report['warnings'].append(f'{pending_fbr} FBR sandbox validations are pending or inconclusive; none implies certification.')
             demo_count = await connection.fetchval("SELECT COUNT(*) FROM tenants WHERE name='StockDesk Demo Retail Group'")
             if demo_count:
                 report['warnings'].append(f'{demo_count} demonstration tenant(s) found. Remove demo access before exposing production.')

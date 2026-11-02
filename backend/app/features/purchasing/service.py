@@ -138,7 +138,7 @@ async def create_order(connection, user, tenant, payload):
 async def receive_order(connection, user, tenant, order_id, payload):
     await service.authorize(connection, user, tenant, "stock", lock=True)
     unique_lines(payload["lines"])
-    fingerprint = signature({"purchase": order_id, **payload})
+    fingerprint = signature({"purchase": order_id, **{k:v for k,v in payload.items() if k!="location" or v}})
     prior = await connection.fetchrow(
         "SELECT id,signature FROM purchase_receipts WHERE tenant=$1 AND request=$2",
         tenant,
@@ -157,8 +157,13 @@ async def receive_order(connection, user, tenant, order_id, payload):
         fail("Purchase order not found.", 404)
     if order["status"] not in ("open", "partial"):
         fail("Only open or partially received orders can receive stock.", 409)
+    location=payload.get('location')
+    if location and not await connection.fetchval("""SELECT 1 FROM store_locations
+            WHERE tenant=$1 AND id=$2 AND active=true""",tenant,location):
+        fail('Receiving location is inactive or missing',409)
     receipt_id = service.uid()
     sources = []
+    receipt_cost = 0
     for line in payload["lines"]:
         from ..reference import lookup
 
@@ -180,6 +185,8 @@ async def receive_order(connection, user, tenant, order_id, payload):
             fail("The product is not active on this purchase order.", 409)
         if line["quantity"] > pending["quantity"] - pending["received"]:
             fail("Received quantity exceeds the outstanding order quantity.", 409)
+        receipt_cost += int((Decimal(str(line['quantity'])) * pending['unit_cost']).quantize(
+            Decimal('1'),rounding=ROUND_HALF_UP))
         await connection.execute(
             "UPDATE purchase_lines SET received=received+$1 WHERE tenant=$2 AND purchase=$3 AND product=$4",
             line["quantity"],
@@ -187,6 +194,11 @@ async def receive_order(connection, user, tenant, order_id, payload):
             order_id,
             line["product"],
         )
+        if location:
+            await connection.execute("""INSERT INTO warehouse_balances(tenant,location,product,quantity)
+                VALUES($1,$2,$3,$4) ON CONFLICT(tenant,location,product)
+                DO UPDATE SET quantity=warehouse_balances.quantity+excluded.quantity""",
+                tenant,location,line['product'],line['quantity'])
         movement_id = service.uid()
         sources.append((movement_id, line["product"], line["quantity"]))
         await connection.execute(
@@ -220,6 +232,9 @@ async def receive_order(connection, user, tenant, order_id, payload):
         fingerprint,
         user["email"],
     )
+    if location:
+        await connection.execute('UPDATE purchase_receipts SET location=$1 WHERE tenant=$2 AND id=$3',
+                                 location,tenant,receipt_id)
     for movement_id, product, quantity in sources:
         batch = await connection.fetchval(
             "SELECT batch FROM stock_batch_allocations WHERE tenant=$1 AND movement=$2",
@@ -236,6 +251,8 @@ async def receive_order(connection, user, tenant, order_id, payload):
             batch,
             quantity,
         )
+    from ..auto_ledger import post_receipt
+    await post_receipt(connection,tenant,receipt_id,order_id,user['email'],receipt_cost)
     await service.audit(
         connection,
         tenant,

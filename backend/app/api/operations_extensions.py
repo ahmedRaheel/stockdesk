@@ -7,7 +7,7 @@ import hashlib
 import json
 from datetime import datetime, timedelta, timezone
 from typing import Literal
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, HTTPException
 from pydantic import Field, model_validator
 from .contracts import Contract, Identifier, Checkout
 from .router import User, authenticated
@@ -22,6 +22,14 @@ class OfflineDevice(Contract):
 class OfflineSale(Contract):
     operation_id: Identifier
     sale: Checkout
+
+class OfflineBatch(Contract):
+    operations: list[OfflineSale] = Field(min_length=1, max_length=50)
+    @model_validator(mode='after')
+    def distinct_ids(self):
+        if len({op.operation_id for op in self.operations}) != len(self.operations):
+            raise ValueError('Operation identifiers must be unique within a batch')
+        return self
 
 class Meter(Contract):
     request: Identifier
@@ -70,30 +78,69 @@ async def list_devices(tenant: str,user: User):
         await service.authorize(c,user,tenant,'sale')
         return {'items':service.rows(await c.fetch('SELECT id,name,active,created FROM offline_devices WHERE tenant=$1 AND user_id=$2 ORDER BY created DESC',tenant,user['id']))}
 
+def offline_signature(sale: Checkout, tenant: str) -> tuple[dict,str]:
+    canonical = sale.model_dump(mode='json')
+    canonical.update(tenant=tenant, action='checkout')
+    signature = hashlib.sha256(json.dumps(canonical,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    return canonical, signature
+
+
+async def replay_one(c, user, tenant: str, device: str, operation: OfflineSale):
+    canonical, signature = offline_signature(operation.sale, tenant)
+    # Device ownership and tenant permissions are checked before this helper.
+    previous = await c.fetchrow('''SELECT payload_hash,status,result FROM offline_operations
+        WHERE tenant=$1 AND device=$2 AND operation_id=$3''', tenant,device,operation.operation_id)
+    if previous:
+        if previous['payload_hash'] != signature:
+            fail('Offline operation ID reused with different sale data',409)
+        return {'operation_id':operation.operation_id,'duplicate':True,'status':previous['status'],'result':json.loads(previous['result']) if isinstance(previous['result'],str) else previous['result']}
+    # Keep business-rule rejection observable, but never persist a partially posted sale.
+    # PostgreSQL savepoint rolls back checkout writes while retaining the parent transaction.
+    try:
+        async with c.transaction():
+            result = await service.execute(c,user,canonical)
+    except HTTPException as exc:
+        if exc.status_code not in (400, 404, 409, 422):
+            raise
+        result = {'error':str(exc.detail),'http_status':exc.status_code,
+                  'resolution':'Review stock, quote and payment; resubmit a corrected sale with a new operation ID.'}
+        status = 'rejected'
+    else:
+        status = 'accepted'
+    await c.execute('''INSERT INTO offline_operations(tenant,device,operation_id,payload_hash,status,result)
+        VALUES($1,$2,$3,$4,$5,$6::jsonb)''',tenant,device,operation.operation_id,signature,status,json.dumps(result,default=str))
+    return {'operation_id':operation.operation_id,'duplicate':False,'status':status,'result':result}
+
+
+async def authorized_device(c, user, tenant, device):
+    await service.authorize(c,user,tenant,'sale',lock=True)
+    record = await c.fetchrow('''SELECT id FROM offline_devices WHERE tenant=$1 AND id=$2
+        AND user_id=$3 AND active=true FOR UPDATE''',tenant,device,user['id'])
+    if not record:
+        fail('Offline device is inactive or belongs to another user',403)
+
+
 @router.post('/offline/devices/{device}/replay')
 async def replay(tenant: str,device: str,payload: OfflineSale,request: Request,user: User):
     security.csrf(request)
-    canonical=payload.sale.model_dump(mode='json')
-    canonical['tenant']=tenant
-    canonical['action']='checkout'
-    signature=hashlib.sha256(json.dumps(canonical,sort_keys=True,separators=(',',':')).encode()).hexdigest()
     async with db.pool.acquire() as c:
         async with c.transaction():
-            await service.authorize(c,user,tenant,'sale',lock=True)
-            registered=await c.fetchrow('SELECT * FROM offline_devices WHERE tenant=$1 AND id=$2 AND active=true FOR UPDATE',tenant,device)
-            if not registered or registered['user_id']!=user['id']:
-                fail('Device is not active or does not belong to this user',403)
-            prior=await c.fetchrow('SELECT * FROM offline_operations WHERE tenant=$1 AND device=$2 AND operation_id=$3',tenant,device,payload.operation_id)
-            if prior:
-                if prior['payload_hash']!=signature:
-                    fail('Offline operation ID reused with different sale data',409)
-                return {'duplicate':True,'status':prior['status'],'result':prior['result']}
-            # Checkout itself checks prices, inventory, tax, permissions, and request idempotency.
-            # A business-rule conflict aborts this transaction: the client retains the sale
-            # in its outbox and presents the server error for manual reconciliation.
-            result=await service.execute(c,user,canonical)
-            await c.execute('INSERT INTO offline_operations(tenant,device,operation_id,payload_hash,status,result) VALUES($1,$2,$3,$4,$5,$6::jsonb)',tenant,device,payload.operation_id,signature,'accepted',json.dumps(result,default=str))
-            return {'duplicate':False,'status':'accepted','result':result}
+            await authorized_device(c,user,tenant,device)
+            return await replay_one(c,user,tenant,device,payload)
+
+
+@router.post('/offline/devices/{device}/replay-batch')
+async def replay_batch(tenant: str,device: str,payload: OfflineBatch,request: Request,user: User):
+    # Idempotent ordered replay; no offline card authorization.
+    security.csrf(request)
+    items=[]
+    async with db.pool.acquire() as c:
+        for op in payload.operations:
+            async with c.transaction():
+                await authorized_device(c,user,tenant,device)
+                items.append(await replay_one(c,user,tenant,device,op))
+    return {'items':items, 'accepted':sum(i['status']=='accepted' for i in items),
+            'rejected':sum(i['status']=='rejected' for i in items)}
 
 @router.get('/offline/devices/{device}/operations')
 async def replay_history(tenant: str,device: str,user: User):
@@ -206,3 +253,34 @@ async def fiscal_submissions(tenant: str,user: User):
     async with db.pool.acquire() as c:
         await service.authorize(c,user,tenant,'settings')
         return {'items':service.rows(await c.fetch('SELECT id,sale,provider,status,external_reference,created FROM fiscal_submissions WHERE tenant=$1 ORDER BY created DESC LIMIT 100',tenant))}
+
+
+@router.get('/forecast-validation')
+async def forecast_validation(tenant: str,user: User,days: int=Query(14,ge=1,le=90),
+                              lookback: int=Query(120,ge=42,le=365),
+                              limit: int=Query(100,ge=1,le=500)):
+    # Zero-filled demand series and rolling out-of-sample accuracy by SKU.
+    from datetime import date
+    from ..features.forecast_validation import evaluate
+    async with db.pool.acquire() as c:
+        await service.authorize(c,user,tenant,'forecast')
+        products=await c.fetch('''SELECT id,name,stock,reorder FROM products
+            WHERE tenant=$1 AND active=true ORDER BY name,id LIMIT $2''',tenant,limit)
+        sales=await c.fetch('''SELECT si.product,s.created::date AS day,SUM(si.quantity) AS quantity
+            FROM sale_items si JOIN sales s ON s.tenant=si.tenant AND s.id=si.sale
+            WHERE si.tenant=$1 AND s.status='completed'
+              AND s.created>=CURRENT_DATE-$2::integer
+            GROUP BY si.product,s.created::date''',tenant,lookback)
+    by_sku={(r['product'],r['day']):float(r['quantity']) for r in sales}
+    today=date.today()
+    output=[]
+    for p in products:
+        history=[(today-timedelta(days=i),by_sku.get((p['id'],today-timedelta(days=i)),0.0))
+                 for i in range(lookback,0,-1)]
+        report=evaluate(history,days)
+        projected=report['predicted_units']
+        output.append({'product':p['id'],'name':p['name'],'stock':float(p['stock']),
+                       'suggested_reorder':max(0,round(projected+float(p['reorder'])-float(p['stock']),3)),
+                       **report})
+    return {'items':output,'lookback_days':lookback,'horizon_days':days,
+            'note':'Backtest WAPE is historical and not a future accuracy guarantee.'}

@@ -17,6 +17,7 @@ class Contract(BaseModel):
 
 
 class Credentials(Contract):
+    otp: str | None = Field(default=None,min_length=6,max_length=6,pattern=r"^[0-9]{6}$")
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=12, max_length=128)
     model_config = ConfigDict(extra="forbid")  # Password whitespace is significant.
@@ -76,6 +77,7 @@ class Tender(Contract):
 
 
 class Checkout(Contract):
+    location: Identifier | None = None
     approval_id: Identifier | None = None
     auto_promotion: bool = Field(default=False, strict=True)
     promotion_code: str = Field(default="", max_length=240)
@@ -136,5 +138,6 @@ class ReceiveLine(Contract):
 
 
 class ReceivePurchase(Contract):
+    location: Identifier | None = None
     request: Identifier
     lines: list[ReceiveLine] = Field(min_length=1, max_length=100)

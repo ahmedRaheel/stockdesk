@@ -144,6 +144,67 @@ async def register_serial(tenant: str,payload: Serial,request: Request,user: Use
             await service.audit(c,tenant,user,'Serial registered',{'serial_id':identifier,'product':payload.product})
             return {'id':identifier}
 
+class SerialEvent(Contract):
+    request: Identifier
+    status: Literal['sold','returned','scrapped']
+    sale: Identifier | None = None
+    notes: str = Field(default='',max_length=500)
+
+
+@router.post('/serials/{serial_id}/transition')
+async def transition_serial(tenant: str,serial_id: str,payload: SerialEvent,request: Request,user: User):
+    # Idempotent serial lifecycle with actual sale reference.
+    security.csrf(request)
+    allowed = {'available':{'sold','scrapped'},'sold':{'returned'},
+               'returned':{'sold','scrapped'},'scrapped':set()}
+    async with db.pool.acquire() as c:
+        async with c.transaction():
+            await service.authorize(c,user,tenant,'stock',lock=True)
+            previous = await c.fetchrow('''SELECT serial_id,status,sale,notes FROM product_serial_events
+                WHERE tenant=$1 AND request=$2''',tenant,payload.request)
+            if previous:
+                if (previous['serial_id'],previous['status'],previous['sale'],previous['notes']) != (serial_id,payload.status,payload.sale,payload.notes):
+                    fail('Serial request reused for a different transition',409)
+                return {'id':serial_id,'status':previous['status'],'duplicate':True}
+            item = await c.fetchrow('''SELECT product,status FROM product_serials
+                WHERE tenant=$1 AND id=$2 FOR UPDATE''',tenant,serial_id)
+            if not item:
+                fail('Serial number not found',404)
+            if payload.status not in allowed[item['status']]:
+                fail('Invalid serial lifecycle transition',409)
+            if payload.status in ('sold','returned'):
+                if not payload.sale:
+                    fail('Sale reference required for a sold or returned serial',422)
+                sale = await c.fetchrow('''SELECT status FROM sales WHERE tenant=$1 AND id=$2''',tenant,payload.sale)
+                if not sale or not await c.fetchval('''SELECT 1 FROM sale_items
+                    WHERE tenant=$1 AND sale=$2 AND product=$3''',tenant,payload.sale,item['product']):
+                    fail('Sale does not contain the serialized product',409)
+                if payload.status == 'returned' and sale['status'] != 'returned':
+                    fail('Return the invoice before marking its serial as returned',409)
+                if payload.status == 'sold' and sale['status'] != 'completed':
+                    fail('Only completed sales may consume serials',409)
+            elif payload.sale:
+                fail('Scrapping does not accept a sale reference',422)
+            await c.execute('''UPDATE product_serials SET status=$1 WHERE tenant=$2 AND id=$3''',
+                            payload.status,tenant,serial_id)
+            await c.execute('''INSERT INTO product_serial_events(id,tenant,request,serial_id,status,sale,notes,actor)
+                VALUES($1,$2,$3,$4,$5,$6,$7,$8)''',service.uid(),tenant,payload.request,
+                serial_id,payload.status,payload.sale,payload.notes,user['email'])
+            await service.audit(c,tenant,user,'Serial lifecycle transition',
+                                {'serial':serial_id,'status':payload.status,'sale':payload.sale})
+            return {'id':serial_id,'status':payload.status,'duplicate':False}
+
+
+@router.get('/serials/{serial_id}/history')
+async def serial_history(tenant: str,serial_id: str,user: User):
+    async with db.pool.acquire() as c:
+        await service.authorize(c,user,tenant,'stock')
+        if not await c.fetchval('SELECT 1 FROM product_serials WHERE tenant=$1 AND id=$2',tenant,serial_id):
+            fail('Serial number not found',404)
+        return {'items':service.rows(await c.fetch('''SELECT status,sale,notes,actor,created
+            FROM product_serial_events WHERE tenant=$1 AND serial_id=$2 ORDER BY created,id''',tenant,serial_id))}
+
+
 @router.get('/serials')
 async def serials(tenant: str,user: User,product: str | None=None):
     async with db.pool.acquire() as c:
@@ -260,3 +321,21 @@ async def allocate_stock(tenant: str,payload: StockAssignment,request: Request,u
             await c.execute('INSERT INTO warehouse_balances(tenant,location,product,quantity) VALUES($1,$2,$3,$4) ON CONFLICT(tenant,location,product) DO UPDATE SET quantity=warehouse_balances.quantity+excluded.quantity',tenant,payload.location,payload.product,payload.quantity)
             await service.audit(c,tenant,user,'Legacy stock allocated',{'location':payload.location,'product':payload.product,'quantity':str(payload.quantity)})
             return {'id':identifier,'duplicate':False}
+
+
+@router.get('/gl/reconciliation')
+async def gl_reconciliation(tenant: str,user: User):
+    # Read-only journal and sale reconciliation.
+    async with db.pool.acquire() as c:
+        await service.authorize(c,user,tenant,'finance')
+        bad=await c.fetchval('''SELECT count(*) FROM (SELECT j.id FROM gl_journals j
+            LEFT JOIN gl_entries e ON e.tenant=j.tenant AND e.journal=j.id
+            WHERE j.tenant=$1 GROUP BY j.id HAVING count(e.journal)<2
+            OR COALESCE(sum(e.debit),0)<>COALESCE(sum(e.credit),0)) x''',tenant)
+        missing=await c.fetchval('''SELECT count(*) FROM sales s WHERE s.tenant=$1
+            AND s.status='completed' AND NOT EXISTS
+            (SELECT 1 FROM gl_journals j WHERE j.tenant=s.tenant AND j.request='sale:'||s.id)''',tenant)
+        return {'balanced':bad==0,'imbalanced_journals':bad,
+                'completed_sales_without_auto_journal':missing,
+                'reconciled':bad==0 and missing==0,
+                'note':'Historical sales require an explicitly reviewed backfill; payment-provider settlement is separate.'}

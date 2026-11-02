@@ -13,6 +13,7 @@ async def checkout(c, u, b, t=None):
     cart = cart_items(b.get("items"))
     request = clean(b.get("request"), "Request ID", 100)
     customer = clean(b.get("customer") or "Walk-in customer", "Customer")
+    location = b.get("location")
     payment = b.get("payment")
     if payment not in ["cash", "external"]:
         fail("Invalid payment method.")
@@ -39,6 +40,7 @@ async def checkout(c, u, b, t=None):
     signature = json.dumps(
         {
             "items": cart,
+            **({"location":location} if location else {}),
             **({"promotion_code": promotion_code} if promotion_code else {}),
             **({"auto_promotion": True} if auto_promotion else {}),
             "tenders": b.get("tenders"),
@@ -100,6 +102,10 @@ async def checkout(c, u, b, t=None):
             fail("Held bill not found.", 404)
         if held["consumed_sale"]:
             fail("This held bill has already been checked out.", 409)
+    if location and not await c.fetchval(
+        "SELECT 1 FROM store_locations WHERE tenant=$1 AND id=$2 AND kind='store' AND active=true",
+        tenant, location):
+        fail('Checkout location is inactive or not a store',409)
     products = []
     for item in cart:
         p = await c.fetchrow(
@@ -126,6 +132,12 @@ async def checkout(c, u, b, t=None):
             fail("Insufficient non-expired stock for " + p["name"])
         if p["stock"] < item["quantity"]:
             fail(f"Insufficient stock for {p['name']}. Available: {p['stock']}.")
+        if location:
+            located = await c.fetchval(
+                "SELECT quantity FROM warehouse_balances WHERE tenant=$1 AND location=$2 AND product=$3 FOR UPDATE",
+                tenant,location,p['id'])
+            if located is None or located < item['quantity']:
+                fail('Insufficient stock at selected store for '+p['name'],409)
         products.append(
             {
                 **dict(p),
@@ -362,6 +374,16 @@ async def checkout(c, u, b, t=None):
             inv,
             u["email"],
         )
+    # The GL entry is part of the checkout transaction and cannot outlive a failed sale.
+    from .auto_ledger import post_sale
+    from ..rules import line_amount as accounting_line_amount
+    cogs = sum(accounting_line_amount(p['cost'], p['quantity']) for p in products)
+    await post_sale(c,tenant,sid,inv,u['email'],total,paid_now,tax,cogs)
+    if location:
+        await c.execute('UPDATE sales SET location=$1 WHERE tenant=$2 AND id=$3',location,tenant,sid)
+        for p in products:
+            await c.execute("""UPDATE warehouse_balances SET quantity=quantity-$1
+                WHERE tenant=$2 AND location=$3 AND product=$4""",p['quantity'],tenant,location,p['id'])
     if held_id:
         await c.execute(
             "UPDATE held_bills SET consumed_sale=$1 WHERE tenant=$2 AND id=$3",
@@ -433,9 +455,17 @@ async def return_sale(c, u, b, t=None):
             u["email"],
             source,
         )
+    if sale['location']:
+        for item in await c.fetch('SELECT product,quantity FROM sale_items WHERE tenant=$1 AND sale=$2',tenant,sid):
+            await c.execute("""INSERT INTO warehouse_balances(tenant,location,product,quantity)
+                VALUES($1,$2,$3,$4) ON CONFLICT(tenant,location,product)
+                DO UPDATE SET quantity=warehouse_balances.quantity+excluded.quantity""",
+                tenant,sale['location'],item['product'],item['quantity'])
     await c.execute(
         "UPDATE sales SET status='returned' WHERE tenant=$1 AND id=$2", tenant, sid
     )
+    from .auto_ledger import reverse_sale
+    await reverse_sale(c,tenant,sid,sale['invoice_number'],u['email'])
     from .till_reports import record_return
 
     await record_return(
