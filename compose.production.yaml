@@ -1,0 +1,44 @@
+# Production-oriented deployment behind a trusted HTTPS reverse proxy.
+# Run: docker compose -f compose.production.yaml up -d --build
+# Requires an EXISTING PostgreSQL container attached to POSTGRES_NETWORK.
+services:
+  backend:
+    build: ./backend
+    environment:
+      APP_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      APP_ORIGIN: ${APP_ORIGIN:?Set public HTTPS origin in .env}
+      COOKIE_SECURE: 'true'
+      REPORT_WORKER_ENABLED: ${REPORT_WORKER_ENABLED:-true}
+      ALERT_WORKER_ENABLED: ${ALERT_WORKER_ENABLED:-true}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+    networks: [default, existing-postgres]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,size=128m
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    healthcheck:
+      test: ['CMD','python','-c',"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 120s
+    restart: unless-stopped
+  frontend:
+    build: ./frontend
+    ports: ['127.0.0.1:8080:80']
+    networks: [default]
+    depends_on:
+      backend:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+networks:
+  default: {}
+  existing-postgres:
+    external: true
+    name: appnet
