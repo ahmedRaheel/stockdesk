@@ -1286,6 +1286,19 @@ footer span {
   font-size: 20px;
   margin-top: 15px;
 }
+.receipt-logo {
+  display: block;
+  max-width: 112px;
+  max-height: 64px;
+  object-fit: contain;
+  margin: 0 auto 10px;
+}
+.receipt-policy {
+  font-size: 11px;
+  line-height: 1.45;
+  color: #68756c;
+  white-space: pre-wrap;
+}
 .receipt-top p,
 .receipt-top small {
   font-size: 12px;
