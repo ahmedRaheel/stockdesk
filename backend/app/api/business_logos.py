@@ -4,8 +4,8 @@ Uploaded files are decoded and re-encoded, never served as arbitrary user bytes.
 Historical invoices continue pointing to their original content-hash asset.
 """
 import re
-from fastapi import APIRouter, Depends, Request, Response
-from .router import User, authenticated
+from fastapi import APIRouter, Request, Response
+from .router import User
 from .. import db, security, service
 from ..rules import fail
 from ..features.tenancy import audit
@@ -19,7 +19,7 @@ from ..features.brand_images import normalize_logo
 
 
 @router.post("/api/v1/tenants/{tenant}/business-logo")
-async def upload_logo(tenant: str, request: Request, user: User = Depends(authenticated)):
+async def upload_logo(tenant: str, request: Request, user: User):
     security.csrf(request)
     if request.headers.get("content-type", "").split(";")[0].strip() not in ("image/png", "image/jpeg"):
         fail("PNG or JPEG content type required.", 415)
