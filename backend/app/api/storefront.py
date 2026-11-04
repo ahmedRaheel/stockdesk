@@ -6,8 +6,11 @@ Staff fulfilment requires a real completed POS sale attached to the request.
 import hashlib
 import json
 import re
+import io
+import base64
 from decimal import Decimal, ROUND_HALF_UP
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
+from PIL import Image, UnidentifiedImageError
 from pydantic import Field, model_validator
 from .contracts import Contract, Identifier
 from .router import User, authenticated
@@ -23,6 +26,39 @@ class Settings(Contract):
     title: str = Field(min_length=1, max_length=100)
     description: str = Field(default="", max_length=500)
     published: bool = False
+
+
+class ProductPhoto(Contract):
+    image_base64: str = Field(min_length=128, max_length=2_800_000)
+
+
+def optimized_photo(encoded: str) -> tuple[bytes, int, int]:
+    """Decode an image without trusting its extension; strip EXIF and cap size."""
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+        if len(raw) > 2_000_000:
+            fail("Product photo must be 2 MB or smaller.", 413)
+        with Image.open(io.BytesIO(raw)) as image:
+            if image.format not in ("JPEG", "PNG", "WEBP"):
+                fail("Only JPEG, PNG and WebP product photos are accepted.", 415)
+            if image.width * image.height > 12_000_000:
+                fail("Product photo dimensions exceed the safe limit.", 413)
+            image.load()
+            # Composite transparency against white, rather than producing black
+            # product-photo backgrounds for transparent PNG/WebP assets.
+            rgba = image.convert("RGBA")
+            background = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+            background.alpha_composite(rgba)
+            rgb = background.convert("RGB")
+            rgb.thumbnail((960, 960))
+            output = io.BytesIO()
+            rgb.save(output, format="JPEG", quality=80, optimize=True)
+            content = output.getvalue()
+            if len(content) > 600_000:
+                fail("Optimized photo is too large. Use a smaller image.", 413)
+            return content, rgb.width, rgb.height
+    except (ValueError, OSError, UnidentifiedImageError, Image.DecompressionBombError):
+        fail("Invalid or damaged product photo.", 422)
 
 
 class Listing(Contract):
@@ -64,8 +100,10 @@ async def settings(tenant: str, user: User):
         cfg = await c.fetchrow("SELECT slug,title,description,published FROM storefronts WHERE tenant=$1", tenant)
         products = await c.fetch("""SELECT p.id,p.sku,p.name,p.stock,p.price,
            COALESCE(l.published,false) AS published,COALESCE(l.featured,false) AS featured,
-           COALESCE(l.sort_order,0) AS sort_order
+           COALESCE(l.sort_order,0) AS sort_order,
+           (m.product IS NOT NULL) AS has_image, m.updated AS image_updated
            FROM products p LEFT JOIN storefront_listings l ON l.tenant=p.tenant AND l.product=p.id
+           LEFT JOIN storefront_product_media m ON m.tenant=p.tenant AND m.product=p.id
            WHERE p.tenant=$1 AND p.active ORDER BY p.name LIMIT 500""", tenant)
         return {"settings": dict(cfg) if cfg else None, "products": service.rows(products)}
 
@@ -101,6 +139,62 @@ async def list_product(tenant: str, product_id: str, payload: Listing, request: 
     return {"ok": True}
 
 
+@router.put("/products/{product_id}/image")
+async def save_product_image(tenant: str, product_id: str, payload: ProductPhoto, request: Request, user: User):
+    security.csrf(request)
+    # Decode outside the DB transaction, preserving storage and CPU limits.
+    content, width, height = optimized_photo(payload.image_base64)
+    async with db.pool.acquire() as c:
+        async with c.transaction():
+            await service.authorize(c, user, tenant, "product", lock=True)
+            if not await c.fetchval("SELECT 1 FROM products WHERE tenant=$1 AND id=$2 AND active", tenant, product_id):
+                fail("Active product not found.", 404)
+            await c.execute("""INSERT INTO storefront_product_media(tenant,product,image,mime,width,height)
+              VALUES($1,$2,$3,'image/jpeg',$4,$5)
+              ON CONFLICT(tenant,product) DO UPDATE SET image=EXCLUDED.image,
+              width=EXCLUDED.width,height=EXCLUDED.height,updated=now()""",
+              tenant, product_id, content, width, height)
+            await service.audit(c,tenant,user,"Storefront product photo saved",{"product":product_id})
+    return {"ok": True, "width": width, "height": height}
+
+
+@router.get("/products/{product_id}/image", response_class=Response)
+async def staff_product_image(tenant: str, product_id: str, user: User):
+    async with db.pool.acquire() as c:
+        await service.authorize(c,user,tenant,"product")
+        image = await c.fetchval("SELECT image FROM storefront_product_media WHERE tenant=$1 AND product=$2", tenant, product_id)
+    if image is None:
+        fail("Product image not found.", 404)
+    return Response(bytes(image),media_type="image/jpeg",
+                    headers={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"})
+
+
+@router.delete("/products/{product_id}/image")
+async def remove_product_image(tenant: str, product_id: str, request: Request, user: User):
+    security.csrf(request)
+    async with db.pool.acquire() as c:
+        async with c.transaction():
+            await service.authorize(c,user,tenant,"product",lock=True)
+            await c.execute("DELETE FROM storefront_product_media WHERE tenant=$1 AND product=$2",tenant,product_id)
+            await service.audit(c,tenant,user,"Storefront product photo removed",{"product":product_id})
+    return {"ok": True}
+
+
+@public_router.get("/{slug}/products/{product_id}/image", response_class=Response)
+async def public_product_image(slug: str, product_id: str):
+    async with db.pool.acquire() as c:
+        image = await c.fetchval("""SELECT m.image FROM storefront_product_media m
+            JOIN storefronts s ON s.tenant=m.tenant AND s.slug=$1 AND s.published
+            JOIN tenants t ON t.id=m.tenant AND t.status='active'
+            JOIN storefront_listings l ON l.tenant=m.tenant AND l.product=m.product AND l.published
+            JOIN products p ON p.tenant=m.tenant AND p.id=m.product AND p.active AND p.stock>0
+            WHERE m.product=$2""", slug, product_id)
+    if image is None:
+        fail("Product image not available.", 404)
+    return Response(bytes(image), media_type="image/jpeg",
+                    headers={"Cache-Control":"public, max-age=300", "X-Content-Type-Options":"nosniff"})
+
+
 @public_router.get("/{slug}")
 async def catalog(slug: str, q: str = Query(default="", max_length=80)):
     async with db.pool.acquire() as c:
@@ -110,7 +204,9 @@ async def catalog(slug: str, q: str = Query(default="", max_length=80)):
         if not cfg:
             fail("Storefront is not available.", 404)
         products = await c.fetch("""SELECT p.id,p.sku,p.name,p.price,p.stock,p.barcode,
-          COALESCE(l.featured,false) AS featured
+          COALESCE(l.featured,false) AS featured,
+          EXISTS(SELECT 1 FROM storefront_product_media m WHERE m.tenant=p.tenant AND m.product=p.id) AS has_image,
+          (SELECT m.updated FROM storefront_product_media m WHERE m.tenant=p.tenant AND m.product=p.id) AS image_updated
           FROM storefront_listings l JOIN products p ON p.tenant=l.tenant AND p.id=l.product
           WHERE l.tenant=$1 AND l.published AND p.active AND p.stock>0
           AND ($2='' OR strpos(lower(p.name||' '||p.sku),lower($2))>0)

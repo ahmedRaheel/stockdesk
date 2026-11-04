@@ -31,6 +31,18 @@ class OfflineBatch(Contract):
             raise ValueError('Operation identifiers must be unique within a batch')
         return self
 
+class OfflineResolution(Contract):
+    resolution: Literal['replaced','dismissed']
+    replacement_sale: Identifier | None = None
+    notes: str = Field(min_length=5, max_length=500)
+
+    @model_validator(mode='after')
+    def matching_reference(self):
+        if (self.resolution == 'replaced') != (self.replacement_sale is not None):
+            raise ValueError('A replacement sale ID is required only for a replaced operation.')
+        return self
+
+
 class Meter(Contract):
     request: Identifier
     metric: Literal['sale','api_call','storage_bytes','invoice']
@@ -148,7 +160,61 @@ async def replay_history(tenant: str,device: str,user: User):
         await service.authorize(c,user,tenant,'sale')
         if not await c.fetchval('SELECT 1 FROM offline_devices WHERE tenant=$1 AND id=$2 AND user_id=$3',tenant,device,user['id']):
             fail('Device not found',404)
-        return {'items':service.rows(await c.fetch('SELECT operation_id,status,result,created FROM offline_operations WHERE tenant=$1 AND device=$2 ORDER BY created DESC LIMIT 100',tenant,device))}
+        return {'items':service.rows(await c.fetch('''SELECT o.operation_id,o.status,o.result,o.created,
+            r.resolution,r.replacement_sale,r.notes AS resolution_notes,r.resolved_at
+            FROM offline_operations o LEFT JOIN offline_operation_resolutions r
+             ON r.tenant=o.tenant AND r.device=o.device AND r.operation_id=o.operation_id
+            WHERE o.tenant=$1 AND o.device=$2 ORDER BY o.created DESC LIMIT 100''',tenant,device))}
+
+@router.post('/offline/devices/{device}/operations/{operation_id}/resolve')
+async def resolve_offline(tenant: str, device: str, operation_id: str,
+                          payload: OfflineResolution, request: Request, user: User):
+    # Resolve a rejected replay without rewriting evidence or submitting a new sale.
+    security.csrf(request)
+    async with db.pool.acquire() as c:
+        async with c.transaction():
+            await authorized_device(c,user,tenant,device)
+            item = await c.fetchrow('''SELECT status FROM offline_operations
+                WHERE tenant=$1 AND device=$2 AND operation_id=$3 FOR UPDATE''',
+                tenant,device,operation_id)
+            if not item or item['status']!='rejected':
+                fail('Only rejected operations can be resolved.',409)
+            old = await c.fetchrow('''SELECT resolution,replacement_sale,notes
+                FROM offline_operation_resolutions
+                WHERE tenant=$1 AND device=$2 AND operation_id=$3''',tenant,device,operation_id)
+            if old:
+                if (old['resolution'],old['replacement_sale'],old['notes']) != (payload.resolution,payload.replacement_sale,payload.notes):
+                    fail('This offline conflict already has a different resolution.',409)
+                return {'operation_id':operation_id,'resolution':old['resolution'],'duplicate':True}
+            if payload.replacement_sale:
+                sale = await c.fetchrow('''SELECT status FROM sales
+                    WHERE tenant=$1 AND id=$2''',tenant,payload.replacement_sale)
+                if not sale or sale['status']!='completed':
+                    fail('Replacement must reference a completed POS sale in this business.',409)
+            await c.execute('''INSERT INTO offline_operation_resolutions
+                (tenant,device,operation_id,resolution,replacement_sale,notes,actor)
+                VALUES($1,$2,$3,$4,$5,$6,$7)''',tenant,device,operation_id,
+                payload.resolution,payload.replacement_sale,payload.notes,user['id'])
+            await service.audit(c,tenant,user,'Offline replay conflict resolved',
+                {'device':device,'operation':operation_id,'resolution':payload.resolution,
+                 'replacement_sale':payload.replacement_sale})
+    return {'operation_id':operation_id,'resolution':payload.resolution,'duplicate':False}
+
+
+@router.post('/offline/devices/{device}/deactivate')
+async def deactivate_device(tenant: str, device: str, request: Request, user: User):
+    security.csrf(request)
+    async with db.pool.acquire() as c:
+        async with c.transaction():
+            await service.authorize(c,user,tenant,'sale',lock=True)
+            updated=await c.fetchrow('''UPDATE offline_devices SET active=false
+                WHERE tenant=$1 AND id=$2 AND user_id=$3 AND active=true RETURNING id''',
+                tenant,device,user['id'])
+            if not updated:
+                fail('Active device not found for this user.',404)
+            await service.audit(c,tenant,user,'Offline device deactivated',{'device':device})
+    return {'ok':True}
+
 
 @router.post('/usage',status_code=201)
 async def record_usage(tenant: str,payload: Meter,request: Request,user: User):

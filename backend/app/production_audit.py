@@ -6,13 +6,14 @@ with read permissions and a configured DATABASE_URL. Does not prove fiscal compl
 import asyncio
 import hashlib
 import json
+import argparse
 from pathlib import Path
 import asyncpg
 from .production import production_errors
 from .config import DATABASE_URL
 
 
-async def audit():
+async def audit(strict: bool = False):
     report = {'status': 'pass', 'checks': [], 'warnings': []}
 
     def check(name, passed, details):
@@ -56,7 +57,11 @@ async def audit():
             ''')
             check('inventory_no_overallocation', row['over_allocated']==0 and row['negative_global']==0,
                   {'over_allocated':row['over_allocated'], 'negative_global':row['negative_global'], 'products_checked':row['products']})
-            report['warnings'].append(f"{row['not_reconciled']} products with location balances are not fully reconciled to global movements; location-level POS posting remains incomplete.")
+            if strict:
+                check('location_stock_reconciled', row['not_reconciled']==0,
+                      {'unreconciled_products':row['not_reconciled']})
+            else:
+                report['warnings'].append(f"{row['not_reconciled']} products with location balances are not fully reconciled to global movements; location-level posting may need review.")
             journals = await connection.fetchval('''
                 SELECT COUNT(*) FROM (
                   SELECT j.id FROM gl_journals j LEFT JOIN gl_entries e
@@ -70,13 +75,25 @@ async def audit():
                 (SELECT 1 FROM gl_journals j WHERE j.tenant=s.tenant AND j.request='sale:'||s.id)""")
             receipt_gap=await connection.fetchval("""SELECT count(*) FROM purchase_receipts r WHERE NOT EXISTS
                 (SELECT 1 FROM gl_journals j WHERE j.tenant=r.tenant AND j.request='receipt:'||r.id)""")
-            report['warnings'].append(f'{sale_gap} completed historical sales and {receipt_gap} historical receipts lack automated GL entries. Accountant-approved backfill is required.')
-            conflicts=await connection.fetchval("SELECT count(*) FROM offline_operations WHERE status='rejected'")
-            report['warnings'].append(f'{conflicts} offline replay conflicts require terminal-level resolution.')
+            if strict:
+                check('historic_gl_coverage', sale_gap==0 and receipt_gap==0,
+                      {'sales_without_gl':sale_gap,'receipts_without_gl':receipt_gap})
+            else:
+                report['warnings'].append(f'{sale_gap} completed historical sales and {receipt_gap} historical receipts lack automated GL entries. Accountant-approved backfill is required.')
+            conflicts=await connection.fetchval("""SELECT count(*) FROM offline_operations o
+                WHERE o.status='rejected' AND NOT EXISTS
+                  (SELECT 1 FROM offline_operation_resolutions r WHERE r.tenant=o.tenant
+                   AND r.device=o.device AND r.operation_id=o.operation_id)""")
+            if strict:
+                check('offline_conflicts_resolved',conflicts==0,{'unresolved_conflicts':conflicts})
+            else:
+                report['warnings'].append(f'{conflicts} offline replay conflicts require terminal-level resolution.')
             pending_fbr=await connection.fetchval("SELECT count(*) FROM fbr_sandbox_validations WHERE status IN ('pending','uncertain')")
             report['warnings'].append(f'{pending_fbr} FBR sandbox validations are pending or inconclusive; none implies certification.')
             demo_count = await connection.fetchval("SELECT COUNT(*) FROM tenants WHERE name='StockDesk Demo Retail Group'")
-            if demo_count:
+            if strict:
+                check('no_demo_tenants',demo_count==0,{'demo_tenants':demo_count})
+            elif demo_count:
                 report['warnings'].append(f'{demo_count} demonstration tenant(s) found. Remove demo access before exposing production.')
             report['warnings'].extend([
                 'External payment settlements and FBR fiscal certification are not verified by this audit.',
@@ -88,8 +105,11 @@ async def audit():
 
 
 def main():
+    parser=argparse.ArgumentParser(description='StockDesk read-only deployment audit')
+    parser.add_argument('--strict',action='store_true',help='Fail on reconciliations and demo tenants, rather than only warning')
+    args=parser.parse_args()
     try:
-        result = asyncio.run(audit())
+        result = asyncio.run(audit(strict=args.strict))
     except Exception as error:
         result = {'status':'fail', 'checks':[{'check':'audit_execution','passed':False,'details':type(error).__name__ + ': ' + str(error)}]}
     print(json.dumps(result, indent=2, default=str))

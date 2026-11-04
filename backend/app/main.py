@@ -56,7 +56,7 @@ async def lifespan(app):
 
 app = FastAPI(
     title="StockDesk Inventory & POS",
-    version="1.42.0",
+    version="1.43.0",
     lifespan=lifespan,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
@@ -112,7 +112,8 @@ async def headers(request, call_next):
         request_id,
     )
     r.headers["X-Request-ID"] = request_id
-    r.headers["Cache-Control"] = "no-store"
+    if "Cache-Control" not in r.headers:
+        r.headers["Cache-Control"] = "no-store"
     r.headers["X-Content-Type-Options"] = "nosniff"
     r.headers["X-Frame-Options"] = "DENY"
     return r

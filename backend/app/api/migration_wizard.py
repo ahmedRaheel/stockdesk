@@ -1,7 +1,7 @@
 """Preview-first, single-transaction migration from arbitrary legacy retail CSV exports."""
 import hashlib
 import json
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Query
 from pydantic import Field, model_validator
 from .contracts import Contract, Identifier
 from .router import User, authenticated
@@ -38,6 +38,14 @@ def fingerprint(tenant, data):
 
 def parse_all(data):
     return {kind:parse_csv(getattr(data,kind+'_csv'),kind) for kind in ('products','customers','suppliers')}
+
+
+@router.get('/history')
+async def history(tenant: str, user: User, limit: int = Query(25, ge=1, le=100)):
+    async with db.pool.acquire() as c:
+        await service.authorize(c,user,tenant,'product')
+        return {'items':service.rows(await c.fetch('''SELECT request_id,summary,actor,created
+            FROM migration_batches WHERE tenant=$1 ORDER BY created DESC LIMIT $2''',tenant,limit))}
 
 
 @router.post('/preview')

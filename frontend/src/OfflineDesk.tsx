@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CloudUpload, HardDrive, RefreshCw, Trash2 } from 'lucide-react';
+import { AlertTriangle, CloudUpload, HardDrive, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
 import { api, send } from './api';
 import { newRequestId } from './requestId';
 
 // Drafts are scoped by tenant AND authenticated user. This is not offline authorization.
 type Device = { id: string; name: string; active: boolean };
+type ServerOperation = {
+  operation_id: string; status: 'accepted'|'rejected'; created: string;
+  result: { error?: string; invoice_number?: string; id?: string };
+  resolution?: 'replaced'|'dismissed'; replacement_sale?: string; resolution_notes?: string;
+};
 type Draft = { id: string; tenant: string; owner: string; device: string; created: string; sale: Record<string, unknown>; error?: string };
 const DB = 'stockdesk-local-drafts-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -32,6 +37,7 @@ export default function OfflineDesk({ tenant, owner }: { tenant: string; owner: 
   const [device, setDevice] = useState('');
   const [name, setName] = useState('Register terminal');
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [history, setHistory] = useState<ServerOperation[]>([]);
   const [json, setJson] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -47,6 +53,35 @@ export default function OfflineDesk({ tenant, owner }: { tenant: string; owner: 
     setDevices(result.items);
     setDevice(previous => result.items.some(d => d.id === previous && d.active) ? previous : result.items.find(d => d.active)?.id || '');
   }
+  async function loadHistory(terminal = device) {
+    if (!terminal || !navigator.onLine) return;
+    const result = await api<{items: ServerOperation[]}>(`${base}/offline/devices/${terminal}/operations`);
+    setHistory(result.items);
+  }
+  async function resolveConflict(operation: ServerOperation, resolution: 'replaced'|'dismissed') {
+    const notes = window.prompt(resolution==='replaced'
+      ? 'Explain the correction and the newly completed POS invoice:'
+      : 'Explain why this rejected draft should be dismissed:');
+    if (!notes || notes.trim().length<5) return;
+    const replacement_sale = resolution==='replaced' ? window.prompt('Completed replacement POS sale ID:') : null;
+    if (resolution==='replaced' && !replacement_sale?.trim()) return;
+    await perform(async () => {
+      await send(`${base}/offline/devices/${device}/operations/${operation.operation_id}/resolve`,
+        {resolution, notes:notes.trim(), replacement_sale:replacement_sale?.trim()||null});
+      const local = drafts.find(d=>d.id===operation.operation_id && d.device===device);
+      if (local) await transaction('readwrite', store=>store.delete(local.id));
+      await loadLocal(); await loadHistory();
+      setMessage('Conflict resolution saved in the server audit trail.');
+    });
+  }
+  async function deactivate() {
+    if (!device || !window.confirm('Deactivate this terminal? Any unsent local drafts will remain, but they cannot sync through this terminal.')) return;
+    await perform(async () => {
+      await send(`${base}/offline/devices/${device}/deactivate`, {});
+      await loadDevices(); setHistory([]);
+      setMessage('Terminal deactivated. Unsent drafts have not been discarded.');
+    });
+  }
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     window.addEventListener('online', update); window.addEventListener('offline', update);
@@ -54,6 +89,10 @@ export default function OfflineDesk({ tenant, owner }: { tenant: string; owner: 
     if (navigator.onLine) loadDevices().catch(e => setError(e.message));
     return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update); };
   }, [tenant, owner]);
+  useEffect(() => {
+    setHistory([]);
+    if (device && online) void loadHistory(device).catch(e => setError(e.message));
+  }, [device, online, tenant, owner]);
   async function perform(fn: () => Promise<void>) {
     setError(''); setMessage(''); setBusy(true);
     try { await fn(); } catch (e) { setError(e instanceof Error ? e.message : 'Operation failed'); } finally { setBusy(false); }
@@ -88,7 +127,7 @@ export default function OfflineDesk({ tenant, owner }: { tenant: string; owner: 
         if (result.status === 'rejected') throw Error(result.result?.error || 'Server rejected sale; review the draft and create a corrected operation.');
         if (result.status !== 'accepted') throw Error(`Unexpected replay status: ${result.status}`);
         await transaction('readwrite', store => store.delete(item.id));
-        await loadLocal(); setMessage('Sale accepted by server. Verify the issued receipt before completing handover.');
+        await loadLocal(); await loadHistory(item.device); setMessage('Sale accepted by server. Verify the issued receipt before completing handover.');
       } catch (e) {
         const updated = {...item, error: e instanceof Error ? e.message : 'Unknown conflict'};
         await transaction('readwrite', store => store.put(updated)); await loadLocal();
@@ -116,7 +155,7 @@ export default function OfflineDesk({ tenant, owner }: { tenant: string; owner: 
           }
         }
       }
-      await loadLocal();setMessage(`${accepted} accepted, ${rejected} require review. Receipts must be verified on the server.`);
+      await loadLocal(); await loadHistory(); setMessage(`${accepted} accepted, ${rejected} require review. Receipts must be verified on the server.`);
     });
   }
   return <div className="offline-desk container-fluid px-0">
@@ -125,6 +164,7 @@ export default function OfflineDesk({ tenant, owner }: { tenant: string; owner: 
       <div className="col-12 col-xl-5"><section className="panel h-100"><div className="d-flex align-items-center justify-content-between mb-3"><h2><HardDrive size={18}/> Terminal registration</h2><span className={`badge ${online?'text-bg-success':'text-bg-secondary'}`}>{online?'Network available':'Offline'}</span></div>
         <p>Devices belong to the signed-in cashier and selected business.</p><label className="field">Registered terminal<select value={device} onChange={e=>setDevice(e.target.value)}><option value="">Choose terminal</option>{devices.filter(d=>d.active).map(d=><option value={d.id} key={d.id}>{d.name}</option>)}</select></label>
         <div className="d-flex gap-2 mt-3"><input aria-label="Terminal name" maxLength={100} value={name} onChange={e=>setName(e.target.value)}/><button className="primary" disabled={busy||!online||!name.trim()} onClick={register}>Register</button><button className="secondary" disabled={busy||!online} onClick={()=>perform(loadDevices)} aria-label="Refresh devices"><RefreshCw size={16}/></button></div>
+        <div className="d-flex gap-2 mt-3"><button className="secondary" disabled={busy||!online||!device} onClick={()=>perform(()=>loadHistory())}><RefreshCw size={14}/> Refresh history</button><button className="secondary" disabled={busy||!online||!device} onClick={()=>void deactivate()}>Deactivate terminal</button></div>
       </section></div>
       <div className="col-12 col-xl-7"><section className="panel h-100"><h2>Local checkout draft</h2><p>For technical recovery and supervised testing, paste a checkout request JSON object generated by your POS workflow. The server validates it during replay.</p>
         <label className="field">Checkout JSON<textarea rows={6} className="form-control font-monospace" placeholder='{"items":[{"id":"product-id","quantity":1}],"expected":1000,"payment":"cash","tendered":1000}' value={json} onChange={e=>setJson(e.target.value)}/></label>
@@ -132,6 +172,23 @@ export default function OfflineDesk({ tenant, owner }: { tenant: string; owner: 
     </div>
     <section className="panel mt-4"><div className="d-flex align-items-center justify-content-between flex-wrap gap-2"><h2>Pending local drafts <span className="badge text-bg-light">{drafts.length}</span></h2><div className="d-flex gap-2"><button className="primary" onClick={syncAll} disabled={busy||!online||!drafts.length}><CloudUpload size={16}/> Sync pending</button><button className="secondary" onClick={()=>perform(loadLocal)} disabled={busy}><RefreshCw size={16}/> Refresh</button></div></div>
       {drafts.length===0?<p className="py-3 mb-0">No locally saved drafts for this account and business.</p>:<div className="table-responsive"><table className="table align-middle"><thead><tr><th>Created</th><th>Items</th><th>Expected total</th><th>State</th><th>Actions</th></tr></thead><tbody>{drafts.map(item=><tr key={item.id}><td>{new Date(item.created).toLocaleString()}</td><td>{Array.isArray(item.sale.items)?item.sale.items.length:'—'}</td><td>{String(item.sale.expected)}</td><td>{item.error?<span className="text-danger">Conflict: {item.error}</span>:'Awaiting confirmation'}</td><td><div className="d-flex gap-2"><button className="primary" disabled={busy||!online} onClick={()=>replay(item)}><CloudUpload size={16}/> Verify & submit</button><button className="secondary" disabled={busy} onClick={()=>remove(item)} aria-label="Discard draft"><Trash2 size={16}/></button></div></td></tr>)}</tbody></table></div>}
+    </section>
+    <section className="panel mt-4">
+      <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+        <h2><ShieldCheck size={19}/> Server replay & conflict history</h2>
+        <span className="badge text-bg-light">{history.length} recent operations</span>
+      </div>
+      <p>Accepted sales are permanent server records. A rejected draft stays in the audit history even after the cashier dismisses it or links a separately completed replacement sale.</p>
+      {!device ? <p className="text-muted">Choose an active terminal to review its server history.</p> : !online ? <p className="text-muted">Connect to review server operations.</p> : history.length===0 ? <p className="text-muted">No server operations for this terminal.</p> :
+        <div className="table-responsive"><table className="table align-middle">
+          <thead><tr><th>Submitted</th><th>Operation</th><th>Server result</th><th>Resolution</th></tr></thead>
+          <tbody>{history.map(operation => <tr key={operation.operation_id}>
+            <td>{new Date(operation.created).toLocaleString()}</td>
+            <td><code title={operation.operation_id}>{operation.operation_id.slice(0,14)}…</code></td>
+            <td>{operation.status==='accepted' ? <span className="badge text-bg-success">Accepted</span> : <><span className="badge text-bg-warning">Rejected</span><small className="d-block mt-1 text-muted">{operation.result?.error || 'Business rule conflict'}</small></>}</td>
+            <td>{operation.resolution ? <><span className="badge text-bg-secondary">{operation.resolution}</span>{operation.replacement_sale && <small className="d-block">Sale {operation.replacement_sale}</small>}</> : operation.status==='rejected' ? <div className="d-flex gap-2 flex-wrap"><button className="secondary" disabled={busy} onClick={()=>void resolveConflict(operation,'replaced')}>Link replacement</button><button className="secondary" disabled={busy} onClick={()=>void resolveConflict(operation,'dismissed')}>Dismiss with reason</button></div> : <span className="text-muted">—</span>}</td>
+          </tr>)}</tbody>
+        </table></div>}
     </section>{error&&<div className="alert alert-danger" role="alert">{error}</div>}{message&&<div className="alert alert-success" role="status">{message}</div>}
   </div>;
 }
