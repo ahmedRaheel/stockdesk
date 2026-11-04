@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Boxes, ShieldCheck, ArrowRight, Loader2 } from "lucide-react";
 import Workspace from "./Workspace";
+import PublicStorefront from "./PublicStorefront";
 import PublicFeedback from "./PublicFeedback";
 import ErrorBoundary from "./ErrorBoundary";
 import "./styles.css";
@@ -149,6 +150,6 @@ function App() {
 }
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
-    {window.location.pathname === "/feedback" ? <PublicFeedback /> : <App />}
+    {window.location.pathname === "/feedback" ? <PublicFeedback /> : window.location.pathname.startsWith("/shop/") ? <PublicStorefront /> : <App />}
   </ErrorBoundary>,
 );

@@ -1,3 +1,7 @@
+import GrowthCenter from "./GrowthCenter";
+import StorefrontManager from "./StorefrontManager";
+import MigrationCenter from "./MigrationCenter";
+import "./growth-suite.css";
 import OperationsDesk from "./OperationsDesk";
 import OfflineDesk from "./OfflineDesk";
 import AccountSecurity from "./AccountSecurity";
@@ -12,6 +16,9 @@ import { useLanguage } from "./i18n";
 ("use client");
 import { useEffect, useState, useRef } from "react";
 import {
+  BrainCircuit,
+  Globe2,
+  FileSpreadsheet,
   LayoutDashboard,
   Package,
   ShoppingCart,
@@ -66,6 +73,9 @@ import LookupSelect from "./LookupSelect";
 import CustomerSelect from "./CustomerSelect";
 import { api, send } from "./api";
 const titles: any = {
+  growth: ["Growth & Profit Center", "Actionable insights, reorder signals and profit leakage review."],
+  storefront: ["Online storefront", "Branded online catalog and pickup order management."],
+  migration: ["Smart import & migration", "Import products, opening stock, customers and suppliers from your previous POS."],
   catalogtools: [
     "Variants, recipes and packs",
     "Manage SKU families and stock conversions.",
@@ -149,6 +159,9 @@ const titles: any = {
   ],
 };
 const icons: any = {
+  growth: BrainCircuit,
+  storefront: Globe2,
+  migration: FileSpreadsheet,
   catalogtools: Package,
   approvals: ShieldCheck,
   memberships: Users,
@@ -856,6 +869,8 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
   }
   const nav = [
     "dashboard",
+    ...(can("cost") ? ["growth"] : []),
+    ...(can("product") ? ["storefront", "migration"] : []),
     ...(can("forecast") ? ["forecasts"] : []),
     "products",
     ...(can("sale") ? ["pos", "sales", "tills", "approvals", "offline"] : []),
@@ -1399,6 +1414,9 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
                   </section>
                 </>
               )}
+              {view === "growth" && can("cost") && tenant && <GrowthCenter key={tenant} tenant={tenant} currency={currency} />}
+              {view === "storefront" && can("product") && tenant && <StorefrontManager key={tenant} tenant={tenant} currency={currency} />}
+              {view === "migration" && can("product") && tenant && <MigrationCenter key={tenant} tenant={tenant} onImported={() => { void load(); }} />}
               {view === "offline" && can("sale") && tenant && <OfflineDesk key={tenant + (data.user?.id || "")} tenant={tenant} owner={String(data.user?.id || data.user?.email || "")} />}
               {view === "warehouses" && can("stock") && <OperationsDesk key={tenant} tenant={tenant} products={data.products} />}
               {view === "purchasing" && can("stock") && (

@@ -15,13 +15,34 @@ from reportlab.graphics.barcode import code128
 from reportlab.pdfgen import canvas
 
 FONT_DIR = Path(__file__).parent / "fonts"
-pdfmetrics.registerFont(TTFont("StockDesk", str(FONT_DIR / "DejaVuSans.ttf")))
-pdfmetrics.registerFont(TTFont("StockDeskBold", str(FONT_DIR / "DejaVuSans-Bold.ttf")))
 
-pdfmetrics.registerFont(TTFont("StockDeskUrdu", str(FONT_DIR / "NotoNaskhArabic.ttf")))
-pdfmetrics.registerFont(
-    TTFont("StockDeskUrduBold", str(FONT_DIR / "NotoNaskhArabicBold.ttf"))
-)
+
+def _register_optional_font(name, paths, fallback):
+    # Do not distribute binary font assets with source. Docker installs distro fonts.
+    for candidate in paths:
+        path = Path(candidate)
+        if path.is_file():
+            pdfmetrics.registerFont(TTFont(name, str(path)))
+            return name
+    return fallback
+
+
+FONT_REGULAR = _register_optional_font("StockDesk", [
+    FONT_DIR / "DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+], "Helvetica")
+FONT_BOLD = _register_optional_font("StockDeskBold", [
+    FONT_DIR / "DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+], "Helvetica-Bold")
+FONT_URDU = _register_optional_font("StockDeskUrdu", [
+    FONT_DIR / "NotoNaskhArabic.ttf",
+    "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf",
+], FONT_REGULAR)
+FONT_URDU_BOLD = _register_optional_font("StockDeskUrduBold", [
+    FONT_DIR / "NotoNaskhArabicBold.ttf",
+    "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf",
+], FONT_BOLD)
 
 
 def invoice_pdf(sale, items, language="en", tenders=None):
@@ -116,9 +137,9 @@ def invoice_pdf(sale, items, language="en", tenders=None):
     styles = getSampleStyleSheet()
     for name in styles.byName:
         styles[name].fontName = (
-            "StockDeskBold"
+            FONT_BOLD
             if name in ["Title", "Heading1", "Heading2", "Heading3"]
-            else "StockDesk"
+            else FONT_REGULAR
         )
     if language == "ur":
         for style in styles.byName.values():
@@ -132,11 +153,11 @@ def invoice_pdf(sale, items, language="en", tenders=None):
         value = str(value)
         if re.search("[\u0600-\u06ff]", value):
             font = (
-                "StockDeskUrduBold"
+                FONT_URDU_BOLD
                 if style in ["Title", "Heading1", "Heading2", "Heading3"]
-                else "StockDeskUrdu"
+                else FONT_URDU
             )
-            # Render Arabic runs using the bundled font; retain Latin/numbers with DejaVu.
+            # Use the configured system Arabic font for the Arabic runs.
             shaped = shape(value)
             chunks = re.split("([\u0600-\u06ff\ufb50-\ufdff\ufe70-\ufeff]+)", shaped)
             html = "".join(
@@ -233,7 +254,7 @@ def invoice_pdf(sale, items, language="en", tenders=None):
     table.setStyle(
         TableStyle(
             [
-                ("FONTNAME", (0, 0), (-1, -1), "StockDesk"),
+                ("FONTNAME", (0, 0), (-1, -1), FONT_REGULAR),
                 ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eaf2ed")),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("LINEBELOW", (0, 0), (-1, 0), 0.6, colors.HexColor("#9bb9a7")),
@@ -434,7 +455,7 @@ def invoice_pdf(sale, items, language="en", tenders=None):
 
     def footer(c, d):
         c.saveState()
-        c.setFont("StockDesk", 8)
+        c.setFont(FONT_REGULAR, 8)
         c.setFillColor(colors.grey)
         c.drawString(40, 25, sale["invoice_number"])
         c.drawRightString(A4[0] - 40, 25, f"Page {d.page}")
@@ -448,10 +469,10 @@ def barcode_pdf(product):
     value = product["barcode"] or product["sku"]
     buf = BytesIO()
     c = canvas.Canvas(buf, pagesize=(300, 140))
-    c.setFont("StockDeskBold", 10)
+    c.setFont(FONT_BOLD, 10)
     c.drawCentredString(150, 120, product["name"][:45])
     b = code128.Code128(
-        value, barHeight=48, barWidth=0.8, humanReadable=True, fontName="StockDesk"
+        value, barHeight=48, barWidth=0.8, humanReadable=True, fontName=FONT_REGULAR
     )
     scale = min(1, 270 / b.width)
     c.saveState()
@@ -459,7 +480,7 @@ def barcode_pdf(product):
     c.scale(scale, 1)
     b.drawOn(c, 0, 0)
     c.restoreState()
-    c.setFont("StockDesk", 8)
+    c.setFont(FONT_REGULAR, 8)
     c.drawCentredString(150, 18, product["sku"])
     c.save()
     return buf.getvalue()
@@ -483,7 +504,7 @@ def customer_statement_pdf(data, business, language="en"):
     output = BytesIO()
     styles = getSampleStyleSheet()
     for style in styles.byName.values():
-        style.fontName = "StockDesk"
+        style.fontName = FONT_REGULAR
     import re
     from arabic_reshaper import reshape
     from bidi.algorithm import get_display
@@ -526,7 +547,7 @@ def customer_statement_pdf(data, business, language="en"):
             chunks = re.split("([\u0600-\u06ff\ufb50-\ufdff\ufe70-\ufeff]+)", shaped)
             value = "".join(
                 (
-                    '<font name="StockDeskUrdu">' + escape(x) + "</font>"
+                    '<font name="' + FONT_URDU + '">' + escape(x) + "</font>"
                     if re.search("[\u0600-\u06ff\ufb50-\ufdff\ufe70-\ufeff]", x)
                     else escape(x)
                 )

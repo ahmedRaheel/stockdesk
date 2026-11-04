@@ -49,6 +49,19 @@ PRODUCTS = [
 CUSTOMERS = [('Walk-in customer',''),('Farah Ahmed','03001230001'),('Omar Raza','03001230002'),('Hina Malik','03001230003'),('Zainab Sheikh','03001230004')]
 SUPPLIERS = [('Karachi Wholesale Foods','021-111-222333',3),('Metro FMCG Distributors','021-111-222444',5),('Fresh Supply Traders','021-111-222555',2)]
 
+async def seed_commerce(conn):
+    """Add public storefront demo data without overwriting a merchant's later edits."""
+    await conn.execute('''INSERT INTO storefronts(tenant,slug,title,description,published)
+        VALUES($1,$2,$3,$4,true) ON CONFLICT(tenant) DO NOTHING''',
+        TENANT,'stockdesk-demo-market','StockDesk Demo Market',
+        'Explore a sample neighborhood retail catalog. All orders are demonstrations, not real purchases.')
+    # This sample tenant is isolated and explicitly opt-in.
+    for sku,*_ in PRODUCTS[:12]:
+        await conn.execute('''INSERT INTO storefront_listings(tenant,product,published,featured)
+          VALUES($1,$2,true,$3) ON CONFLICT(tenant,product) DO NOTHING''',
+          TENANT,uid('product:'+sku),sku in ('GROC-001','GROC-003','GROC-005'))
+
+
 async def seed():
     if os.environ.get('APP_ENV', 'development').strip().lower() == 'production':
         raise SystemExit('Demo seeding is disabled when APP_ENV=production.')
@@ -67,7 +80,8 @@ async def seed():
             # Guard against concurrent seed runs, and preserve existing demo account state.
             await conn.execute('SELECT pg_advisory_xact_lock($1)', 1390139)
             if await conn.fetchval('SELECT 1 FROM tenants WHERE id=$1', TENANT):
-                print('Demo tenant already exists: nothing modified (idempotent).')
+                await seed_commerce(conn)
+                print('Demo tenant already exists: storefront demo data verified without modifying other records.')
                 return
             await conn.execute('INSERT INTO tenants(id,name,currency,address,tax_number) VALUES($1,$2,$3,$4,$5)',TENANT,'StockDesk Demo Retail Group','PKR','Karachi, Pakistan','DEMO-NOT-TAX-REGISTERED')
             for key, name, role in STAFF:
@@ -132,6 +146,7 @@ async def seed():
                     if updated!='UPDATE 1':
                         raise RuntimeError('Demo stock allocation cannot cover sample sales')
             await conn.execute('UPDATE tenants SET invoice_seq=$2 WHERE id=$1',TENANT,36)
+            await seed_commerce(conn)
             await conn.execute('INSERT INTO audit(id,tenant,actor,action,details) VALUES($1,$2,$3,$4,$5)',uid('seed-audit'),TENANT,owner,'demo_seed','StockDesk demo tenant generated with synthetic data; not actual financial or fiscal activity')
         print('Created isolated demo tenant: StockDesk Demo Retail Group')
         print('Login emails: ' + ', '.join(f'demo.{key}@stockdesk.example ({role})' for key,_,role in STAFF))

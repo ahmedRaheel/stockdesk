@@ -56,7 +56,7 @@ async def lifespan(app):
 
 app = FastAPI(
     title="StockDesk Inventory & POS",
-    version="1.41.0",
+    version="1.42.0",
     lifespan=lifespan,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
@@ -463,3 +463,14 @@ app.include_router(mfa_router)
 
 from .api.fbr_sandbox import router as fbr_sandbox_router
 app.include_router(fbr_sandbox_router)
+
+# Release 1.42: growth, public storefront, legacy migration, optional vision drafts.
+from .api.growth import router as growth_router
+from .api.storefront import router as storefront_router, public_router as public_storefront_router
+from .api.migration_wizard import router as migration_router
+from .api.smart_capture import router as smart_capture_router
+app.include_router(growth_router)
+app.include_router(storefront_router)
+app.include_router(public_storefront_router)
+app.include_router(migration_router)
+app.include_router(smart_capture_router)
